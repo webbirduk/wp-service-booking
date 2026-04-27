@@ -1,0 +1,442 @@
+/* WSB Admin Styles - Dark Mode Pro Theme */
+:root {
+    --wsb-bg-dark: #0f172a;
+    --wsb-panel-dark: #1e293b;
+    --wsb-border: #334155;
+    --wsb-text-main: #f8fafc;
+    --wsb-text-muted: #94a3b8;
+    --wsb-primary: #3b82f6;
+    --wsb-primary-hover: #2563eb;
+    --wsb-success: #10b981;
+    --wsb-warning: #f59e0b;
+    --wsb-danger: #ef4444;
+}
+
+#wpbody-content .wsb-admin-wrap {
+    background-color: var(--wsb-bg-dark);
+    color: var(--wsb-text-main);
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.wsb-admin-wrap h1, .wsb-admin-wrap h2 {
+    color: var(--wsb-text-main) !important;
+    font-weight: 600;
+}
+
+/* Dashboard Cards */
+.wsb-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.wsb-stat-card {
+    background: var(--wsb-panel-dark);
+    border: 1px solid var(--wsb-border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wsb-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.wsb-stat-card h3 {
+    margin: 0 0 10px 0;
+    color: var(--wsb-text-muted);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.wsb-stat-card .wsb-stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--wsb-primary);
+    margin: 0;
+}
+
+/* Tables */
+.wsb-admin-wrap .wsb-modern-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 20px;
+    background: var(--wsb-panel-dark);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--wsb-border);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.wsb-admin-wrap .wsb-modern-table th {
+    background: rgba(15, 23, 42, 0.4) !important;
+    color: var(--wsb-text-main);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 18px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--wsb-border);
+}
+
+.wsb-admin-wrap .wsb-modern-table td {
+    padding: 16px 20px;
+    color: var(--wsb-text-main);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    vertical-align: middle;
+}
+
+.wsb-admin-wrap .wsb-modern-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.wsb-admin-wrap .wsb-modern-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.wsb-clickable-row {
+    cursor: pointer;
+}
+
+.wsb-clickable-row:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.wsb-customer-info {
+    display: flex;
+    flex-direction: column;
+}
+.wsb-customer-name {
+    font-weight: 600;
+    color: var(--wsb-text-main);
+}
+.wsb-customer-meta {
+    font-size: 13px;
+    color: var(--wsb-text-muted);
+}
+
+/* Buttons */
+.wsb-btn-primary {
+    background: var(--wsb-primary);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+.wsb-btn-primary:hover {
+    background: var(--wsb-primary-hover);
+    color: white;
+}
+
+/* Status Badges */
+.wsb-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.wsb-status-confirmed, .wsb-status-completed { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.wsb-status-pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.wsb-status-cancelled { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+/* Forms */
+.wsb-admin-wrap input[type="text"],
+.wsb-admin-wrap input[type="email"],
+.wsb-admin-wrap input[type="number"],
+.wsb-admin-wrap textarea {
+    background: #0f172a;
+    border: 1px solid var(--wsb-border);
+    color: white;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+.wsb-admin-wrap input:focus,
+.wsb-admin-wrap textarea:focus {
+    border-color: var(--wsb-primary);
+    box-shadow: 0 0 0 1px var(--wsb-primary);
+    outline: none;
+}
+
+/* View Toggle Segmented Control */
+.wsb-view-toggle {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 8px;
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--wsb-border);
+}
+
+.wsb-view-toggle a {
+    padding: 6px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--wsb-text-muted);
+    font-weight: 500;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.wsb-view-toggle a .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.wsb-view-toggle a:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.wsb-view-toggle a.active {
+    background: var(--wsb-primary);
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+.wsb-row-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Row Action Buttons - Premium Design */
+.wsb-row-action {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--wsb-text-muted) !important;
+}
+
+.wsb-row-action svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke-width: 2.2;
+    stroke: currentColor;
+    fill: none;
+    display: block;
+    flex-shrink: 0;
+}
+
+.wsb-row-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.wsb-action-approve:hover {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--wsb-success) !important;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.wsb-action-reject:hover, .wsb-action-delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--wsb-danger) !important;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.wsb-action-edit:hover {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--wsb-primary) !important;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Page Header */
+.wsb-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.wsb-btn-secondary {
+    background: transparent;
+    color: var(--wsb-text-main);
+    border: 1px solid var(--wsb-border);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.wsb-btn-secondary:hover:not(:disabled) {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--wsb-text-muted);
+}
+.wsb-btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Action Container */
+.wsb-action-container {
+    margin-bottom: 25px;
+}
+
+.wsb-search-full {
+    position: relative;
+    margin-bottom: 15px;
+}
+.wsb-search-full .dashicons {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--wsb-text-muted);
+    font-size: 20px;
+}
+.wsb-search-full input {
+    width: 100% !important;
+    padding: 12px 20px 12px 45px !important;
+    background: rgba(0,0,0,0.2) !important;
+    border: 1px solid var(--wsb-border) !important;
+    border-radius: 12px !important;
+    color: #fff !important;
+    font-size: 15px !important;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.wsb-search-full input:focus {
+    border-color: var(--wsb-primary) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.wsb-sub-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.02);
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: 1px solid var(--wsb-border);
+}
+
+.wsb-bulk-wrap {
+    display: flex;
+    align-items: center;
+}
+.wsb-bulk-wrap select {
+    background: #0f172a !important;
+    border: 1px solid var(--wsb-border) !important;
+    color: #fff !important;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    min-width: 180px;
+}
+.wsb-btn-apply {
+    background: var(--wsb-border);
+    color: #fff;
+    border: none;
+    padding: 7px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    margin-left: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.wsb-btn-apply:hover {
+    background: var(--wsb-text-muted);
+}
+
+/* View Toggle (Refined) */
+.wsb-view-toggle {
+    background: rgba(0,0,0,0.2);
+    padding: 4px;
+    border-radius: 8px;
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--wsb-border);
+}
+
+/* Filter Tabs */
+.wsb-filter-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--wsb-border);
+    padding-bottom: 0;
+}
+
+.wsb-filter-tab {
+    padding: 10px 15px;
+    text-decoration: none;
+    color: var(--wsb-text-muted);
+    font-weight: 600;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wsb-filter-tab:hover {
+    color: white;
+}
+
+.wsb-filter-tab.active {
+    color: var(--wsb-primary);
+    border-bottom-color: var(--wsb-primary);
+}
+
+.wsb-count {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+}
+
+/* Checkbox Style */
+.wsb-modern-table input[type="checkbox"] {
+    appearance: none;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--wsb-border);
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+}
+.wsb-modern-table input[type="checkbox"]:checked {
+    background: var(--wsb-primary);
+    border-color: var(--wsb-primary);
+}
+.wsb-modern-table input[type="checkbox"]:checked::after {
+    content: '✓';
+    color: white;
+    font-size: 10px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}

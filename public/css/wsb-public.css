@@ -1,0 +1,115 @@
+/* 
+ * Signature Elite & Multiverse Booking UI 
+ * 18 Professional Designs with Full Profile & Form Systems
+ */
+:root {
+    --wsb-brand: #6366f1;
+    --wsb-brand-alt: #4f46e5;
+    --wsb-bg: #ffffff;
+    --wsb-panel: #fcfcfd;
+    --wsb-panel-dark: #0f172a;
+    --wsb-text-main: #0f172a;
+    --wsb-text-muted: #64748b;
+    --wsb-border: #e2e8f0;
+    --wsb-ring: rgba(99, 102, 241, 0.15);
+    --wsb-radius: 20px;
+    --wsb-shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.05);
+    --wsb-shadow-md: 0 10px 15px -3px rgba(0,0,0,0.05);
+    --wsb-shadow-lg: 0 25px 50px -12px rgba(0,0,0,0.05);
+}
+
+#wsb-booking-wizard-container {
+    max-width: 900px;
+    margin: 40px auto;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--wsb-text-main);
+    background: var(--wsb-bg);
+    border: 1px solid var(--wsb-border);
+    border-radius: var(--wsb-radius);
+    padding: 48px;
+    box-shadow: var(--wsb-shadow-lg);
+}
+
+#wsb-booking-wizard-container h3 { margin: 0 0 32px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
+
+/* --- Category Discover Bar --- */
+.wsb-category-filter { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 35px; border-bottom: 1px solid var(--wsb-border); padding-bottom: 25px; }
+.wsb-filter-btn { padding: 12px 24px; border-radius: 30px; border: 1px solid var(--wsb-border); background: white; font-weight: 600; cursor: pointer; transition: 0.3s; color: var(--wsb-text-muted); }
+.wsb-filter-btn.active { background: var(--wsb-gradient); color: white; border-color: var(--wsb-brand); box-shadow: 0 8px 20px var(--wsb-ring); }
+
+/* --- Service Design Engine (18 Layouts) --- */
+.wsb-services-container { display: grid; gap: 24px; }
+.wsb-card-option { background: var(--wsb-panel); border: 1px solid var(--wsb-border); border-radius: var(--wsb-radius); cursor: pointer; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
+.wsb-card-option:hover { transform: translateY(-8px); border-color: var(--wsb-brand); box-shadow: var(--wsb-shadow-md); }
+.wsb-card-option.selected { border-color: var(--wsb-brand); background: #fff; box-shadow: 0 0 0 4px var(--wsb-ring); }
+.wsb-category-badge { position: absolute; top: 15px; left: 15px; background: var(--wsb-brand); color: white; padding: 5px 12px; border-radius: 30px; font-size: 10px; font-weight: 800; text-transform: uppercase; z-index: 5; }
+.wsb-service-image { width: 100%; height: 180px; background-size: cover; background-position: center; border-bottom: 1px solid var(--wsb-border); }
+.wsb-service-content { padding: 28px; }
+.wsb-service-content h4 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+.wsb-price-tag { color: var(--wsb-brand); font-weight: 800; font-size: 18px; }
+
+/* Design Variant Overrides */
+.wsb-layout-modern_grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.wsb-layout-elegant_wide .wsb-card-option { display: grid; grid-template-columns: 320px 1fr; }
+.wsb-layout-elegant_wide .wsb-service-image { height: 100%; border-bottom: none; border-right: 1px solid var(--wsb-border); }
+.wsb-layout-metro_grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+.wsb-layout-metro_grid .wsb-service-image { position: absolute; inset: 0; height: 100%; z-index: 1; filter: brightness(0.65); }
+.wsb-layout-metro_grid .wsb-service-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; color: white; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
+.wsb-layout-metro_grid h4, .wsb-layout-metro_grid .wsb-text-muted { color: white; }
+
+/* --- Staff Profiles --- */
+.wsb-staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.wsb-staff-card { background: white; border: 1px solid var(--wsb-border); border-radius: 20px; padding: 25px; display: flex; align-items: center; gap: 20px; cursor: pointer; transition: 0.3s; position: relative; }
+.wsb-staff-card:hover { transform: translateX(10px); border-color: var(--wsb-brand); box-shadow: var(--wsb-shadow-md); }
+.wsb-staff-card.selected { border-color: var(--wsb-brand); background: #fbfbff; box-shadow: 0 0 0 4px var(--wsb-ring); }
+.wsb-staff-avatar { width: 75px; height: 75px; border-radius: 50%; background: #f8fafc; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 26px; border: 4px solid #fff; box-shadow: 0 0 0 1px var(--wsb-border); flex-shrink: 0; }
+.wsb-any-avatar { background: var(--wsb-gradient); color: white; }
+.wsb-staff-info h4 { margin: 0; font-size: 19px; font-weight: 700; color: var(--wsb-text-main); }
+.wsb-staff-title { color: var(--wsb-text-muted); font-size: 14px; margin: 4px 0 8px; font-weight: 500; }
+.wsb-staff-rating { color: #f59e0b; font-size: 12px; letter-spacing: 2px; }
+.wsb-selection-indicator { position: absolute; right: 25px; top: 50%; transform: translateY(-50%) scale(0); width: 26px; height: 26px; background: var(--wsb-gradient); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.wsb-selection-indicator::after { content: '✓'; color: white; font-size: 12px; font-weight: 900; }
+.wsb-staff-card.selected .wsb-selection-indicator { transform: translateY(-50%) scale(1); }
+
+/* --- Form System --- */
+.wsb-form-container { display: flex; flex-direction: column; gap: 24px; margin-bottom: 40px; }
+.wsb-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.wsb-field-wrap { display: flex; flex-direction: column; gap: 10px; }
+.wsb-field-wrap label { font-size: 15px; font-weight: 700; color: var(--wsb-text-main); padding-left: 5px; }
+
+#wsb-booking-wizard-container input:not([type="radio"]):not([type="checkbox"]),
+#wsb-booking-wizard-container textarea,
+#wsb-booking-wizard-container select {
+    width: 100%; padding: 15px 20px; border: 1.5px solid var(--wsb-border); border-radius: 14px; font-size: 16px; transition: 0.3s; color: var(--wsb-text-main); background: #fff;
+}
+#wsb-booking-wizard-container input:focus { border-color: var(--wsb-brand); outline: none; box-shadow: 0 0 0 5px var(--wsb-ring); background: #fbfbff; }
+#wsb-booking-wizard-container textarea { min-height: 120px; resize: vertical; }
+
+/* --- Interactive Elements --- */
+.wsb-time-slots { display: flex; flex-wrap: wrap; gap: 12px; margin: 30px 0; }
+.wsb-slot-btn { padding: 14px 24px; border-radius: 12px; border: 1.5px solid var(--wsb-border); background: #fff; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.wsb-slot-btn.selected { background: var(--wsb-gradient); color: white; border-color: var(--wsb-brand); box-shadow: 0 8px 15px var(--wsb-ring); }
+
+.wsb-summary-card { background: var(--wsb-panel); padding: 40px; border-radius: 20px; border: 1px solid var(--wsb-border); margin-bottom: 35px; box-shadow: var(--wsb-shadow-sm); }
+.wsb-payment-method { display: block; margin-top: 15px; padding: 20px 25px; border: 1.5px solid var(--wsb-border); border-radius: 14px; background: #fff; cursor: pointer; transition: 0.2s; }
+.wsb-payment-method:hover { border-color: var(--wsb-brand); background: #fbfbff; }
+.wsb-payment-method input:checked + span { color: var(--wsb-brand); font-weight: 800; }
+
+.wsb-actions { display: flex; justify-content: space-between; margin-top: 45px; padding-top: 35px; border-top: 1.5px solid var(--wsb-border); }
+.wsb-btn { padding: 16px 32px; border-radius: 14px; font-weight: 800; cursor: pointer; border: none; font-size: 16px; transition: 0.3s; }
+.wsb-next-btn { background: var(--wsb-gradient); color: white; box-shadow: 0 10px 20px var(--wsb-ring); }
+.wsb-next-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+.wsb-prev-btn { background: #fff; border: 1.5px solid var(--wsb-border); color: var(--wsb-text-muted); }
+.wsb-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 25px var(--wsb-ring); }
+
+/* Animation Overlay */
+.wsb-wizard-step { animation: eliteFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes eliteFadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    #wsb-booking-wizard-container { padding: 30px; margin: 0; border-radius: 0; border: none; }
+    .wsb-form-grid { grid-template-columns: 1fr; }
+    .wsb-layout-elegant_wide .wsb-card-option { grid-template-columns: 1fr; }
+    .wsb-staff-card { padding: 18px; }
+}
