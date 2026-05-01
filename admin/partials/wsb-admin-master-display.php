@@ -29,6 +29,8 @@ html.wp-toolbar { padding-top: 0 !important; }
 /* Sidebar Styling */
 .wsb-master-sidebar {
     width: 280px;
+    min-width: 280px;
+    flex-shrink: 0;
     background: #0f172a;
     border-right: 1px solid #1e293b;
     display: flex;
@@ -97,7 +99,7 @@ html.wp-toolbar { padding-top: 0 !important; }
 
 /* Responsive */
 @media (max-width: 960px) {
-    .wsb-master-sidebar { width: 80px; }
+    .wsb-master-sidebar { width: 80px; min-width: 80px; flex-shrink: 0; }
     .wsb-nav-text, .wsb-sidebar-header h2 { display: none; }
 }
 .wsb-loader {

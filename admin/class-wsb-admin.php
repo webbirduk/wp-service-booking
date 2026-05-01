@@ -1679,12 +1679,16 @@ class Wsb_Admin
             if ($action === 'edit' && $staff_id) {
                 $s = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table_staff} WHERE id = %d", $staff_id));
                 $schedule = json_decode($s->schedule_config, true) ?: array();
+
+                // Fetch Performance Data for this provider
+                $perf_bookings = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_bookings WHERE staff_id = %d AND (status = 'confirmed' OR status = 'completed')", $staff_id));
+                $perf_revenue = $wpdb->get_var($wpdb->prepare("SELECT SUM(total_amount) FROM {$wpdb->prefix}wsb_bookings WHERE staff_id = %d AND (status = 'confirmed' OR status = 'completed')", $staff_id)) ?: 0;
             }
             $days = array('mon' => 'Monday', 'tue' => 'Tuesday', 'wed' => 'Wednesday', 'thu' => 'Thursday', 'fri' => 'Friday', 'sat' => 'Saturday', 'sun' => 'Sunday');
             ?>
             <div class="wrap wsb-admin-wrap">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h1 style="margin:0;"><?php echo $action === 'edit' ? 'Edit Staff Profile' : 'Add New Staff'; ?></h1>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                    <h1 style="margin:0; font-size:24px; color:#fff;">Manage Staff Profile</h1>
                     <a href="?page=wsb_main&tab=staff" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
                         Roster</a>
                 </div>
@@ -1699,7 +1703,9 @@ class Wsb_Admin
                             <!-- Core Identity -->
                             <div
                                 style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary); margin-bottom:20px;">
-                                <h3 style="margin-top:0; color:var(--wsb-primary);">👤 Personal Information</h3>
+                                <h3 style="margin-top:0; color:var(--wsb-primary); display:flex; align-items:center; gap:8px;">
+                                    <span class="dashicons dashicons-admin-users"></span> Personal Information
+                                </h3>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
                                     <div>
                                         <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Full
@@ -1749,7 +1755,9 @@ class Wsb_Admin
                             <!-- Schedule Settings -->
                             <div
                                 style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-warning);">
-                                <h3 style="margin-top:0; color:var(--wsb-warning);">📅 Weekly Schedule</h3>
+                                <h3 style="margin-top:0; color:var(--wsb-warning); display:flex; align-items:center; gap:8px;">
+                                    <span class="dashicons dashicons-calendar-alt"></span> Weekly Schedule
+                                </h3>
                                 <p style="color:var(--wsb-text-muted); font-size:13px; margin-bottom:15px;">Configure the working
                                     hours for this provider. If not working on a day, leave times blank or uncheck.</p>
 
@@ -1782,13 +1790,42 @@ class Wsb_Admin
                         </div>
 
                         <div>
+                            <!-- Performance Metrics Card -->
+                            <?php if ($s): ?>
+                                <div
+                                    style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-success); margin-bottom:20px;">
+                                    <h3 style="margin-top:0; color:var(--wsb-success); font-size:16px; display:flex; align-items:center; gap:8px;">
+                                    <span class="dashicons dashicons-chart-line"></span> Performance Insights
+                                </h3>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                        <div style="background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:8px; border:1px solid rgba(16, 185, 129, 0.1);">
+                                            <span style="display:block; font-size:12px; color:var(--wsb-text-muted); margin-bottom:5px;">Total Revenue</span>
+                                            <strong style="font-size:20px; color:#fff;"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format($perf_revenue, 2); ?></strong>
+                                        </div>
+                                        <div style="background:rgba(59, 130, 246, 0.05); padding:15px; border-radius:8px; border:1px solid rgba(59, 130, 246, 0.1);">
+                                            <span style="display:block; font-size:12px; color:var(--wsb-text-muted); margin-bottom:5px;">Sessions</span>
+                                            <strong style="font-size:20px; color:#fff;"><?php echo intval($perf_bookings); ?></strong>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:15px;">
+                                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                            <span style="font-size:12px; color:var(--wsb-text-muted);">Productivity Score</span>
+                                            <span style="font-size:12px; font-weight:bold; color:var(--wsb-primary);"><?php echo min(100, round(($perf_revenue / 1000) * 100)); ?>%</span>
+                                        </div>
+                                        <div style="width:100%; height:6px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
+                                            <div style="width:<?php echo min(100, ($perf_revenue / 1000) * 100); ?>%; height:100%; background:var(--wsb-primary); border-radius:10px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
                             <!-- Side Panel - Image/Status -->
                             <div
                                 style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); margin-bottom:20px;">
-                                <h3 style="margin-top:0;">Profile Image</h3>
+                                <h3 style="margin-top:0; color:#fff; font-size:16px;">Profile Image</h3>
                                 <div style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-bottom:15px;">
                                     <div id="wsb-staff-preview"
-                                        style="width:120px; height:120px; border-radius:50%; border:2px dashed var(--wsb-border); background:#0f172a <?php echo $s && isset($s->image_url) && $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
+                                        style="width:140px; height:140px; border-radius:50%; border:4px solid #fff; box-shadow:0 10px 25px rgba(0,0,0,0.5); background:#fff <?php echo $s && isset($s->image_url) && $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
                                     </div>
                                     <input type="hidden" name="staff_image_url" id="staff_image_url"
                                         value="<?php echo $s && isset($s->image_url) ? esc_url($s->image_url) : ''; ?>">
@@ -1815,15 +1852,82 @@ class Wsb_Admin
 
                             <div
                                 style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid #ef4444;">
-                                <h3 style="margin-top:0; color:#ef4444;">🌴 Time off & Holidays</h3>
+                                <h3 style="margin-top:0; color:#ef4444; display:flex; align-items:center; gap:8px;">
+                                    <span class="dashicons dashicons-palmtree"></span> Time off & Holidays
+                                </h3>
                                 <p style="color:var(--wsb-text-muted); font-size:13px;">Enter exact dates where this staff member is
                                     unavailable. Use YYYY-MM-DD format on a new line for each date.</p>
                                 <textarea name="holidays" rows="5"
                                     style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"
                                     placeholder="2026-12-25&#10;2026-11-28"><?php echo $s ? esc_textarea($s->holidays) : ''; ?></textarea>
                             </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Personalized Booking Calendar -->
+                    <?php if ($s): ?>
+                        <div style="margin-top:30px;">
+                            <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary);">
+                                <h3 style="margin:0 0 20px 0; color:#fff; display:flex; align-items:center; gap:10px;">
+                                    <span class="dashicons dashicons-calendar"></span> <?php echo esc_html($s->name); ?>'s Booking Schedule
+                                </h3>
+                                <div id="wsb-staff-calendar" style="min-height:500px;"></div>
+                            </div>
+
+                            <script>
+                                (function() {
+                                    var initStaffCalendar = function() {
+                                        var calendarEl = document.getElementById('wsb-staff-calendar');
+                                        if (!calendarEl || calendarEl.classList.contains('fc')) return;
+
+                                        <?php
+                                        $staff_bookings = $wpdb->get_results($wpdb->prepare("
+                                            SELECT b.*, c.first_name, c.last_name, s.name as service_name
+                                            FROM {$wpdb->prefix}wsb_bookings b
+                                            LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
+                                            LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
+                                            WHERE b.staff_id = %d AND b.status != 'cancelled'
+                                        ", $s->id));
+                                        ?>
+
+                                        var events = [
+                                            <?php foreach ($staff_bookings as $sb): ?>
+                                            {
+                                                title: '<?php echo esc_js($sb->first_name . " - " . $sb->service_name); ?>',
+                                                start: '<?php echo esc_js($sb->booking_date); ?>T<?php echo esc_js($sb->start_time); ?>',
+                                                end: '<?php echo esc_js($sb->booking_date); ?>T<?php echo esc_js($sb->end_time); ?>',
+                                                color: '<?php echo $sb->status === 'confirmed' ? '#10b981' : '#f59e0b'; ?>',
+                                                url: '<?php echo "?page=wsb_main&tab=bookings&action=edit&id=" . $sb->id; ?>'
+                                            },
+                                            <?php endforeach; ?>
+                                        ];
+
+                                        var calendar = new FullCalendar.Calendar(calendarEl, {
+                                            initialView: 'timeGridWeek',
+                                            headerToolbar: {
+                                                left: 'prev,next today',
+                                                center: 'title',
+                                                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                                            },
+                                            events: events,
+                                            slotMinTime: '07:00:00',
+                                            slotMaxTime: '21:00:00',
+                                            allDaySlot: false,
+                                            height: 'auto',
+                                            themeSystem: 'standard'
+                                        });
+                                        calendar.render();
+                                    };
+
+                                    initStaffCalendar();
+                                    jQuery(document).on('wsb-tab-loaded', function(e, tab) {
+                                        if (tab === 'staff') initStaffCalendar();
+                                    });
+                                })();
+                            </script>
+                        </div>
+                    <?php endif; ?>
                 </form>
             </div>
             <?php
@@ -1832,10 +1936,19 @@ class Wsb_Admin
             $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
             $where_clause = "WHERE 1=1";
             if (in_array($filter_status, ['active', 'inactive'])) {
-                $where_clause .= " AND status = '{$filter_status}'";
+                $where_clause .= " AND s.status = '{$filter_status}'";
             }
 
-            $staff = $wpdb->get_results("SELECT * FROM {$table_staff} {$where_clause} ORDER BY created_at DESC");
+            $staff = $wpdb->get_results("
+                SELECT s.*, 
+                       COUNT(b.id) as booking_count,
+                       IFNULL(SUM(b.total_amount), 0) as total_revenue
+                FROM {$table_staff} s
+                LEFT JOIN {$wpdb->prefix}wsb_bookings b ON s.id = b.staff_id AND (b.status = 'confirmed' OR b.status = 'completed')
+                {$where_clause}
+                GROUP BY s.id
+                ORDER BY total_revenue DESC, s.created_at DESC
+            ");
             $total_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$table_staff}");
             $active_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$table_staff} WHERE status='active'");
             $inactive_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$table_staff} WHERE status='inactive'");
@@ -1906,6 +2019,7 @@ class Wsb_Admin
                                 <th>Name</th>
                                 <th>Contact details</th>
                                 <th>Status</th>
+                                <th style="text-align:center;">Performance Index</th>
                                 <th style="text-align:right;">Actions</th>
                             </tr>
                         </thead>
@@ -1945,6 +2059,24 @@ class Wsb_Admin
                                         </td>
                                         <td><span
                                                 class="wsb-status wsb-status-<?php echo $s->status === 'active' ? 'completed' : 'cancelled'; ?>"><?php echo esc_html(ucfirst($s->status)); ?></span>
+                                        </td>
+                                        <td align="center">
+                                            <div style="display:inline-flex; flex-direction:column; align-items:center; gap:5px;">
+                                                <div style="display:flex; align-items:center; gap:8px;">
+                                                    <span style="color:var(--wsb-success); font-weight:bold; font-size:14px;">
+                                                        <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format($s->total_revenue, 2); ?>
+                                                    </span>
+                                                    <span style="color:var(--wsb-text-muted); font-size:11px;">(<?php echo intval($s->booking_count); ?> sessions)</span>
+                                                </div>
+                                                <!-- Performance Bar -->
+                                                <?php 
+                                                $max_rev = 1000; // Benchmark for 100%
+                                                $perc = min(100, ($s->total_revenue / $max_rev) * 100);
+                                                ?>
+                                                <div style="width:120px; height:6px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
+                                                    <div style="width:<?php echo $perc; ?>%; height:100%; background:linear-gradient(90deg, #6366f1, #10b981); border-radius:10px;"></div>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td align="right">
                                             <div class="wsb-row-actions">
@@ -2352,7 +2484,7 @@ class Wsb_Admin
                         <tbody>
                             <?php if (!empty($payments)):
                                 foreach ($payments as $p): ?>
-                                    <tr>
+                                    <tr class="wsb-clickable-row" data-href="?page=wsb_main&tab=services&action=edit&id=<?php echo $s->id; ?>">
                                         <td><strong
                                                 style="color:var(--wsb-text-muted); font-family:monospace;"><?php echo esc_html($p->transaction_id ?: 'N/A'); ?></strong>
                                         </td>

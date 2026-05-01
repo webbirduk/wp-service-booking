@@ -103,10 +103,15 @@
 
 .wsb-clickable-row {
     cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
 }
 
 .wsb-clickable-row:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.wsb-clickable-row:active {
+    background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .wsb-customer-info {

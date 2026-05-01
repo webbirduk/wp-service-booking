@@ -207,6 +207,32 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    // 4. Clickable Rows (SPA Navigation)
+    $(document).on('click', '.wsb-clickable-row', function(e) {
+        // Don't trigger if clicking an actual link, button, or the action container
+        if ($(e.target).closest('.wsb-row-actions, a, button, input, select').length) return;
+        
+        var href = $(this).data('href');
+        if (href) {
+            var urlParams = new URLSearchParams(href.split('?')[1]);
+            var tab = urlParams.get('tab') || 'dashboard';
+            
+            // Collect all other params
+            var extra = '';
+            urlParams.forEach((value, key) => {
+                if (key !== 'page' && key !== 'tab') {
+                    extra += '&' + key + '=' + value;
+                }
+            });
+
+            // Update Sidebar UI
+            $('.wsb-nav-item').removeClass('active');
+            $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
+
+            loadTab(tab, extra);
+        }
+    });
+
     // Handle History (Back/Forward)
     window.onpopstate = function(event) {
         var params = new URLSearchParams(window.location.search);
