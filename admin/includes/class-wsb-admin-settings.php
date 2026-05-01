@@ -57,10 +57,10 @@ class Wsb_Admin_Settings {
                                 
                                 <!-- Stripe Section -->
                                 <div>
-                                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-                                        <div style="width:32px; height:32px; background:#635bff; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:18px;">S</div>
-                                        <h4 style="margin:0; color:#fff; font-size:16px;">Stripe Professional</h4>
-                                    </div>
+                                <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+                                    <img src="<?php echo WSB_PLUGIN_URL . 'assets/images/stripe.png'; ?>" style="height:32px; width:auto; display:block;" alt="Stripe Logo">
+                                    <h4 style="margin:0; color:#fff; font-size:16px;">Stripe Professional</h4>
+                                </div>
                                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                                         <div>
                                             <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Publishable API Key</label>

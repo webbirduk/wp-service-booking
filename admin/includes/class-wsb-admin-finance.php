@@ -128,8 +128,13 @@ class Wsb_Admin_Finance {
                                         <td><strong
                                                 style="color:var(--wsb-text-muted); font-family:monospace;"><?php echo esc_html($p->transaction_id ?: 'N/A'); ?></strong>
                                         </td>
-                                        <td><span
-                                                style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html(strtoupper($p->gateway)); ?></span>
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <?php if ($p->gateway === 'stripe'): ?>
+                                                    <img src="<?php echo WSB_PLUGIN_URL . 'assets/images/stripe.png'; ?>" style="height:14px; width:auto;" alt="Stripe">
+                                                <?php endif; ?>
+                                                <span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html(strtoupper($p->gateway)); ?></span>
+                                            </div>
                                         </td>
                                         <td><strong
                                                 style="color:var(--wsb-success);"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $p->amount, 2); ?></strong>
