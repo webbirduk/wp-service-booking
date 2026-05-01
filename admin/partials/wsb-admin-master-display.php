@@ -8,9 +8,12 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
 
 <style>
 /* STANDALONE APP ENGINE - Hide WordPress Bloat */
-#adminmenuback, #adminmenuwrap, #wpadminbar { display: none !important; }
-#wpcontent, #wpfooter { margin-left: 0 !important; padding-left: 0 !important; }
-html.wp-toolbar { padding-top: 0 !important; }
+.toplevel_page_wsb_main #adminmenuback, 
+.toplevel_page_wsb_main #adminmenuwrap, 
+.toplevel_page_wsb_main #wpadminbar { display: none !important; }
+.toplevel_page_wsb_main #wpcontent, 
+.toplevel_page_wsb_main #wpfooter { margin-left: 0 !important; padding-left: 0 !important; }
+.toplevel_page_wsb_main html.wp-toolbar { padding-top: 0 !important; }
 
 .wsb-master-wrapper {
     display: flex;
@@ -185,28 +188,28 @@ html.wp-toolbar { padding-top: 0 !important; }
             <?php
             switch ($tab) {
             case 'bookings':
-                $this->display_bookings_page();
+                (new Wsb_Admin_Bookings($this))->display();
                 break;
             case 'finance':
-                $this->display_finance_page();
+                (new Wsb_Admin_Finance($this))->display();
                 break;
             case 'services':
-                $this->display_services_page();
+                (new Wsb_Admin_Services($this))->display();
                 break;
             case 'staff':
-                $this->display_staff_page();
+                (new Wsb_Admin_Staff($this))->display();
                 break;
             case 'customers':
-                $this->display_customers_page();
+                (new Wsb_Admin_Customers($this))->display();
                 break;
             case 'design':
-                $this->display_design_page();
+                (new Wsb_Admin_Design($this))->display();
                 break;
             case 'settings':
-                $this->display_settings_page();
+                (new Wsb_Admin_Settings($this))->display();
                 break;
             default:
-                $this->display_plugin_setup_page();
+                (new Wsb_Admin_Dashboard($this))->display();
                 break;
         }
         ?>

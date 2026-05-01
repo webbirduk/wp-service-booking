@@ -483,9 +483,12 @@
 }
 
 /* --- Master Layout Styles (Separated) --- */
-#adminmenuback, #adminmenuwrap, #wpadminbar { display: none !important; }
-#wpcontent, #wpfooter { margin-left: 0 !important; padding-left: 0 !important; }
-html.wp-toolbar { padding-top: 0 !important; }
+.toplevel_page_wsb_main #adminmenuback, 
+.toplevel_page_wsb_main #adminmenuwrap, 
+.toplevel_page_wsb_main #wpadminbar { display: none !important; }
+.toplevel_page_wsb_main #wpcontent, 
+.toplevel_page_wsb_main #wpfooter { margin-left: 0 !important; padding-left: 0 !important; }
+.toplevel_page_wsb_main html.wp-toolbar { padding-top: 0 !important; }
 
 .wsb-master-wrapper {
     display: flex;

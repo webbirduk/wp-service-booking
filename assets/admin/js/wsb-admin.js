@@ -288,6 +288,10 @@ jQuery(document).ready(function($) {
  * Professional Separation: Financial Analysis Module
  */
 function initWSBRevenueChart() {
+    if (typeof Chart === 'undefined') {
+        setTimeout(initWSBRevenueChart, 200);
+        return;
+    }
     const canvas = document.getElementById('wsbRevenueChart');
     if (!canvas) return;
 
