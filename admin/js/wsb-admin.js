@@ -130,9 +130,13 @@ jQuery(document).ready(function($) {
         var formData = new FormData(form[0]);
         var activeTab = $('.wsb-nav-item.active').data('tab') || 'dashboard';
         
-        formData.append('action', 'wsb_load_admin_tab');
-        formData.append('nonce', wsb_admin_ajax.nonce);
-        formData.append('tab', activeTab);
+        // Ensure action and nonce
+        if (!formData.has('action')) formData.append('action', 'wsb_load_admin_tab');
+        if (!formData.has('nonce')) formData.append('nonce', wsb_admin_ajax.nonce);
+        
+        // Prioritize tab from form if it exists (e.g. filter forms), otherwise use active tab
+        var tabToLoad = formData.get('tab') || activeTab;
+        if (!formData.has('tab')) formData.append('tab', tabToLoad);
         
         $('.wsb-loader').fadeIn('fast');
         $.ajax({

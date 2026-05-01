@@ -290,17 +290,34 @@ class Wsb_Admin
                                     label: 'Daily Revenue',
                                     data: <?php echo json_encode($revenue_chart_values); ?>,
                                     borderColor: '#6366f1',
-                                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                    backgroundColor: (function() {
+                                        var gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
+                                        gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
+                                        gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+                                        return gradient;
+                                    })(),
                                     fill: true,
                                     tension: 0.4,
                                     borderWidth: 3,
-                                    pointBackgroundColor: '#6366f1'
+                                    pointBackgroundColor: '#6366f1',
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
                                 }]
                             },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
-                                plugins: { legend: { display: false } },
+                                plugins: { 
+                                    legend: { display: false },
+                                    tooltip: {
+                                        backgroundColor: '#1e293b',
+                                        titleColor: '#94a3b8',
+                                        bodyColor: '#fff',
+                                        padding: 12,
+                                        borderColor: '#334155',
+                                        borderWidth: 1
+                                    }
+                                },
                                 scales: {
                                     y: { 
                                         beginAtZero: true,
@@ -2202,12 +2219,13 @@ class Wsb_Admin
                 <h1 style="margin:0;">Financial Ledger & Revenue</h1>
 
                 <!-- Master Dashboard Filter -->
-                <form method="get" style="display:flex; align-items:center; gap:10px;">
-                    <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>">
+                <form method="get" class="wsb-finance-filter-form" style="display:flex; align-items:center; gap:10px;">
+                    <input type="hidden" name="page" value="wsb_main">
+                    <input type="hidden" name="tab" value="finance">
                     <span style="color:var(--wsb-text-muted); font-size:14px;">Reporting Period:</span>
                     <select name="period"
                         style="background:#0f172a; color:white; border:1px solid var(--wsb-primary); padding:6px 12px; border-radius:6px; font-weight:bold;"
-                        onchange="this.form.submit()">
+                        onchange="this.form.dispatchEvent(new Event('submit', {cancelable: true, bubbles: true}))">
                         <option value="all" <?php selected($period, 'all'); ?>>All Time</option>
                         <option value="today" <?php selected($period, 'today'); ?>>Today</option>
                         <option value="7days" <?php selected($period, '7days'); ?>>Last 7 Days</option>
@@ -2261,21 +2279,25 @@ class Wsb_Admin
                     const labels = rawData.map(item => item.label);
                     const values = rawData.map(item => parseFloat(item.val));
 
-                    let gradient = ctx.createLinearGradient(0, 0, 0, 300);
-                    gradient.addColorStop(0, '#3b82f6');
-                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
+                    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
+                    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
 
                     new Chart(ctx, {
-                        type: 'bar',
+                        type: 'line',
                         data: {
                             labels: labels.length ? labels : ['No Data'],
                             datasets: [{
-                                label: 'Revenue ($)',
+                                label: 'Revenue',
                                 data: values.length ? values : [0],
+                                borderColor: '#6366f1',
                                 backgroundColor: gradient,
-                                borderColor: '#60a5fa',
-                                borderWidth: 1,
-                                borderRadius: 6
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 3,
+                                pointBackgroundColor: '#6366f1',
+                                pointRadius: 4,
+                                pointHoverRadius: 6
                             }]
                         },
                         options: {
@@ -2287,12 +2309,21 @@ class Wsb_Admin
                                     backgroundColor: '#1e293b',
                                     titleColor: '#94a3b8',
                                     bodyColor: '#fff',
-                                    padding: 12
+                                    padding: 12,
+                                    borderColor: '#334155',
+                                    borderWidth: 1
                                 }
                             },
                             scales: {
-                                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                                y: { 
+                                    beginAtZero: true, 
+                                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                                    ticks: { color: '#94a3b8', font: { size: 11 } } 
+                                },
+                                x: { 
+                                    grid: { display: false }, 
+                                    ticks: { color: '#94a3b8', font: { size: 11 } } 
+                                }
                             }
                         }
                     });
@@ -2305,51 +2336,54 @@ class Wsb_Admin
                 <div style="padding: 20px; border-bottom: 1px solid var(--wsb-border);">
                     <h3 style="margin:0; color: #fff;">Recent Activity</h3>
                 </div>
-                <table class="wsb-modern-table" style="margin:0;">
-                    <thead>
-                        <tr>
-                            <th>Transaction ID</th>
-                            <th>Gateway</th>
-                            <th>Amount</th>
-                            <th>Related Booking</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!empty($payments)):
-                            foreach ($payments as $p): ?>
-                                <tr>
-                                    <td><strong
-                                            style="color:var(--wsb-text-muted); font-family:monospace;"><?php echo esc_html($p->transaction_id ?: 'N/A'); ?></strong>
-                                    </td>
-                                    <td><span
-                                            style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html(strtoupper($p->gateway)); ?></span>
-                                    </td>
-                                    <td><strong
-                                            style="color:var(--wsb-success);"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $p->amount, 2); ?></strong>
-                                    </td>
-                                    <td>
-                                        <div class="wsb-customer-info">
-                                            <span class="wsb-customer-name" style="color:var(--wsb-primary);">Booking
-                                                #<?php echo esc_html(str_pad($p->booking_id, 5, '0', STR_PAD_LEFT)); ?></span>
-                                            <span
-                                                class="wsb-customer-meta"><?php echo esc_html($p->first_name . ' ' . $p->last_name . ' - ' . $p->service_name); ?></span>
-                                        </div>
-                                    </td>
-                                    <td><?php echo esc_html(date('M d, Y', strtotime($p->created_at))); ?></td>
-                                    <td><span
-                                            class="wsb-status wsb-status-<?php echo esc_attr($p->status); ?>"><?php echo esc_html(ucfirst($p->status)); ?></span>
-                                    </td>
-                                </tr>
-                            <?php endforeach; else: ?>
+                <!-- Scrollable Ledger Container -->
+                <div style="max-height: 450px; overflow-y: auto;">
+                    <table class="wsb-modern-table" style="margin:0; width: 100%;">
+                        <thead style="position: sticky; top: 0; background: #0f172a; z-index: 10;">
                             <tr>
-                                <td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No payment
-                                    records found in this timeframe.</td>
+                                <th>Transaction ID</th>
+                                <th>Gateway</th>
+                                <th>Amount</th>
+                                <th>Related Booking</th>
+                                <th>Date</th>
+                                <th>Status</th>
                             </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($payments)):
+                                foreach ($payments as $p): ?>
+                                    <tr>
+                                        <td><strong
+                                                style="color:var(--wsb-text-muted); font-family:monospace;"><?php echo esc_html($p->transaction_id ?: 'N/A'); ?></strong>
+                                        </td>
+                                        <td><span
+                                                style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html(strtoupper($p->gateway)); ?></span>
+                                        </td>
+                                        <td><strong
+                                                style="color:var(--wsb-success);"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $p->amount, 2); ?></strong>
+                                        </td>
+                                        <td>
+                                            <div class="wsb-customer-info">
+                                                <span class="wsb-customer-name" style="color:var(--wsb-primary);">Booking
+                                                    #<?php echo esc_html(str_pad($p->booking_id, 5, '0', STR_PAD_LEFT)); ?></span>
+                                                <span
+                                                    class="wsb-customer-meta"><?php echo esc_html($p->first_name . ' ' . $p->last_name . ' - ' . $p->service_name); ?></span>
+                                            </div>
+                                        </td>
+                                        <td><?php echo esc_html(date('M d, Y', strtotime($p->created_at))); ?></td>
+                                        <td><span
+                                                class="wsb-status wsb-status-<?php echo esc_attr($p->status); ?>"><?php echo esc_html(ucfirst($p->status)); ?></span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; else: ?>
+                                <tr>
+                                    <td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No payment
+                                        records found in this timeframe.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         <?php
