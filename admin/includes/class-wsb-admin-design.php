@@ -79,12 +79,12 @@ class Wsb_Admin_Design {
 
                     <div class="wsb-layout-selector">
                         <?php
-                        $layouts = [
+                        $layouts = apply_filters('wsb_admin_design_layouts', [
                             'modern_grid' => 'Signature Grid',
                             'glass_cards_v2' => 'Glass Elite',
                             'metro_grid' => 'Immersive Metro',
                             'neon_night' => 'Cyber Dark'
-                        ];
+                        ]);
                         foreach ($layouts as $val => $name): ?>
                             <label class="wsb-layout-option">
                                 <input type="radio" name="wsb_service_layout" value="<?php echo $val; ?>" <?php checked($service_layout, $val); ?>>
