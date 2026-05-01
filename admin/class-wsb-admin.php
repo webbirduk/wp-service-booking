@@ -507,70 +507,151 @@ class Wsb_Admin
             if ($booking) {
                 ?>
                 <div class="wrap wsb-admin-wrap">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h1 style="margin:0;">Edit Booking #<?php echo esc_html(str_pad($booking->id, 5, '0', STR_PAD_LEFT)); ?></h1>
-                        <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>" class="wsb-btn-primary"
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                        <h1 style="margin:0; font-size:24px; color:#fff;">Manage Booking #<?php echo esc_html(str_pad($booking->id, 5, '0', STR_PAD_LEFT)); ?></h1>
+                        <a href="?page=wsb_main&tab=bookings" class="wsb-btn-primary"
                             style="background:var(--wsb-border);">Back to Bookings</a>
                     </div>
-                    <hr class="wp-header-end" style="margin-bottom:20px;">
 
                     <form method="post" action="">
                         <?php wp_nonce_field('wsb_edit_booking', 'wsb_edit_booking_nonce'); ?>
-                        <div
-                            style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); max-width: 600px;">
-                            <p style="color:var(--wsb-text-muted); margin-top:0;">
-                                <strong>Customer:</strong> <?php echo esc_html($booking->first_name . ' ' . $booking->last_name); ?><br>
-                                <strong>Email:</strong> <?php echo esc_html($booking->customer_email); ?><br>
-                                <strong>Phone:</strong> <?php echo esc_html($booking->customer_phone); ?><br>
-                                <strong>Service:</strong> <?php echo esc_html($booking->service_name); ?> with
-                                <?php echo esc_html($booking->staff_name); ?>
-                            </p>
-
-                            <hr style="border:0; border-top:1px solid var(--wsb-border); margin:20px 0;">
-
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
-                                <div>
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Booking Date</label>
-                                    <input name="booking_date" type="date" value="<?php echo esc_attr($booking->booking_date); ?>"
-                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
-                                        required>
+                        
+                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:25px;">
+                            
+                            <!-- Left Column: Core Booking Details -->
+                            <div style="display:flex; flex-direction:column; gap:25px;">
+                                
+                                <!-- Customer Identity Card -->
+                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary);">
+                                    <h3 style="margin:0 0 20px 0; color:var(--wsb-primary); display:flex; align-items:center; gap:10px;">
+                                        <span class="dashicons dashicons-admin-users"></span> Customer Information
+                                    </h3>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                                        <div>
+                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Full Name</label>
+                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff; font-weight:600;">
+                                                <?php echo esc_html($booking->first_name . ' ' . $booking->last_name); ?>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Contact Email</label>
+                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff;">
+                                                <?php echo esc_html($booking->customer_email); ?>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Phone Number</label>
+                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff;">
+                                                <?php echo esc_html($booking->customer_phone ?: 'No phone provided'); ?>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Assigned Professional</label>
+                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:var(--wsb-success); font-weight:700;">
+                                                <?php echo esc_html($booking->staff_name); ?>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Status</label>
-                                    <select name="status"
-                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
-                                        <option value="pending" <?php selected($booking->status, 'pending'); ?>>Pending</option>
-                                        <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>>Confirmed</option>
-                                        <option value="completed" <?php selected($booking->status, 'completed'); ?>>Completed</option>
-                                        <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>>Cancelled</option>
-                                    </select>
+
+                                <!-- Appointment Configuration -->
+                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-warning);">
+                                    <h3 style="margin:0 0 20px 0; color:var(--wsb-warning); display:flex; align-items:center; gap:10px;">
+                                        <span class="dashicons dashicons-calendar-alt"></span> Schedule & Service
+                                    </h3>
+                                    
+                                    <div style="margin-bottom:20px;">
+                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Selected Service</label>
+                                        <input type="text" value="<?php echo esc_attr($booking->service_name); ?>" readonly 
+                                            style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600; cursor:not-allowed; opacity:0.8;">
+                                    </div>
+
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
+                                        <div>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Booking Date</label>
+                                            <input name="booking_date" type="date" value="<?php echo esc_attr($booking->booking_date); ?>"
+                                                style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;"
+                                                required>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Start Time</label>
+                                            <input name="start_time" type="time" value="<?php echo esc_attr($booking->start_time); ?>"
+                                                style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;"
+                                                required>
+                                        </div>
+                                    </div>
+
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                                        <div>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">End Time</label>
+                                            <input name="end_time" type="time" value="<?php echo esc_attr($booking->end_time); ?>"
+                                                style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;"
+                                                required>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Total Duration (Auto)</label>
+                                            <div style="padding:12px; background:rgba(255,255,255,0.03); border:1px dashed var(--wsb-border); border-radius:8px; color:var(--wsb-text-muted);">
+                                                Calculated from start/end
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
-                                <div>
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Start Time</label>
-                                    <input name="start_time" type="time" value="<?php echo esc_attr($booking->start_time); ?>"
-                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
-                                        required>
+                            <!-- Right Column: Status & Financials -->
+                            <div style="display:flex; flex-direction:column; gap:25px;">
+                                
+                                <!-- Status Card -->
+                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid #fff;">
+                                    <h3 style="margin:0 0 20px 0; color:#fff; display:flex; align-items:center; gap:10px;">
+                                        <span class="dashicons dashicons-marker"></span> Booking Status
+                                    </h3>
+                                    <div style="margin-bottom:20px;">
+                                        <select name="status"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:14px; border-radius:8px; font-weight:700; font-size:15px; border-left:4px solid <?php echo $booking->status === 'confirmed' ? 'var(--wsb-success)' : ($booking->status === 'pending' ? 'var(--wsb-warning)' : '#ef4444'); ?>;">
+                                            <option value="pending" <?php selected($booking->status, 'pending'); ?>>Pending Approval</option>
+                                            <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>>Confirmed</option>
+                                            <option value="completed" <?php selected($booking->status, 'completed'); ?>>Completed</option>
+                                            <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>>Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <p style="font-size:12px; color:var(--wsb-text-muted); line-height:1.5;">
+                                        Updating the status will automatically trigger a notification email to the customer.
+                                    </p>
                                 </div>
-                                <div>
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">End Time</label>
-                                    <input name="end_time" type="time" value="<?php echo esc_attr($booking->end_time); ?>"
-                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
-                                        required>
+
+                                <!-- Financial Insights Card -->
+                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-success);">
+                                    <h3 style="margin:0 0 20px 0; color:var(--wsb-success); display:flex; align-items:center; gap:10px;">
+                                        <span class="dashicons dashicons-money-alt"></span> Financial Details
+                                    </h3>
+                                    <div style="margin-bottom:20px;">
+                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Amount Receivable</label>
+                                        <div style="position:relative;">
+                                            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--wsb-text-muted); font-weight:bold;"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?></span>
+                                            <input name="total_amount" type="number" step="0.01" value="<?php echo esc_attr($booking->total_amount); ?>"
+                                                style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px 12px 12px 30px; border-radius:8px; font-size:18px; font-weight:800;"
+                                                required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:8px; border:1px solid rgba(16, 185, 129, 0.1);">
+                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                            <span style="font-size:13px; color:var(--wsb-text-muted);">Payment Strategy</span>
+                                            <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--wsb-success);">Secured</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="margin-bottom:20px;">
-                                <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Total Amount ($)</label>
-                                <input name="total_amount" type="number" step="0.01"
-                                    value="<?php echo esc_attr($booking->total_amount); ?>"
-                                    style="width:100%; max-width:200px; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
-                                    required>
-                            </div>
+                                <!-- Action Container -->
+                                <div style="display:flex; flex-direction:column; gap:10px;">
+                                    <button type="submit" class="wsb-btn-primary" style="width:100%; padding:15px; font-size:16px; background:var(--wsb-primary); border:none; box-shadow:0 4px 15px rgba(99, 102, 241, 0.3);">
+                                        Update Booking Details
+                                    </button>
+                                    <a href="?page=wsb_main&tab=bookings" style="text-align:center; padding:10px; color:var(--wsb-text-muted); text-decoration:none; font-size:14px;">Discard Changes</a>
+                                </div>
 
-                            <button type="submit" class="wsb-btn-primary">Update Booking</button>
+                            </div>
                         </div>
                     </form>
                 </div>
