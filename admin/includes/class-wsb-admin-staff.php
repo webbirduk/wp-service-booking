@@ -29,49 +29,7 @@ class Wsb_Admin_Staff {
             $action = 'list';
         }
 
-        // Seed Dummy Data Handler
-        if ($action === 'seed' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'seed_staff')) {
-            $dummy_staff = array(
-                array(
-                    'name' => 'Alexander Pierce',
-                    'email' => 'alex@example.com',
-                    'phone' => '555-0102',
-                    'status' => 'active',
-                    'description' => 'Master barber with 10 years of experience in classic cuts and hot towel shaves.',
-                    'qualification' => 'Master Barber',
-                    'address' => '123 Main St, Suite 100',
-                    'image_url' => 'https://ui-avatars.com/api/?name=Alexander+Pierce&background=0D8ABC&color=fff&size=200',
-                    'schedule_config' => '{"mon":{"active":"1","start":"09:00","end":"17:00"},"tue":{"active":"1","start":"09:00","end":"17:00"},"wed":{"active":"1","start":"09:00","end":"17:00"},"thu":{"active":"1","start":"09:00","end":"17:00"},"fri":{"active":"1","start":"09:00","end":"17:00"}}'
-                ),
-                array(
-                    'name' => 'Sophia Lauren',
-                    'email' => 'sophia@example.com',
-                    'phone' => '555-0199',
-                    'status' => 'active',
-                    'description' => 'Expert colorist specializing in balayage and creative lifting.',
-                    'qualification' => 'Senior Colorist',
-                    'address' => '456 Styling Ave',
-                    'image_url' => 'https://ui-avatars.com/api/?name=Sophia+Lauren&background=D81B60&color=fff&size=200',
-                    'schedule_config' => '{"mon":{"active":"1","start":"10:00","end":"18:00"},"tue":{"active":"1","start":"10:00","end":"18:00"},"thu":{"active":"1","start":"10:00","end":"18:00"},"sat":{"active":"1","start":"08:00","end":"14:00"}}'
-                ),
-                array(
-                    'name' => 'Marcus Reed',
-                    'email' => 'marcus@example.com',
-                    'phone' => '555-0211',
-                    'status' => 'inactive',
-                    'description' => 'Specializes in therapeutic massages and deep tissue recovery.',
-                    'qualification' => 'Licensed Massage Therapist',
-                    'address' => '789 Recovery Blvd',
-                    'image_url' => 'https://ui-avatars.com/api/?name=Marcus+Reed&background=43A047&color=fff&size=200',
-                    'schedule_config' => '{"mon":{"active":"1","start":"08:00","end":"14:00"},"wed":{"active":"1","start":"12:00","end":"20:00"},"fri":{"active":"1","start":"08:00","end":"16:00"}}'
-                )
-            );
-            foreach ($dummy_staff as $st) {
-                $wpdb->insert($table_staff, $st);
-            }
-            echo '<div class="notice notice-success is-dismissible"><p>Fully loaded dummy staff successfully injected into roster.</p></div>';
-            $action = 'list';
-        }
+
 
         // Form Submit Handler
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wsb_staff_nonce']) && wp_verify_nonce($_POST['wsb_staff_nonce'], 'wsb_staff_save')) {
@@ -369,9 +327,7 @@ class Wsb_Admin_Staff {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h1 style="margin:0;">Staff Roster</h1>
                     <div>
-                        <a href="<?php echo wp_nonce_url("?page=wsb_main&tab=staff&action=seed", 'seed_staff'); ?>"
-                            class="wsb-btn-primary" style="background:var(--wsb-warning); margin-right:10px;">⚡ Inject Dummy
-                            Staff</a>
+
                         <a href="?page=wsb_main&tab=staff&action=add" class="wsb-btn-primary">+ Onboard Staff</a>
                     </div>
                 </div>

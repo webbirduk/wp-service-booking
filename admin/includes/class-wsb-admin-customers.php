@@ -11,22 +11,7 @@ class Wsb_Admin_Customers {
         $table_customers = $wpdb->prefix . 'wsb_customers';
         $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 
-        // Seed Dummy Data Handler
-        if ($action === 'seed' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'seed_customers')) {
-            $dummies = array(
-                array('first_name' => 'Emily', 'last_name' => 'Blunt', 'email' => 'emily@example.com', 'phone' => '(555) 123-4567'),
-                array('first_name' => 'John', 'last_name' => 'Krasinski', 'email' => 'john@example.com', 'phone' => '(555) 987-6543'),
-                array('first_name' => 'Margot', 'last_name' => 'Robbie', 'email' => 'margot@example.com', 'phone' => '(555) 222-3333'),
-                array('first_name' => 'Ryan', 'last_name' => 'Gosling', 'email' => 'ryan@example.com', 'phone' => '(555) 444-5555')
-            );
-            foreach ($dummies as $d) {
-                $random_days = rand(1, 40);
-                $d['created_at'] = gmdate('Y-m-d H:i:s', strtotime("-{$random_days} days"));
-                $wpdb->insert($table_customers, $d);
-            }
-            echo '<div class="notice notice-success is-dismissible"><p>Fully loaded dummy customers successfully injected into CRM.</p></div>';
-            $action = 'list';
-        }
+
 
         // Filter Matrix Engine
         $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
@@ -71,10 +56,7 @@ class Wsb_Admin_Customers {
         <div class="wrap wsb-admin-wrap">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h1 style="margin:0;">Client CRM & Directory</h1>
-                <div>
-                    <a href="<?php echo wp_nonce_url("?page=wsb_main&tab=customers&action=seed", 'seed_customers'); ?>"
-                        class="wsb-btn-primary" style="background:var(--wsb-warning);">⚡ Inject Dummy Customers</a>
-                </div>
+
             </div>
 
             <!-- Dashboard Interactive Filters -->

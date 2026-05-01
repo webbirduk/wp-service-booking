@@ -158,94 +158,96 @@ class Wsb_Admin_Settings {
     }
 
     private function generate_dummy_data($wpdb) {
-        $tables = array(
-            'services' => $wpdb->prefix . 'wsb_services',
-            'staff' => $wpdb->prefix . 'wsb_staff',
-            'customers' => $wpdb->prefix . 'wsb_customers',
-            'bookings' => $wpdb->prefix . 'wsb_bookings',
-            'payments' => $wpdb->prefix . 'wsb_payments',
-            'staff_services' => $wpdb->prefix . 'wsb_staff_services'
-        );
+        $table_services = $wpdb->prefix . 'wsb_services';
+        $table_staff = $wpdb->prefix . 'wsb_staff';
+        $table_customers = $wpdb->prefix . 'wsb_customers';
+        $table_bookings = $wpdb->prefix . 'wsb_bookings';
+        $table_payments = $wpdb->prefix . 'wsb_payments';
+        $table_staff_services = $wpdb->prefix . 'wsb_staff_services';
 
-        // 1. Insert Services
-        $services_data = array(
-            array('name' => 'Premium Haircut', 'description' => 'A full premium styling session.', 'price' => 45.00, 'duration' => 45, 'category' => 'Hair', 'capacity' => 1),
-            array('name' => 'Beard Trim & Grooming', 'description' => 'Beard shaping and hot towel.', 'price' => 25.00, 'duration' => 30, 'category' => 'Hair', 'capacity' => 1),
-            array('name' => 'Deep Tissue Massage', 'description' => 'Recovery therapy massage.', 'price' => 90.00, 'duration' => 60, 'category' => 'Spa', 'capacity' => 1),
-            array('name' => 'Fitness Consultation', 'description' => '1-on-1 private training assessment.', 'price' => 60.00, 'duration' => 60, 'category' => 'Fitness', 'capacity' => 1),
+        // 1. Clear existing (optional but recommended for clean dummy state)
+        // $wpdb->query("TRUNCATE TABLE $table_payments");
+        // $wpdb->query("TRUNCATE TABLE $table_bookings");
+        // $wpdb->query("TRUNCATE TABLE $table_staff_services");
+
+        // 2. Insert High-Quality Services
+        $dummy_services = array(
+            array('name' => 'Signature Haircut', 'description' => 'Precision cut tailored to your face shape.', 'duration' => 45, 'price' => 50.00, 'category' => 'Hair', 'capacity' => 1, 'status' => 'active', 'image_url' => 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=400&q=80'),
+            array('name' => 'Balayage Color', 'description' => 'Natural hand-painted highlights.', 'duration' => 120, 'price' => 180.00, 'category' => 'Color', 'capacity' => 1, 'status' => 'active', 'image_url' => 'https://images.unsplash.com/photo-1512496015851-a1dc8f411906?auto=format&fit=crop&w=400&q=80'),
+            array('name' => 'Deep Tissue Massage', 'description' => 'Intense therapy for muscle tension.', 'duration' => 60, 'price' => 95.00, 'category' => 'Spa', 'capacity' => 1, 'status' => 'active', 'image_url' => 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=400&q=80'),
+            array('name' => 'Bridal Makeup', 'description' => 'Full glam for the big day.', 'duration' => 90, 'price' => 120.00, 'category' => 'Makeup', 'capacity' => 1, 'status' => 'active', 'image_url' => 'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=400&q=80')
         );
-        $service_ids = array();
-        foreach ($services_data as $s) {
-            $wpdb->insert($tables['services'], $s);
+        $service_ids = [];
+        foreach ($dummy_services as $s) {
+            $wpdb->insert($table_services, $s);
             $service_ids[] = $wpdb->insert_id;
         }
 
-        // 2. Insert Staff
-        $staff_data = array(
-            array('name' => 'Alex Turner', 'email' => 'alex@example.com', 'phone' => '555-0101'),
-            array('name' => 'Sarah Jenkins', 'email' => 'sarah@example.com', 'phone' => '555-0102'),
-            array('name' => 'Michael Chen', 'email' => 'michael@example.com', 'phone' => '555-0103'),
+        // 3. Insert Professional Staff
+        $dummy_staff = array(
+            array('name' => 'Alexander Pierce', 'email' => 'alex@example.com', 'phone' => '555-0102', 'status' => 'active', 'qualification' => 'Master Barber', 'image_url' => 'https://ui-avatars.com/api/?name=Alexander+Pierce&background=0D8ABC&color=fff&size=100'),
+            array('name' => 'Sophia Lauren', 'email' => 'sophia@example.com', 'phone' => '555-0199', 'status' => 'active', 'qualification' => 'Senior Colorist', 'image_url' => 'https://ui-avatars.com/api/?name=Sophia+Lauren&background=D81B60&color=fff&size=100'),
+            array('name' => 'Marcus Reed', 'email' => 'marcus@example.com', 'phone' => '555-0211', 'status' => 'active', 'qualification' => 'Therapist', 'image_url' => 'https://ui-avatars.com/api/?name=Marcus+Reed&background=43A047&color=fff&size=100')
         );
-        $staff_ids = array();
-        foreach ($staff_data as $st) {
-            $wpdb->insert($tables['staff'], $st);
+        $staff_ids = [];
+        foreach ($dummy_staff as $st) {
+            $wpdb->insert($table_staff, $st);
             $staff_ids[] = $wpdb->insert_id;
         }
 
-        // Assign Staff to Services
+        // 4. Map Staff to Services
         if (!empty($staff_ids) && !empty($service_ids)) {
-            $wpdb->insert($tables['staff_services'], array('staff_id' => $staff_ids[0], 'service_id' => $service_ids[0]));
-            $wpdb->insert($tables['staff_services'], array('staff_id' => $staff_ids[0], 'service_id' => $service_ids[1]));
-            $wpdb->insert($tables['staff_services'], array('staff_id' => $staff_ids[1], 'service_id' => $service_ids[2]));
-            $wpdb->insert($tables['staff_services'], array('staff_id' => $staff_ids[2], 'service_id' => $service_ids[3]));
+            $wpdb->insert($table_staff_services, array('staff_id' => $staff_ids[0], 'service_id' => $service_ids[0]));
+            $wpdb->insert($table_staff_services, array('staff_id' => $staff_ids[1], 'service_id' => $service_ids[1]));
+            $wpdb->insert($table_staff_services, array('staff_id' => $staff_ids[2], 'service_id' => $service_ids[2]));
         }
 
-        // 3. Insert Customers
-        $customer_data = array(
-            array('first_name' => 'John', 'last_name' => 'Doe', 'email' => 'johndoe@test.com', 'phone' => '123-456-7890'),
-            array('first_name' => 'Jane', 'last_name' => 'Smith', 'email' => 'janes@test.com', 'phone' => '987-654-3210'),
-            array('first_name' => 'Emily', 'last_name' => 'Davis', 'email' => 'emilyd@test.com', 'phone' => '555-111-2222'),
-            array('first_name' => 'Chris', 'last_name' => 'Wilson', 'email' => 'chrisw@test.com', 'phone' => '555-333-4444'),
+        // 5. Insert VIP Customers
+        $dummy_customers = array(
+            array('first_name' => 'Emily', 'last_name' => 'Blunt', 'email' => 'emily@example.com', 'phone' => '555-123-4567'),
+            array('first_name' => 'John', 'last_name' => 'Krasinski', 'email' => 'john@example.com', 'phone' => '555-987-6543'),
+            array('first_name' => 'Margot', 'last_name' => 'Robbie', 'email' => 'margot@example.com', 'phone' => '555-222-3333'),
+            array('first_name' => 'Ryan', 'last_name' => 'Gosling', 'email' => 'ryan@example.com', 'phone' => '555-444-5555')
         );
-        $customer_ids = array();
-        foreach ($customer_data as $c) {
-            $wpdb->insert($tables['customers'], $c);
+        $customer_ids = [];
+        foreach ($dummy_customers as $c) {
+            $wpdb->insert($table_customers, $c);
             $customer_ids[] = $wpdb->insert_id;
         }
 
-        // 4. Insert Bookings & Payments
+        // 6. Generate Realistic Bookings & Payments
         $statuses = array('confirmed', 'pending', 'completed');
-        for ($i = 0; $i < 15; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $cid = $customer_ids[array_rand($customer_ids)];
             $sid = $service_ids[array_rand($service_ids)];
             $stid = $staff_ids[array_rand($staff_ids)];
 
-            $random_days = rand(0, 14);
+            $random_days = rand(-14, 14);
             $booking_date = date('Y-m-d', strtotime("+$random_days days"));
             $hour = rand(9, 16);
-            $start_time = sprintf('%02d:00:00', $hour);
-            $end_time = sprintf('%02d:00:00', $hour + 1);
             $status = $statuses[array_rand($statuses)];
-            $amount = rand(25, 120) . '.00';
+            $amount = rand(45, 180) . '.00';
 
-            $wpdb->insert($tables['bookings'], array(
+            $wpdb->insert($table_bookings, array(
                 'customer_id' => $cid,
                 'service_id' => $sid,
                 'staff_id' => $stid,
                 'booking_date' => $booking_date,
-                'start_time' => $start_time,
-                'end_time' => $end_time,
+                'start_time' => sprintf('%02d:00:00', $hour),
+                'end_time' => sprintf('%02d:00:00', $hour + 1),
                 'status' => $status,
-                'total_amount' => $amount
+                'total_amount' => $amount,
+                'created_at' => date('Y-m-d H:i:s', strtotime("-".rand(1, 30)." days"))
             ));
             $booking_id = $wpdb->insert_id;
 
-            $wpdb->insert($tables['payments'], array(
+            $wpdb->insert($table_payments, array(
                 'booking_id' => $booking_id,
                 'amount' => $amount,
                 'gateway' => 'stripe',
-                'transaction_id' => 'ch_test_' . rand(1000, 9999),
-                'status' => ($status === 'pending') ? 'pending' : 'completed'
+                'transaction_id' => 'ch_test_' . wp_generate_password(12, false),
+                'status' => ($status === 'pending') ? 'pending' : 'completed',
+                'created_at' => date('Y-m-d H:i:s', strtotime("-".rand(1, 30)." days"))
             ));
         }
     }
