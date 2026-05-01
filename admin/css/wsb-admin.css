@@ -440,3 +440,39 @@
     left: 50%;
     transform: translate(-50%, -50%);
 }
+/* --- Responsive Engine --- */
+@media (max-width: 1024px) {
+    .wsb-dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 782px) {
+    .wsb-master-sidebar { width: 70px !important; }
+    .wsb-nav-text, .wsb-sidebar-header h2 { display: none; }
+    .wsb-sidebar-header { padding: 20px 15px; }
+    .wsb-nav-item { justify-content: center; padding: 12px 0; }
+    .wsb-nav-icon { margin-right: 0; font-size: 20px; }
+    
+    .wsb-master-content { padding: 20px; }
+    .wsb-page-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+    
+    .wsb-dashboard-grid { grid-template-columns: 1fr; }
+    
+    /* Table Responsiveness Hack */
+    .wsb-modern-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    
+    /* Finance / Analytics */
+    #wsbRevenueChart { height: 250px !important; }
+}
+
+@media (max-width: 600px) {
+    .wsb-stat-card .wsb-stat-value { font-size: 24px; }
+    .wsb-admin-wrap { padding: 15px; margin-top: 10px; }
+    
+    /* Hide some table columns on tiny screens */
+    .wsb-modern-table th:nth-child(4), 
+    .wsb-modern-table td:nth-child(4),
+    .wsb-modern-table th:nth-child(5),
+    .wsb-modern-table td:nth-child(5) { display: none; }
+    
+    .wsb-view-toggle { width: 100%; justify-content: center; margin-top: 10px; }
+}

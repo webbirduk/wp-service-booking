@@ -1,115 +1,146 @@
 <?php
-class Wsb_Admin {
+class Wsb_Admin
+{
     private $plugin_name;
     private $version;
 
-    public function __construct( $plugin_name, $version ) {
+    public function __construct($plugin_name, $version)
+    {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
+
+        // Register AJAX tab loader
+        add_action('wp_ajax_wsb_load_admin_tab', array($this, 'ajax_load_tab'));
     }
 
-    public function enqueue_styles() {
-        wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wsb-admin.css', array(), $this->version, 'all' );
+    public function ajax_load_tab()
+    {
+        check_ajax_referer('wsb_admin_nonce', 'nonce');
+        $tab = isset($_POST['tab']) ? sanitize_text_field($_POST['tab']) : 'dashboard';
+
+        // Merge POST data into GET/REQUEST so that filter logic (which usually looks at $_GET) works during AJAX SPA updates
+        $_GET = array_merge($_GET, $_POST);
+        $_REQUEST = array_merge($_REQUEST, $_POST);
+
+        // Handle extra params string (e.g. view=calendar, action=edit, etc)
+        if (!empty($_POST['params'])) {
+            parse_str(ltrim($_POST['params'], '&'), $extra_params);
+            $_GET = array_merge($_GET, $extra_params);
+            $_REQUEST = array_merge($_REQUEST, $extra_params);
+        }
+
+        ob_start();
+        switch ($tab) {
+            case 'bookings':
+                $this->display_bookings_page();
+                break;
+            case 'finance':
+                $this->display_finance_page();
+                break;
+            case 'services':
+                $this->display_services_page();
+                break;
+            case 'staff':
+                $this->display_staff_page();
+                break;
+            case 'customers':
+                $this->display_customers_page();
+                break;
+            case 'design':
+                $this->display_design_page();
+                break;
+            case 'settings':
+                $this->display_settings_page();
+                break;
+            default:
+                $this->display_plugin_setup_page();
+                break;
+        }
+        $content = ob_get_clean();
+        wp_send_json_success(array('content' => $content));
     }
 
-    public function enqueue_scripts() {
+    public function enqueue_styles()
+    {
+        wp_enqueue_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/wsb-admin.css', array(), $this->version, 'all');
+    }
+
+    public function enqueue_scripts()
+    {
         wp_enqueue_media();
-        wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wsb-admin.js', array( 'jquery' ), $this->version, false );
+        wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/wsb-admin.js', array('jquery'), $this->version, false);
+        wp_localize_script($this->plugin_name, 'wsb_admin_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wsb_admin_nonce')
+        ));
     }
 
-    public function add_plugin_admin_menu() {
+    public function add_plugin_admin_menu()
+    {
         add_menu_page(
-            'Service Booking', 
-            'Service Booking', 
-            'manage_options', 
-            $this->plugin_name, 
-            array($this, 'display_plugin_setup_page'), 
-            'dashicons-calendar-alt', 
+            'Service Booking',
+            'Service Booking',
+            'manage_options',
+            'wsb_main',
+            array($this, 'display_master_dashboard'),
+            'dashicons-calendar-alt',
             26
         );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Dashboard',
-            'Dashboard',
-            'manage_options',
-            $this->plugin_name,
-            array($this, 'display_plugin_setup_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Bookings',
-            'Bookings',
-            'manage_options',
-            $this->plugin_name . '-bookings',
-            array($this, 'display_bookings_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Finance',
-            'Finance',
-            'manage_options',
-            $this->plugin_name . '-finance',
-            array($this, 'display_finance_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Services',
-            'Services',
-            'manage_options',
-            $this->plugin_name . '-services',
-            array($this, 'display_services_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Staff',
-            'Staff',
-            'manage_options',
-            $this->plugin_name . '-staff',
-            array($this, 'display_staff_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Customers',
-            'Customers',
-            'manage_options',
-            $this->plugin_name . '-customers',
-            array($this, 'display_customers_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Design',
-            'Design',
-            'manage_options',
-            $this->plugin_name . '-design',
-            array($this, 'display_design_page')
-        );
-
-        add_submenu_page(
-            $this->plugin_name,
-            'Settings',
-            'Settings',
-            'manage_options',
-            $this->plugin_name . '-settings',
-            array($this, 'display_settings_page')
-        );
     }
 
-    public function display_plugin_setup_page() {
+    public function display_master_dashboard()
+    {
+        // Enforce full-width by adding a script to modify body classes if needed, 
+        // but we'll mainly do it via CSS in the master view.
+        include_once plugin_dir_path(dirname(__FILE__)) . 'admin/partials/wsb-admin-master-display.php';
+    }
+
+    public function display_plugin_setup_page()
+    {
         global $wpdb;
+        $table_bookings = $wpdb->prefix . 'wsb_bookings';
+
+        // Self-Healing Schema Patching (Compatible with all MySQL/MariaDB versions)
+        $columns = $wpdb->get_col("DESCRIBE {$table_bookings}");
+        if (!in_array('request_type', $columns)) {
+            $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN request_type VARCHAR(50) DEFAULT NULL");
+            $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN requested_date DATE DEFAULT NULL");
+            $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN requested_time TIME DEFAULT NULL");
+            $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN requested_staff_id BIGINT(20) DEFAULT NULL");
+        }
 
         // Metric Queries
         $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_bookings");
-        $pending_bookings = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_bookings WHERE status = 'pending'");
-        $total_revenue = $wpdb->get_var("SELECT SUM(total_amount) FROM {$wpdb->prefix}wsb_bookings WHERE status = 'confirmed'");
+        $total_revenue = $wpdb->get_var("SELECT SUM(total_amount) FROM {$wpdb->prefix}wsb_bookings WHERE status = 'confirmed' OR status = 'completed'");
         $total_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_customers");
         $total_services = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_services");
+        
+        // New Actionable Metrics
+        $today_bookings = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_bookings WHERE booking_date = %s", date('Y-m-d')));
+        $pending_approvals = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_bookings WHERE status = 'pending' AND (request_type IS NULL OR request_type = '')");
+        $client_requests = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}wsb_bookings WHERE status = 'pending' AND request_type IN ('cancel', 'reschedule')");
+
+        // Revenue Trajectory Data (Last 7 Days)
+        $revenue_chart_labels = [];
+        $revenue_chart_values = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $day_name = date('D', strtotime($date));
+            $daily_rev = $wpdb->get_var($wpdb->prepare("SELECT SUM(total_amount) FROM {$wpdb->prefix}wsb_bookings WHERE booking_date = %s AND (status = 'confirmed' OR status = 'completed')", $date));
+            $revenue_chart_labels[] = $day_name;
+            $revenue_chart_values[] = floatval($daily_rev);
+        }
+
+        // Top Performing Services
+        $top_services = $wpdb->get_results("
+            SELECT s.name, COUNT(b.id) as booking_count, SUM(b.total_amount) as total_revenue
+            FROM {$wpdb->prefix}wsb_bookings b
+            JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
+            WHERE b.status = 'confirmed' OR b.status = 'completed'
+            GROUP BY b.service_id
+            ORDER BY total_revenue DESC
+            LIMIT 5
+        ");
 
         // Recent Bookings Query
         $recent_bookings = $wpdb->get_results("
@@ -117,90 +148,261 @@ class Wsb_Admin {
             FROM {$wpdb->prefix}wsb_bookings b
             LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
             LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
-            ORDER BY b.created_at DESC LIMIT 5
+            ORDER BY b.created_at DESC LIMIT 15
         ");
-        
+
         ?>
         <style>
-            .wsb-clickable-card { text-decoration: none; color: inherit; transition: transform 0.2s ease, box-shadow 0.2s ease; display: block; border-left: 4px solid transparent; }
-            .wsb-clickable-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); border-left-color: var(--wsb-primary); }
-            .wsb-clickable-card h3 { transition: color 0.2s ease; }
-            .wsb-clickable-card:hover h3 { color: var(--wsb-primary); }
+            .wsb-clickable-card {
+                text-decoration: none;
+                color: inherit;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+                display: block;
+                border-left: 4px solid transparent;
+            }
+
+            .wsb-clickable-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+                border-left-color: var(--wsb-primary);
+            }
+
+            .wsb-clickable-card h3 {
+                transition: color 0.2s ease;
+            }
+
+            .wsb-clickable-card:hover h3 {
+                color: var(--wsb-primary);
+            }
         </style>
         <div class="wrap wsb-admin-wrap">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h1 style="margin:0;">Dashboard Overview</h1>
                 <div>
-                    <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>&view=calendar" class="wsb-btn-primary">View Calendar</a>
-                    <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>&action=add" class="wsb-btn-primary" style="margin-left:5px; background:var(--wsb-success);">+ New Service</a>
+                    <a href="?page=wsb_main&tab=bookings&view=calendar" class="wsb-btn-primary">View Calendar</a>
+                    <a href="?page=wsb_main&tab=services&action=add" class="wsb-btn-primary"
+                        style="margin-left:5px; background:var(--wsb-success);">+ New Service</a>
                 </div>
             </div>
             <hr class="wp-header-end" style="margin-bottom:20px;">
 
-            <div class="wsb-dashboard-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom:30px;">
-                <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>" class="wsb-stat-card wsb-clickable-card">
-                    <h3 style="margin-top:0; font-size:16px;">Total Bookings</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;"><?php echo intval($total_bookings); ?></p>
-                    <?php if($pending_bookings > 0): ?>
-                        <span style="display:inline-block; margin-top:10px; background:rgba(245,158,11,0.2); color:#f59e0b; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">🔥 <?php echo $pending_bookings; ?> Pending Actions</span>
-                    <?php else: ?>
-                        <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">All caught up!</span>
-                    <?php endif; ?>
+            <!-- Quick Actions / High Priority Row -->
+            <div class="wsb-dashboard-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom:30px;">
+                <a href="?page=wsb_main&tab=bookings&filter_date_start=<?php echo date('Y-m-d'); ?>&filter_date_end=<?php echo date('Y-m-d'); ?>" class="wsb-stat-card wsb-clickable-card" style="border-left-color: #3b82f6;">
+                    <h3 style="margin-top:0; font-size:16px; color:#3b82f6;">Today's Schedule</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;"><?php echo intval($today_bookings); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Appointments for today</span>
                 </a>
-                
-                <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>" class="wsb-stat-card wsb-clickable-card">
-                    <h3 style="margin-top:0; font-size:16px;">Total Revenue</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-success);">$<?php echo number_format((float)$total_revenue, 2); ?></p>
-                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Confirmed Earnings</span>
+
+                <a href="?page=wsb_main&tab=bookings&filter_status=pending" class="wsb-stat-card wsb-clickable-card" style="border-left-color: #f59e0b;">
+                    <h3 style="margin-top:0; font-size:16px; color:#f59e0b;">Pending Approvals</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;"><?php echo intval($pending_approvals); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">New booking requests</span>
                 </a>
-                
-                <a href="?page=<?php echo esc_attr($this->plugin_name . '-customers'); ?>" class="wsb-stat-card wsb-clickable-card">
-                    <h3 style="margin-top:0; font-size:16px;">Total Customers</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;"><?php echo intval($total_customers); ?></p>
-                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Registered Users</span>
-                </a>
-                
-                <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>" class="wsb-stat-card wsb-clickable-card">
-                    <h3 style="margin-top:0; font-size:16px;">Active Services</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;"><?php echo intval($total_services); ?></p>
-                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Manage Catalog &rarr;</span>
+
+                <a href="?page=wsb_main&tab=bookings&filter_status=pending_requests" class="wsb-stat-card wsb-clickable-card" style="border-left-color: #ef4444;">
+                    <h3 style="margin-top:0; font-size:16px; color:#ef4444;">Client Requests</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;"><?php echo intval($client_requests); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Reschedules & Cancellations</span>
                 </a>
             </div>
-            
-            <div style="background: var(--wsb-panel-dark); border-radius:12px; border:1px solid var(--wsb-border); overflow:hidden;">
-                <div style="padding: 20px; border-bottom: 1px solid var(--wsb-border); display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; color: #fff;">Recent Activity</h3>
-                    <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>" style="color:var(--wsb-primary); text-decoration:none; font-weight:500;">View All</a>
+
+            <!-- Global Metrics Row -->
+            <div class="wsb-dashboard-grid"
+                style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom:30px;">
+                <a href="?page=wsb_main&tab=bookings" class="wsb-stat-card wsb-clickable-card">
+                    <h3 style="margin-top:0; font-size:16px;">Total Bookings</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;">
+                        <?php echo intval($total_bookings); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Lifetime Volume</span>
+                </a>
+
+                <a href="?page=wsb_main&tab=bookings" class="wsb-stat-card wsb-clickable-card">
+                    <h3 style="margin-top:0; font-size:16px;">Total Revenue</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-success);">
+                        <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $total_revenue, 2); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Confirmed Earnings</span>
+                </a>
+
+                <a href="?page=wsb_main&tab=customers" class="wsb-stat-card wsb-clickable-card">
+                    <h3 style="margin-top:0; font-size:16px;">Total Customers</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;">
+                        <?php echo intval($total_customers); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Registered Users</span>
+                </a>
+
+                <a href="?page=wsb_main&tab=services" class="wsb-stat-card wsb-clickable-card">
+                    <h3 style="margin-top:0; font-size:16px;">Active Services</h3>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold;">
+                        <?php echo intval($total_services); ?></p>
+                    <span style="display:inline-block; margin-top:10px; color:var(--wsb-text-muted); font-size:12px;">Catalog Size</span>
+                </a>
+            </div>
+
+            <!-- Insights Section: Chart & Performance -->
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom:30px;">
+                <!-- Revenue Chart -->
+                <div style="background: var(--wsb-panel-dark); border: 1px solid var(--wsb-border); border-radius:12px; padding:20px;">
+                    <h3 style="margin-top:0; margin-bottom:20px; color:#fff; font-size:16px;">Revenue Trajectory (Last 7 Days)</h3>
+                    <div style="height:250px; width:100%;">
+                        <canvas id="wsb-revenue-chart"></canvas>
+                    </div>
                 </div>
-                <!-- Inline Table -->
-                <table style="width:100%; border-collapse:collapse; text-align:left;">
+
+                <!-- Top Services -->
+                <div style="background: var(--wsb-panel-dark); border: 1px solid var(--wsb-border); border-radius:12px; padding:20px;">
+                    <h3 style="margin-top:0; margin-bottom:20px; color:#fff; font-size:16px;">Top Performing Services</h3>
+                    <div class="wsb-top-services-list">
+                        <?php if (!empty($top_services)): 
+                            foreach($top_services as $ts): ?>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <div>
+                                    <div style="font-weight:600; color:#fff; font-size:14px;"><?php echo esc_html($ts->name); ?></div>
+                                    <div style="font-size:11px; color:var(--wsb-text-muted);"><?php echo intval($ts->booking_count); ?> Bookings</div>
+                                </div>
+                                <div style="font-weight:bold; color:var(--wsb-success); font-size:14px;">
+                                    <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format($ts->total_revenue, 2); ?>
+                                </div>
+                            </div>
+                        <?php endforeach; else: ?>
+                            <p style="color:var(--wsb-text-muted); font-size:13px; text-align:center; padding:20px;">No performance data available yet.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                (function() {
+                    var initDashboardCharts = function() {
+                        if (typeof Chart === 'undefined') {
+                            console.warn('WSB: Chart.js not loaded yet, retrying...');
+                            setTimeout(initDashboardCharts, 200);
+                            return;
+                        }
+                        var ctx = document.getElementById('wsb-revenue-chart');
+                        if (!ctx) return;
+                        
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: <?php echo json_encode($revenue_chart_labels); ?>,
+                                datasets: [{
+                                    label: 'Daily Revenue',
+                                    data: <?php echo json_encode($revenue_chart_values); ?>,
+                                    borderColor: '#6366f1',
+                                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    borderWidth: 3,
+                                    pointBackgroundColor: '#6366f1'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: { 
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(255,255,255,0.05)' },
+                                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                                    },
+                                    x: { 
+                                        grid: { display: false },
+                                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                                    }
+                                }
+                            }
+                        });
+                    };
+
+                    initDashboardCharts();
+                    jQuery(document).off('wsb-tab-loaded.wsb_dashboard').on('wsb-tab-loaded.wsb_dashboard', function(e, tab) {
+                        if (tab === 'dashboard') initDashboardCharts();
+                    });
+                })();
+            </script>
+
+            <div
+                style="background: var(--wsb-panel-dark); border-radius:12px; border:1px solid var(--wsb-border); overflow:hidden;">
+                <div
+                    style="padding: 20px; border-bottom: 1px solid var(--wsb-border); display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; color: #fff;">Recent Activity</h3>
+                    <a href="?page=wsb_main&tab=bookings"
+                        style="color:var(--wsb-primary); text-decoration:none; font-weight:500;">View All</a>
+                </div>
+                <!-- Scrollable Table Container -->
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left;">
                     <thead style="background:rgba(0,0,0,0.2);">
                         <tr>
-                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Customer</th>
-                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Service</th>
-                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Date</th>
-                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Status</th>
+                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">
+                                Customer</th>
+                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Service
+                            </th>
+                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Date
+                            </th>
+                            <th style="padding:15px 20px; color:var(--wsb-text-muted); font-weight:500; font-size:13px;">Status
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if(!empty($recent_bookings)): foreach($recent_bookings as $rb): ?>
-                        <tr class="wsb-clickable-row" data-href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>&action=edit&id=<?php echo $rb->id; ?>" style="border-bottom:1px solid var(--wsb-border);">
-                            <td style="padding:15px 20px; font-weight:500;"><?php echo esc_html($rb->first_name . ' ' . $rb->last_name); ?></td>
-                            <td style="padding:15px 20px; color:var(--wsb-text-muted);"><?php echo esc_html($rb->service_name); ?></td>
-                            <td style="padding:15px 20px;"><?php echo esc_html(date('M d, Y', strtotime($rb->booking_date))); ?></td>
-                            <td style="padding:15px 20px;"><span class="wsb-status wsb-status-<?php echo esc_attr($rb->status); ?>" style="font-size:11px;"><?php echo esc_html(ucfirst($rb->status)); ?></span></td>
-                        </tr>
-                        <?php endforeach; else: ?>
-                        <tr><td colspan="4" style="padding:30px; text-align:center; color:var(--wsb-text-muted);">No recent activity.</td></tr>
+                        <?php if (!empty($recent_bookings)):
+                            foreach ($recent_bookings as $rb): ?>
+                                <tr class="wsb-clickable-row"
+                                    data-href="?page=wsb_main&tab=bookings&action=edit&id=<?php echo $rb->id; ?>"
+                                    style="border-bottom:1px solid var(--wsb-border);">
+                                    <td style="padding:15px 20px; font-weight:500;">
+                                        <?php echo esc_html($rb->first_name . ' ' . $rb->last_name); ?></td>
+                                    <td style="padding:15px 20px; color:var(--wsb-text-muted);">
+                                        <?php echo esc_html($rb->service_name); ?></td>
+                                    <td style="padding:15px 20px;"><?php echo esc_html(date('M d, Y', strtotime($rb->booking_date))); ?>
+                                    </td>
+                                    <td style="padding:15px 20px;"><span
+                                            class="wsb-status wsb-status-<?php echo esc_attr($rb->status); ?>"
+                                            style="font-size:11px;"><?php echo esc_html(ucfirst($rb->status)); ?></span></td>
+                                </tr>
+                            <?php endforeach; else: ?>
+                            <tr>
+                                <td colspan="4" style="padding:30px; text-align:center; color:var(--wsb-text-muted);">No recent
+                                    activity.</td>
+                            </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
         <?php
     }
 
-    public function display_bookings_page() {
+    private function wsb_notify_status_change($booking_id, $new_status) {
+        global $wpdb;
+        $booking_table = $wpdb->prefix . 'wsb_bookings';
+        $customer_table = $wpdb->prefix . 'wsb_customers';
+        
+        $booking = $wpdb->get_row($wpdb->prepare(
+            "SELECT b.*, c.email, c.first_name, c.last_name 
+             FROM $booking_table b 
+             JOIN $customer_table c ON b.customer_id = c.id 
+             WHERE b.id = %d", 
+            $booking_id
+        ));
+        
+        if ($booking && !empty($booking->email)) {
+            $mail_subject = "Update: Booking #$booking_id Status Changed to " . ucfirst($new_status);
+            $mail_body = "Hello " . esc_html($booking->first_name) . ",\n\n";
+            $mail_body .= "We're writing to inform you that your booking status has been updated to: " . strtoupper($new_status) . ".\n\n";
+            $mail_body .= "Review schedule timelines directly inside dashboards:\n";
+            $mail_body .= esc_url(home_url('/booking-dashboard')) . "\n\n";
+            $mail_body .= "Best Regards.";
+            
+            wp_mail($booking->email, $mail_subject, $mail_body);
+        }
+    }
+
+    public function display_bookings_page()
+    {
         global $wpdb;
         $table_bookings = $wpdb->prefix . 'wsb_bookings';
 
@@ -208,13 +410,57 @@ class Wsb_Admin {
         $booking_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
         // Quick Status Updates (Approve / Reject)
+        // Quick Action Decisions for Client Requests (Reschedule / Cancel)
+        if ($action === 'request_action' && $booking_id) {
+            $decision = isset($_GET['decision']) ? sanitize_text_field($_GET['decision']) : '';
+            $booking_record = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_bookings WHERE id = %d", $booking_id));
+            
+            if ($booking_record) {
+                if ($decision === 'approve') {
+                    if ($booking_record->request_type === 'reschedule') {
+                        $wpdb->update($table_bookings, array(
+                            'status' => 'confirmed',
+                            'booking_date' => $booking_record->requested_date,
+                            'start_time' => $booking_record->requested_time,
+                            'staff_id' => $booking_record->requested_staff_id,
+                            'request_type' => NULL,
+                            'requested_date' => NULL,
+                            'requested_time' => NULL,
+                            'requested_staff_id' => NULL
+                        ), array('id' => $booking_id));
+                        echo '<div class="notice notice-success is-dismissible"><p>Reschedule request approved and applied successfully.</p></div>';
+                    } elseif ($booking_record->request_type === 'cancel') {
+                        $wpdb->update($table_bookings, array(
+                            'status' => 'cancelled',
+                            'request_type' => NULL
+                        ), array('id' => $booking_id));
+                        echo '<div class="notice notice-success is-dismissible"><p>Cancellation request approved successfully.</p></div>';
+                    }
+                    $this->wsb_notify_status_change($booking_id, 'confirmed');
+                } elseif ($decision === 'reject') {
+                    $wpdb->update($table_bookings, array(
+                        'status' => 'confirmed',
+                        'request_type' => NULL,
+                        'requested_date' => NULL,
+                        'requested_time' => NULL,
+                        'requested_staff_id' => NULL
+                    ), array('id' => $booking_id));
+                    echo '<div class="notice notice-warning is-dismissible"><p>Client request declined. Booking remains active.</p></div>';
+                    $this->wsb_notify_status_change($booking_id, 'confirmed');
+                }
+            }
+            $action = 'list';
+        }
+
+        // Standard quick status overrides
         if ($action === 'status' && $booking_id) {
             $new_status = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
             if (in_array($new_status, ['confirmed', 'cancelled', 'pending', 'completed'])) {
                 $wpdb->update($table_bookings, array('status' => $new_status), array('id' => $booking_id));
-                echo '<div class="notice notice-success is-dismissible"><p>Booking status securely updated to '.esc_html($new_status).'.</p></div>';
+                $this->wsb_notify_status_change($booking_id, $new_status);
+                echo '<div class="notice notice-success is-dismissible"><p>Status updated cleanly.</p></div>';
             }
-            $action = 'list'; // go back
+            $action = 'list';
         }
 
         // Full Edit Submission
@@ -226,13 +472,14 @@ class Wsb_Admin {
                 'total_amount' => floatval($_POST['total_amount']),
                 'status' => sanitize_text_field($_POST['status'])
             ), array('id' => $booking_id));
+            $this->wsb_notify_status_change($booking_id, sanitize_text_field($_POST['status']));
             echo '<div class="notice notice-success is-dismissible"><p>Booking information updated successfully.</p></div>';
             $action = 'list';
         }
 
         if ($action === 'edit' && $booking_id) {
             $booking = $wpdb->get_row($wpdb->prepare("
-                SELECT b.*, c.first_name, c.last_name, s.name as service_name, st.name as staff_name 
+                SELECT b.*, c.first_name, c.last_name, c.email as customer_email, c.phone as customer_phone, s.name as service_name, st.name as staff_name 
                 FROM {$table_bookings} b
                 LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
                 LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
@@ -245,26 +492,36 @@ class Wsb_Admin {
                 <div class="wrap wsb-admin-wrap">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <h1 style="margin:0;">Edit Booking #<?php echo esc_html(str_pad($booking->id, 5, '0', STR_PAD_LEFT)); ?></h1>
-                        <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to Bookings</a>
+                        <a href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>" class="wsb-btn-primary"
+                            style="background:var(--wsb-border);">Back to Bookings</a>
                     </div>
                     <hr class="wp-header-end" style="margin-bottom:20px;">
-                    
+
                     <form method="post" action="">
                         <?php wp_nonce_field('wsb_edit_booking', 'wsb_edit_booking_nonce'); ?>
-                        <div style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); max-width: 600px;">
-                            <p style="color:var(--wsb-text-muted); margin-top:0;"><strong>Customer:</strong> <?php echo esc_html($booking->first_name . ' ' . $booking->last_name); ?> <br>
-                            <strong>Service:</strong> <?php echo esc_html($booking->service_name); ?> with <?php echo esc_html($booking->staff_name); ?></p>
-                            
+                        <div
+                            style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); max-width: 600px;">
+                            <p style="color:var(--wsb-text-muted); margin-top:0;">
+                                <strong>Customer:</strong> <?php echo esc_html($booking->first_name . ' ' . $booking->last_name); ?><br>
+                                <strong>Email:</strong> <?php echo esc_html($booking->customer_email); ?><br>
+                                <strong>Phone:</strong> <?php echo esc_html($booking->customer_phone); ?><br>
+                                <strong>Service:</strong> <?php echo esc_html($booking->service_name); ?> with
+                                <?php echo esc_html($booking->staff_name); ?>
+                            </p>
+
                             <hr style="border:0; border-top:1px solid var(--wsb-border); margin:20px 0;">
 
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
                                 <div>
                                     <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Booking Date</label>
-                                    <input name="booking_date" type="date" value="<?php echo esc_attr($booking->booking_date); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;" required>
+                                    <input name="booking_date" type="date" value="<?php echo esc_attr($booking->booking_date); ?>"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
+                                        required>
                                 </div>
                                 <div>
                                     <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Status</label>
-                                    <select name="status" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                                    <select name="status"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
                                         <option value="pending" <?php selected($booking->status, 'pending'); ?>>Pending</option>
                                         <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>>Confirmed</option>
                                         <option value="completed" <?php selected($booking->status, 'completed'); ?>>Completed</option>
@@ -276,17 +533,24 @@ class Wsb_Admin {
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
                                 <div>
                                     <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Start Time</label>
-                                    <input name="start_time" type="time" value="<?php echo esc_attr($booking->start_time); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;" required>
+                                    <input name="start_time" type="time" value="<?php echo esc_attr($booking->start_time); ?>"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
+                                        required>
                                 </div>
                                 <div>
                                     <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">End Time</label>
-                                    <input name="end_time" type="time" value="<?php echo esc_attr($booking->end_time); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;" required>
+                                    <input name="end_time" type="time" value="<?php echo esc_attr($booking->end_time); ?>"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
+                                        required>
                                 </div>
                             </div>
-                            
+
                             <div style="margin-bottom:20px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Total Amount ($)</label>
-                                <input name="total_amount" type="number" step="0.01" value="<?php echo esc_attr($booking->total_amount); ?>" style="width:100%; max-width:200px; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;" required>
+                                <input name="total_amount" type="number" step="0.01"
+                                    value="<?php echo esc_attr($booking->total_amount); ?>"
+                                    style="width:100%; max-width:200px; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;"
+                                    required>
                             </div>
 
                             <button type="submit" class="wsb-btn-primary">Update Booking</button>
@@ -298,84 +562,220 @@ class Wsb_Admin {
             return;
         }
 
-        // Filter Engine
-        $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
+        // Advanced Filter Engine
+        $filter_status   = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
+        $filter_staff    = isset($_GET['filter_staff']) ? intval($_GET['filter_staff']) : 0;
+        $filter_service  = isset($_GET['filter_service']) ? intval($_GET['filter_service']) : 0;
+        $filter_search   = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
+        $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
+        $filter_date_end   = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
+
         $where_clause = "WHERE 1=1";
+        
         if (in_array($filter_status, ['pending', 'confirmed', 'completed', 'cancelled'])) {
             $where_clause .= " AND b.status = '{$filter_status}'";
+        } elseif ($filter_status === 'pending_requests') {
+            $where_clause .= " AND b.status = 'pending' AND b.request_type IN ('cancel', 'reschedule')";
         }
+
+        if ($filter_staff > 0) {
+            $where_clause .= $wpdb->prepare(" AND b.staff_id = %d", $filter_staff);
+        }
+
+        if ($filter_service > 0) {
+            $where_clause .= $wpdb->prepare(" AND b.service_id = %d", $filter_service);
+        }
+
+        if (!empty($filter_search)) {
+            $search_wildcard = '%' . $wpdb->esc_like($filter_search) . '%';
+            $where_clause .= $wpdb->prepare(" AND (c.first_name LIKE %s OR c.last_name LIKE %s OR c.email LIKE %s OR b.id = %d)", $search_wildcard, $search_wildcard, $search_wildcard, intval($filter_search));
+        }
+
+        if (!empty($filter_date_start)) {
+            $where_clause .= $wpdb->prepare(" AND b.booking_date >= %s", $filter_date_start);
+        }
+
+        if (!empty($filter_date_end)) {
+            $where_clause .= $wpdb->prepare(" AND b.booking_date <= %s", $filter_date_end);
+        }
+
+        $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN IF NOT EXISTS request_type VARCHAR(50) DEFAULT NULL");
+        $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN IF NOT EXISTS requested_date DATE DEFAULT NULL");
+        $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN IF NOT EXISTS requested_time TIME DEFAULT NULL");
+        $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN IF NOT EXISTS requested_staff_id BIGINT(20) DEFAULT NULL");
 
         // Metrics for Top Cards
         $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings}");
         $pending_count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings} WHERE status='pending'");
         $confirmed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings} WHERE status='confirmed' OR status='completed'");
+        $client_requests_count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings} WHERE status='pending' AND request_type IN ('cancel', 'reschedule')");
 
         // Joined query to get names instead of raw IDs for a professional look
         $query = "SELECT b.*, 
-                         c.first_name, c.last_name, c.email as customer_email, 
-                         s.name as service_name, 
-                         st.name as staff_name 
-                  FROM {$wpdb->prefix}wsb_bookings b
-                  LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
-                  LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
-                  LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
-                  {$where_clause}
-                  ORDER BY b.booking_date DESC, b.start_time DESC";
+                 c.first_name, c.last_name, c.email as customer_email, c.phone as customer_phone,
+                 s.name as service_name, 
+                 st.name as staff_name,
+                 req_staff.name as requested_staff_name
+          FROM {$wpdb->prefix}wsb_bookings b
+          LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
+          LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
+          LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
+          LEFT JOIN {$wpdb->prefix}wsb_staff req_staff ON b.requested_staff_id = req_staff.id
+          {$where_clause}
+          ORDER BY b.booking_date DESC, b.start_time DESC";
 
         $bookings = $wpdb->get_results($query);
         
+        $all_staff = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_staff ORDER BY name ASC");
+        $all_services = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_services ORDER BY name ASC");
+        
         $view = isset($_GET['view']) ? $_GET['view'] : 'list';
-        $page_url = "?page=" . esc_attr($this->plugin_name . '-bookings');
+        $page_url = "?page=wsb_main&tab=bookings";
         ?>
         <div class="wrap wsb-admin-wrap">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h1 style="margin:0;">Manage Bookings</h1>
                 <div>
-                    <a href="<?php echo $page_url; ?>&view=list&filter_status=<?php echo esc_attr($filter_status); ?>" class="wsb-btn-primary" style="background: <?php echo $view === 'list' ? 'var(--wsb-primary)' : 'var(--wsb-border)'; ?>;">List View</a>
-                    <a href="<?php echo $page_url; ?>&view=calendar&filter_status=<?php echo esc_attr($filter_status); ?>" class="wsb-btn-primary" style="margin-left:5px; background: <?php echo $view === 'calendar' ? 'var(--wsb-primary)' : 'var(--wsb-border)'; ?>;">Calendar View</a>
+                    <a href="<?php echo $page_url; ?>&view=list&filter_status=<?php echo esc_attr($filter_status); ?>"
+                        class="wsb-btn-primary"
+                        style="background: <?php echo $view === 'list' ? 'var(--wsb-primary)' : 'rgba(255,255,255,0.05)'; ?>;">List
+                        View</a>
+                    <a href="<?php echo $page_url; ?>&view=calendar&filter_status=<?php echo esc_attr($filter_status); ?>"
+                        class="wsb-btn-primary"
+                        style="margin-left:5px; background: <?php echo $view === 'calendar' ? 'var(--wsb-primary)' : 'rgba(255,255,255,0.05)'; ?>;">Calendar
+                        View</a>
                 </div>
+            </div>
+
+            <!-- Advanced Filter Toolbar -->
+            <div style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-top:20px;">
+                <form method="get" action="" style="display:flex; flex-wrap:wrap; gap:15px; align-items:flex-end;">
+                    <input type="hidden" name="page" value="wsb_main">
+                    <input type="hidden" name="tab" value="bookings">
+                    <input type="hidden" name="view" value="<?php echo esc_attr($view); ?>">
+                    <input type="hidden" name="filter_status" value="<?php echo esc_attr($filter_status); ?>">
+
+                    <div style="flex:1; min-width:200px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Search Bookings</label>
+                        <input type="text" name="filter_search" value="<?php echo esc_attr($filter_search); ?>" placeholder="Name, Email, or ID..." style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                    </div>
+
+                    <div style="width:180px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Professional</label>
+                        <select name="filter_staff" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                            <option value="0">All Professionals</option>
+                            <?php foreach($all_staff as $st): ?>
+                                <option value="<?php echo $st->id; ?>" <?php selected($filter_staff, $st->id); ?>><?php echo esc_html($st->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div style="width:180px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Service</label>
+                        <select name="filter_service" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                            <option value="0">All Services</option>
+                            <?php foreach($all_services as $srv): ?>
+                                <option value="<?php echo $srv->id; ?>" <?php selected($filter_service, $srv->id); ?>><?php echo esc_html($srv->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div style="width:150px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">From Date</label>
+                        <input type="date" name="filter_date_start" value="<?php echo esc_attr($filter_date_start); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                    </div>
+
+                    <div style="width:150px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">To Date</label>
+                        <input type="date" name="filter_date_end" value="<?php echo esc_attr($filter_date_end); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                    </div>
+
+                    <div style="display:flex; gap:5px;">
+                        <button type="submit" class="wsb-btn-primary">Apply</button>
+                        <a href="?page=wsb_main&tab=bookings&view=<?php echo esc_attr($view); ?>" class="wsb-btn-primary" style="background:var(--wsb-border);">Clear</a>
+                    </div>
+                </form>
             </div>
 
             <!-- Clickable Meta Cards -->
             <style>
-                .booking-filter-card { border-left: 4px solid transparent; text-decoration: none; color: inherit; display: block; border: 1px solid var(--wsb-border); border-radius: 12px; background: var(--wsb-panel-dark); padding: 20px; transition: transform 0.2s; }
-                .booking-filter-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-                .card-active { background: rgba(59, 130, 246, 0.1) !important; border-left: 4px solid var(--wsb-primary) !important; border-color: var(--wsb-primary) !important; }
+                .booking-filter-card {
+                    border-left: 4px solid transparent;
+                    text-decoration: none;
+                    color: inherit;
+                    display: block;
+                    border: 1px solid var(--wsb-border);
+                    border-radius: 12px;
+                    background: var(--wsb-panel-dark);
+                    padding: 20px;
+                    transition: transform 0.2s;
+                }
+
+                .booking-filter-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+                }
+
+                .card-active {
+                    background: rgba(59, 130, 246, 0.1) !important;
+                    border-left: 4px solid var(--wsb-primary) !important;
+                    border-color: var(--wsb-primary) !important;
+                }
             </style>
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
-                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=all" class="booking-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
+                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=all"
+                    class="booking-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Bookings</h3>
-                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($total_bookings); ?></p>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($total_bookings); ?></p>
                 </a>
-                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=pending" class="booking-filter-card <?php echo $filter_status === 'pending' ? 'card-active' : ''; ?>">
-                    <h3 style="margin-top:0; font-size:15px; color:var(--wsb-warning);">Pending Approvals</h3>
-                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($pending_count); ?></p>
+                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=pending"
+                    class="booking-filter-card <?php echo $filter_status === 'pending' ? 'card-active' : ''; ?>">
+                    <h3 style="margin-top:0; font-size:15px; color:#f59e0b;">Pending Approvals</h3>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($pending_count); ?></p>
                 </a>
-                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=confirmed" class="booking-filter-card <?php echo $filter_status === 'confirmed' ? 'card-active' : ''; ?>">
+                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=confirmed"
+                    class="booking-filter-card <?php echo $filter_status === 'confirmed' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-success);">Confirmed / Completed</h3>
-                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($confirmed_count); ?></p>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($confirmed_count); ?></p>
+                </a>
+                <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=pending_requests"
+                    class="booking-filter-card <?php echo $filter_status === 'pending_requests' ? 'card-active' : ''; ?>">
+                    <h3 style="margin-top:0; font-size:15px; color:#ef4444;">Client Requests</h3>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($client_requests_count); ?></p>
                 </a>
             </div>
 
-            <?php if($view === 'calendar'): ?>
+            <?php if ($view === 'calendar'): ?>
                 <!-- Calendar View powered by FullCalendar -->
-                <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-                <div id="wsb-calendar" style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; margin-top:20px; border: 1px solid var(--wsb-border); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></div>
+                <div id="wsb-calendar"
+                    style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; margin-top:20px; border: 1px solid var(--wsb-border); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                </div>
                 <script>
-                    (function() {
-                        var initCalendar = function() {
+                    (function () {
+                        var initCalendar = function () {
                             var calendarEl = document.getElementById('wsb-calendar');
                             if (!calendarEl || calendarEl.classList.contains('fc')) return;
-                            
+
                             var events = [
-                                <?php foreach($bookings as $b): ?>
-                                {
-                                    title: '<?php echo esc_js($b->first_name . " - " . $b->service_name); ?>',
-                                    start: '<?php echo esc_js($b->booking_date); ?>T<?php echo esc_js($b->start_time); ?>',
-                                    end: '<?php echo esc_js($b->booking_date); ?>T<?php echo esc_js($b->end_time); ?>',
-                                    color: '<?php echo $b->status === 'confirmed' ? '#10b981' : ($b->status === 'pending' ? '#f59e0b' : '#3b82f6'); ?>',
-                                    url: '<?php echo "?page=" . esc_attr($this->plugin_name . "-bookings") . "&action=edit&id=" . $b->id; ?>'
-                                },
+                                <?php foreach ($bookings as $b): ?>
+                                                {
+                                        title: '<?php echo esc_js($b->first_name . " - " . $b->service_name); ?>',
+                                        start: '<?php echo esc_js($b->booking_date); ?>T<?php echo esc_js($b->start_time); ?>',
+                                        end: '<?php echo esc_js($b->booking_date); ?>T<?php echo esc_js($b->end_time); ?>',
+                                        color: '<?php echo $b->status === 'confirmed' ? '#10b981' : ($b->status === 'pending' ? '#f59e0b' : '#3b82f6'); ?>',
+                                        url: '<?php echo "?page=wsb_main&tab=bookings&action=edit&id=" . $b->id; ?>',
+                                        extendedProps: {
+                                            customer: '<?php echo esc_js($b->first_name . " " . $b->last_name); ?>',
+                                            email: '<?php echo esc_js($b->customer_email); ?>',
+                                            phone: '<?php echo esc_js($b->customer_phone); ?>',
+                                            amount: '<?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_js($b->total_amount); ?>',
+                                            status: '<?php echo esc_js(ucfirst($b->status)); ?>'
+                                        }
+                                    },
                                 <?php endforeach; ?>
                             ];
                             var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -389,28 +789,61 @@ class Wsb_Admin {
                                 slotMinTime: '08:00:00',
                                 slotMaxTime: '19:00:00',
                                 allDaySlot: false,
-                                height: 700
+                                height: 700,
+                                eventDidMount: function (info) {
+                                    var prop = info.event.extendedProps;
+                                    // Fallback to native title with phone number
+                                    info.el.setAttribute('title', prop.customer + ' | ' + prop.phone + ' | ' + prop.amount + ' | ' + prop.status);
+                                }
                             });
                             calendar.render();
                         };
 
-                        if (document.readyState === 'loading') {
-                            document.addEventListener('DOMContentLoaded', initCalendar);
-                        } else {
-                            initCalendar();
-                        }
+                        initCalendar();
                         // Also listen for our custom AJAX load event
-                        jQuery(document).on('wsb-page-loaded', initCalendar);
+                        jQuery(document).off('wsb-tab-loaded.wsb_bookings').on('wsb-tab-loaded.wsb_bookings', function (e, tab) {
+                            if (tab === 'bookings') initCalendar();
+                        });
                     })();
                 </script>
                 <style>
                     /* FullCalendar overrides for Dark Mode */
-                    .fc-theme-standard td, .fc-theme-standard th { border-color: var(--wsb-border); color: #fff; }
-                    .fc-col-header-cell { background: rgba(0,0,0,0.2) !important; padding: 10px 0; }
-                    .fc-timegrid-slot-label { color: var(--wsb-text-muted); font-size:12px; }
-                    .fc-button-primary { background-color: var(--wsb-primary) !important; border-color: var(--wsb-primary) !important; text-transform: capitalize; border-radius: 6px !important; }
-                    .fc .fc-toolbar-title { font-weight: 600; font-family: 'Inter', sans-serif; font-size: 20px; color: var(--wsb-text-main); }
-                    .fc-event { border: none !important; border-radius: 4px; padding: 2px 4px; font-size: 11px; }
+                    .fc-theme-standard td,
+                    .fc-theme-standard th {
+                        border-color: var(--wsb-border);
+                        color: #fff;
+                    }
+
+                    .fc-col-header-cell {
+                        background: rgba(0, 0, 0, 0.2) !important;
+                        padding: 10px 0;
+                    }
+
+                    .fc-timegrid-slot-label {
+                        color: var(--wsb-text-muted);
+                        font-size: 12px;
+                    }
+
+                    .fc-button-primary {
+                        background-color: var(--wsb-primary) !important;
+                        border-color: var(--wsb-primary) !important;
+                        text-transform: capitalize;
+                        border-radius: 6px !important;
+                    }
+
+                    .fc .fc-toolbar-title {
+                        font-weight: 600;
+                        font-family: 'Inter', sans-serif;
+                        font-size: 20px;
+                        color: var(--wsb-text-main);
+                    }
+
+                    .fc-event {
+                        border: none !important;
+                        border-radius: 4px;
+                        padding: 2px 4px;
+                        font-size: 11px;
+                    }
                 </style>
             <?php else: ?>
                 <!-- Modern SaaS List View -->
@@ -426,34 +859,74 @@ class Wsb_Admin {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($bookings)) : ?>
-                            <?php foreach ($bookings as $b) : ?>
-                                <tr class="wsb-clickable-row" data-href="?page=<?php echo esc_attr($this->plugin_name . '-bookings'); ?>&action=edit&id=<?php echo $b->id; ?>">
-                                    <td><strong style="color:var(--wsb-primary);">#<?php echo esc_html(str_pad($b->id, 5, '0', STR_PAD_LEFT)); ?></strong></td>
+                        <?php if (!empty($bookings)): ?>
+                            <?php foreach ($bookings as $b): ?>
+                                <tr class="wsb-clickable-row" data-href="?page=wsb_main&tab=bookings&action=edit&id=<?php echo $b->id; ?>">
+                                    <td><strong
+                                            style="color:var(--wsb-primary);">#<?php echo esc_html(str_pad($b->id, 5, '0', STR_PAD_LEFT)); ?></strong>
+                                    </td>
                                     <td>
                                         <div class="wsb-customer-info">
-                                            <span class="wsb-customer-name"><?php echo esc_html($b->first_name . ' ' . $b->last_name); ?></span>
-                                            <span class="wsb-customer-meta"><?php echo esc_html($b->customer_email); ?></span>
+                                            <span
+                                                class="wsb-customer-name"><?php echo esc_html($b->first_name . ' ' . $b->last_name); ?></span>
+                                            <span class="wsb-customer-meta"><?php echo esc_html($b->customer_email); ?> |
+                                                <?php echo esc_html($b->customer_phone); ?></span>
                                         </div>
                                     </td>
                                     <td>
                                         <div class="wsb-customer-info">
                                             <span class="wsb-customer-name"><?php echo esc_html($b->service_name); ?></span>
-                                            <span class="wsb-customer-meta">with <?php echo esc_html($b->staff_name); ?></span>
+                                            <span class="wsb-customer-meta">
+                                                <?php if ($b->request_type === 'reschedule' && !empty($b->requested_staff_id)): ?>
+                                                    <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html($b->staff_name); ?></span> 
+                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔ <?php echo esc_html($b->requested_staff_name); ?></span>
+                                                <?php else: ?>
+                                                    with <?php echo esc_html($b->staff_name); ?>
+                                                <?php endif; ?>
+                                            </span>
                                         </div>
                                     </td>
                                     <td>
                                         <div class="wsb-customer-info">
-                                            <span class="wsb-customer-name"><?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?></span>
-                                            <span class="wsb-customer-meta"><?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?> - <?php echo esc_html(date('g:i A', strtotime($b->end_time))); ?></span>
+                                            <span class="wsb-customer-name">
+                                                <?php if ($b->request_type === 'reschedule' && !empty($b->requested_date)): ?>
+                                                    <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?></span> 
+                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔ <?php echo esc_html(date('M d, Y', strtotime($b->requested_date))); ?></span>
+                                                <?php else: ?>
+                                                    <?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?>
+                                                <?php endif; ?>
+                                            </span>
+                                            <span class="wsb-customer-meta">
+                                                <?php if ($b->request_type === 'reschedule' && !empty($b->requested_time)): ?>
+                                                    <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?></span> 
+                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔ <?php echo esc_html(date('g:i A', strtotime($b->requested_time))); ?></span>
+                                                <?php else: ?>
+                                                    <?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?> - <?php echo esc_html(date('g:i A', strtotime($b->end_time))); ?>
+                                                <?php endif; ?>
+                                            </span>
                                         </div>
                                     </td>
-                                    <td><strong>$<?php echo esc_html($b->total_amount); ?></strong></td>
-                                    <td><span class="wsb-status wsb-status-<?php echo esc_attr($b->status); ?>"><?php echo esc_html(ucfirst($b->status)); ?></span></td>
+                                    <td><strong><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($b->total_amount); ?></strong></td>
+                                    <td>
+                                        <?php if ($b->status === 'pending' && !empty($b->request_type)): ?>
+                                            <span style="background:rgba(245, 158, 11, 0.15); color:var(--wsb-warning); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold; white-space:nowrap; display:block; text-align:center; margin-bottom:5px;">
+                                                <?php echo esc_html(ucfirst($b->request_type)); ?> Request
+                                            </span>
+                                            <div style="display:flex; gap:5px;">
+                                                <a href="?page=wsb_main&tab=bookings&action=request_action&decision=approve&id=<?php echo $b->id; ?>" class="button" style="flex:1; text-align:center; background:var(--wsb-success); color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; padding:4px 0; text-decoration:none;">Accept</a>
+                                                <a href="?page=wsb_main&tab=bookings&action=request_action&decision=reject&id=<?php echo $b->id; ?>" class="button" style="flex:1; text-align:center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; padding:4px 0; text-decoration:none;">Reject</a>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="wsb-status wsb-status-<?php echo esc_attr($b->status); ?>"><?php echo esc_html(ucfirst($b->status)); ?></span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
-                        <?php else : ?>
-                            <tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No bookings found. Generate some dummy data!</td></tr>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No bookings
+                                    found. Generate some dummy data!</td>
+                            </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -462,7 +935,8 @@ class Wsb_Admin {
         <?php
     }
 
-    public function display_services_page() {
+    public function display_services_page()
+    {
         global $wpdb;
         $table_services = $wpdb->prefix . 'wsb_services';
         $table_staff = $wpdb->prefix . 'wsb_staff';
@@ -484,27 +958,227 @@ class Wsb_Admin {
         if ($action === 'seed' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'seed_services')) {
             $dummy_services = array(
                 array(
-                    'name' => 'Signature Haircut', 'description' => 'Precision cut tailored to your face shape by our top stylists.',
-                    'duration' => 45, 'price' => 50.00, 'buffer_time' => 15, 'category' => 'Hair', 'capacity' => 1, 'status' => 'active',
+                    'name' => 'Signature Haircut',
+                    'description' => 'Precision cut tailored to your face shape by our top stylists.',
+                    'duration' => 45,
+                    'price' => 50.00,
+                    'buffer_time' => 15,
+                    'category' => 'Hair',
+                    'capacity' => 1,
+                    'status' => 'active',
                     'image_url' => 'https://images.unsplash.com/photo-1562322140-8baeececf3df?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
                 ),
                 array(
-                    'name' => 'Balayage Color Treatment', 'description' => 'Beautiful, natural-looking hand-painted highlights.',
-                    'duration' => 120, 'price' => 180.00, 'buffer_time' => 30, 'category' => 'Color', 'capacity' => 1, 'status' => 'active',
+                    'name' => 'Balayage Color Treatment',
+                    'description' => 'Beautiful, natural-looking hand-painted highlights.',
+                    'duration' => 120,
+                    'price' => 180.00,
+                    'buffer_time' => 30,
+                    'category' => 'Color',
+                    'capacity' => 1,
+                    'status' => 'active',
                     'image_url' => 'https://images.unsplash.com/photo-1512496015851-a1dc8f411906?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
                 ),
                 array(
-                    'name' => 'Deep Tissue Massage', 'description' => 'Intense pressure therapy to release knots and muscle tension.',
-                    'duration' => 60, 'price' => 90.00, 'buffer_time' => 15, 'category' => 'Spa & Relax', 'capacity' => 1, 'status' => 'active',
+                    'name' => 'Deep Tissue Massage',
+                    'description' => 'Intense pressure therapy to release knots and muscle tension.',
+                    'duration' => 60,
+                    'price' => 90.00,
+                    'buffer_time' => 15,
+                    'category' => 'Spa & Relax',
+                    'capacity' => 1,
+                    'status' => 'active',
                     'image_url' => 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
                 ),
                 array(
-                    'name' => 'Bridal Makeup Session', 'description' => 'Full makeup session for the big day, including consultations.',
-                    'duration' => 90, 'price' => 120.00, 'buffer_time' => 30, 'category' => 'Makeup', 'capacity' => 1, 'status' => 'inactive',
+                    'name' => 'Bridal Makeup Session',
+                    'description' => 'Full makeup session for the big day, including consultations.',
+                    'duration' => 90,
+                    'price' => 120.00,
+                    'buffer_time' => 30,
+                    'category' => 'Makeup',
+                    'capacity' => 1,
+                    'status' => 'active',
                     'image_url' => 'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Classic Manicure',
+                    'description' => 'Nail shaping, cuticle care, and standard professional polish.',
+                    'duration' => 30,
+                    'price' => 35.00,
+                    'buffer_time' => 10,
+                    'category' => 'Nails',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1604654894610-df490c81ac36?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Deluxe Pedicure',
+                    'description' => 'Exfoliating scrub, massage, and perfect nail lacquer.',
+                    'duration' => 45,
+                    'price' => 45.00,
+                    'buffer_time' => 15,
+                    'category' => 'Nails',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1610992015732-2449b7de358c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Hatha Yoga Session',
+                    'description' => 'Gentle physical postures and breathing techniques.',
+                    'duration' => 60,
+                    'price' => 25.00,
+                    'buffer_time' => 15,
+                    'category' => 'Wellness',
+                    'capacity' => 10,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Aromatherapy Facial',
+                    'description' => 'Soothing essential oils matched with deep skin cleansing.',
+                    'duration' => 60,
+                    'price' => 75.00,
+                    'buffer_time' => 15,
+                    'category' => 'Spa & Relax',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Men\'s Beard Grooming',
+                    'description' => 'Hot towel shave, beard trim, and premium oils.',
+                    'duration' => 30,
+                    'price' => 25.00,
+                    'buffer_time' => 10,
+                    'category' => 'Hair',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1620331311520-246422fd82f9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Keratin Hair Treatment',
+                    'description' => 'Smooth and de-frizz your hair for up to 12 weeks.',
+                    'duration' => 150,
+                    'price' => 250.00,
+                    'buffer_time' => 30,
+                    'category' => 'Hair',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1560869713-7d0a29430873?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Highlights & Lowlights',
+                    'description' => 'Dimensional coloring for a rich, natural shine.',
+                    'duration' => 90,
+                    'price' => 140.00,
+                    'buffer_time' => 15,
+                    'category' => 'Color',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Hot Stone Massage',
+                    'description' => 'Heated basalt stones melt away muscle tightness.',
+                    'duration' => 75,
+                    'price' => 110.00,
+                    'buffer_time' => 15,
+                    'category' => 'Spa & Relax',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Evening Glam Makeup',
+                    'description' => 'Bold, contour-heavy aesthetic for evening events.',
+                    'duration' => 60,
+                    'price' => 80.00,
+                    'buffer_time' => 15,
+                    'category' => 'Makeup',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Gel Nail Extensions',
+                    'description' => 'Full set of durable sculpted gel nails.',
+                    'duration' => 90,
+                    'price' => 65.00,
+                    'buffer_time' => 15,
+                    'category' => 'Nails',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Guided Meditation Hour',
+                    'description' => 'Mindfulness and deep relaxation training.',
+                    'duration' => 60,
+                    'price' => 20.00,
+                    'buffer_time' => 10,
+                    'category' => 'Wellness',
+                    'capacity' => 15,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1599447421416-3414500d18e5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Full Body Scrub & Glow',
+                    'description' => 'Sea salt exfoliation followed by deep moisturizing.',
+                    'duration' => 45,
+                    'price' => 70.00,
+                    'buffer_time' => 15,
+                    'category' => 'Spa & Relax',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Eyebrow Shaping & Tinting',
+                    'description' => 'Precision mapping and semi-permanent brow tint.',
+                    'duration' => 30,
+                    'price' => 30.00,
+                    'buffer_time' => 10,
+                    'category' => 'Makeup',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Scalp Revitalization',
+                    'description' => 'Exfoliating treatment to enhance natural hair growth.',
+                    'duration' => 45,
+                    'price' => 55.00,
+                    'buffer_time' => 10,
+                    'category' => 'Hair',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1582095133179-bf108e2fc6b9?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Thai Massage Therapy',
+                    'description' => 'Dynamic stretching and joint pressure application.',
+                    'duration' => 90,
+                    'price' => 120.00,
+                    'buffer_time' => 15,
+                    'category' => 'Spa & Relax',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                ),
+                array(
+                    'name' => 'Holistic Wellness Consultation',
+                    'description' => 'Comprehensive analysis of nutrition and routines.',
+                    'duration' => 60,
+                    'price' => 95.00,
+                    'buffer_time' => 15,
+                    'category' => 'Wellness',
+                    'capacity' => 1,
+                    'status' => 'active',
+                    'image_url' => 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
                 )
             );
-            foreach($dummy_services as $srv) {
+            foreach ($dummy_services as $srv) {
                 $wpdb->insert($table_services, $srv);
             }
             echo '<div class="notice notice-success is-dismissible"><p>Fully loaded dummy services seamlessly injected.</p></div>';
@@ -551,108 +1225,150 @@ class Wsb_Admin {
             $staff_members = $wpdb->get_results("SELECT id, name FROM $table_staff");
             $service = null;
             $assigned_staff_ids = [];
-            
+
             if ($action === 'edit' && $service_id) {
                 $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_services WHERE id = %d", $service_id));
                 $staff_relations = $wpdb->get_results($wpdb->prepare("SELECT staff_id FROM {$wpdb->prefix}wsb_staff_services WHERE service_id = %d", $service_id));
-                foreach($staff_relations as $sr) $assigned_staff_ids[] = $sr->staff_id;
+                foreach ($staff_relations as $sr)
+                    $assigned_staff_ids[] = $sr->staff_id;
             }
 
             ?>
             <div class="wrap wsb-admin-wrap">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h1 style="margin:0;"><?php echo $action === 'edit' ? 'Edit Service' : 'Add New Service'; ?></h1>
-                    <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to Services</a>
+                    <a href="?page=wsb_main&tab=services" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
+                        Services</a>
                 </div>
                 <hr class="wp-header-end" style="margin-bottom:20px;">
-                
+
                 <form method="post" action="">
                     <?php wp_nonce_field('wsb_add_service', 'wsb_service_nonce'); ?>
                     <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-                        
+
                         <!-- Main Panel -->
-                        <div style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); border-top: 4px solid var(--wsb-primary);">
-                            <h3 style="margin-top:0; color:var(--wsb-primary); font-size:18px; display:flex; align-items:center; gap:8px;">📝 Basic Information</h3>
+                        <div
+                            style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); border-top: 4px solid var(--wsb-primary);">
+                            <h3
+                                style="margin-top:0; color:var(--wsb-primary); font-size:18px; display:flex; align-items:center; gap:8px;">
+                                📝 Basic Information</h3>
                             <div style="margin-bottom: 15px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Service Name</label>
-                                <input name="service_name" type="text" value="<?php echo $service ? esc_attr($service->name) : ''; ?>" style="width:100%; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; background:#0f172a; color:white; font-size:16px;" required>
+                                <input name="service_name" type="text"
+                                    value="<?php echo $service ? esc_attr($service->name) : ''; ?>"
+                                    style="width:100%; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; background:#0f172a; color:white; font-size:16px;"
+                                    required>
                             </div>
                             <div style="margin-bottom: 15px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Category</label>
-                                <input name="service_category" type="text" value="<?php echo $service ? esc_attr($service->category) : ''; ?>" style="width:100%; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; background:#0f172a; color:white;">
+                                <input name="service_category" type="text"
+                                    value="<?php echo $service ? esc_attr($service->category) : ''; ?>"
+                                    style="width:100%; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; background:#0f172a; color:white;">
                             </div>
                             <div style="margin-bottom: 15px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Description</label>
-                                <textarea name="service_description" rows="4" style="width:100%; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; background:#0f172a; color:white;"><?php echo $service ? esc_textarea($service->description) : ''; ?></textarea>
+                                <textarea name="service_description" rows="4"
+                                    style="width:100%; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; background:#0f172a; color:white;"><?php echo $service ? esc_textarea($service->description) : ''; ?></textarea>
                             </div>
                             <div style="margin-bottom: 15px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Featured Image</label>
                                 <div style="display:flex; gap:10px; align-items:center;">
-                                    <div id="wsb-featured-preview" style="width:60px; height:60px; border-radius:6px; border:1px dashed var(--wsb-border); background:#0f172a <?php echo $service && $service->image_url ? 'url('.esc_url($service->image_url).') center/cover' : ''; ?>;"></div>
-                                    <input type="hidden" name="service_image_url" id="service_image_url" value="<?php echo $service ? esc_url($service->image_url) : ''; ?>">
-                                    <button type="button" class="wsb-btn-primary wsb-select-image" data-target="#service_image_url" data-preview="#wsb-featured-preview" style="background:var(--wsb-border); color:white;">Select Image</button>
+                                    <div id="wsb-featured-preview"
+                                        style="width:60px; height:60px; border-radius:6px; border:1px dashed var(--wsb-border); background:#0f172a <?php echo $service && $service->image_url ? 'url(' . esc_url($service->image_url) . ') center/cover' : ''; ?>;">
+                                    </div>
+                                    <input type="hidden" name="service_image_url" id="service_image_url"
+                                        value="<?php echo $service ? esc_url($service->image_url) : ''; ?>">
+                                    <button type="button" class="wsb-btn-primary wsb-select-image" data-target="#service_image_url"
+                                        data-preview="#wsb-featured-preview"
+                                        style="background:var(--wsb-border); color:white;">Select Image</button>
                                 </div>
                             </div>
                             <div style="margin-bottom: 15px;">
-                                <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Service Gallery (Multiple Images)</label>
-                                <input type="hidden" name="service_gallery_urls" id="service_gallery_urls" value="<?php echo $service && isset($service->gallery_urls) ? esc_attr($service->gallery_urls) : ''; ?>">
+                                <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Service Gallery
+                                    (Multiple Images)</label>
+                                <input type="hidden" name="service_gallery_urls" id="service_gallery_urls"
+                                    value="<?php echo $service && isset($service->gallery_urls) ? esc_attr($service->gallery_urls) : ''; ?>">
                                 <div id="wsb-gallery-preview" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-                                    <?php 
+                                    <?php
                                     if ($service && !empty($service->gallery_urls)) {
                                         $urls = explode(',', $service->gallery_urls);
-                                        foreach($urls as $url) {
-                                            echo '<div style="width:50px; height:50px; border-radius:4px; background:url('.esc_url($url).') center/cover; border:1px solid #334155;"></div>';
+                                        foreach ($urls as $url) {
+                                            echo '<div style="width:50px; height:50px; border-radius:4px; background:url(' . esc_url($url) . ') center/cover; border:1px solid #334155;"></div>';
                                         }
                                     }
                                     ?>
                                 </div>
-                                <button type="button" class="wsb-btn-primary wsb-select-gallery" style="background:var(--wsb-border); color:white;">Select Gallery Images</button>
+                                <button type="button" class="wsb-btn-primary wsb-select-gallery"
+                                    style="background:var(--wsb-border); color:white;">Select Gallery Images</button>
                             </div>
                         </div>
 
                         <!-- Side Panel -->
                         <div>
-                            <div style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-bottom: 20px; border-top: 4px solid var(--wsb-success);">
-                                <h3 style="margin-top:0; color:var(--wsb-success); font-size:18px; display:flex; align-items:center; gap:8px;">💰 Pricing & Duration</h3>
+                            <div
+                                style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-bottom: 20px; border-top: 4px solid var(--wsb-success);">
+                                <h3
+                                    style="margin-top:0; color:var(--wsb-success); font-size:18px; display:flex; align-items:center; gap:8px;">
+                                    💰 Pricing & Duration</h3>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 15px;">
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Price ($)</label>
-                                        <input name="service_price" type="number" step="0.01" value="<?php echo $service ? esc_attr($service->price) : '0.00'; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; font-weight:bold;" required>
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Price
+                                            ($)</label>
+                                        <input name="service_price" type="number" step="0.01"
+                                            value="<?php echo $service ? esc_attr($service->price) : '0.00'; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px; font-weight:bold;"
+                                            required>
                                     </div>
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Duration (m)</label>
-                                        <input name="service_duration" type="number" value="<?php echo $service ? esc_attr($service->duration) : '30'; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px;" required>
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Duration
+                                            (m)</label>
+                                        <input name="service_duration" type="number"
+                                            value="<?php echo $service ? esc_attr($service->duration) : '30'; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px;"
+                                            required>
                                     </div>
                                 </div>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Buffer (m)</label>
-                                        <input name="service_buffer_time" type="number" value="<?php echo $service ? esc_attr($service->buffer_time) : '0'; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px;">
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Buffer
+                                            (m)</label>
+                                        <input name="service_buffer_time" type="number"
+                                            value="<?php echo $service ? esc_attr($service->buffer_time) : '0'; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px;">
                                     </div>
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Capacity</label>
-                                        <input name="service_capacity" type="number" value="<?php echo $service ? esc_attr($service->capacity) : '1'; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px;" required>
+                                        <label
+                                            style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Capacity</label>
+                                        <input name="service_capacity" type="number"
+                                            value="<?php echo $service ? esc_attr($service->capacity) : '1'; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); border-radius:6px; padding:10px;"
+                                            required>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); border-top: 4px solid var(--wsb-warning);">
-                                <h3 style="margin-top:0; color:var(--wsb-warning); font-size:18px; display:flex; align-items:center; gap:8px;">👥 Assign Staff</h3>
-                                <?php if (!empty($staff_members)) : ?>
+
+                            <div
+                                style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); border-top: 4px solid var(--wsb-warning);">
+                                <h3
+                                    style="margin-top:0; color:var(--wsb-warning); font-size:18px; display:flex; align-items:center; gap:8px;">
+                                    👥 Assign Staff</h3>
+                                <?php if (!empty($staff_members)): ?>
                                     <div style="max-height:150px; overflow-y:auto; padding-right:10px;">
-                                    <?php foreach ($staff_members as $staff) : ?>
-                                        <label style="display:block; margin-bottom:8px;">
-                                            <input type="checkbox" name="assigned_staff[]" value="<?php echo esc_attr($staff->id); ?>" <?php echo in_array($staff->id, $assigned_staff_ids) ? 'checked' : ''; ?>> 
-                                            <?php echo esc_html($staff->name); ?>
-                                        </label>
-                                    <?php endforeach; ?>
+                                        <?php foreach ($staff_members as $staff): ?>
+                                            <label style="display:block; margin-bottom:8px;">
+                                                <input type="checkbox" name="assigned_staff[]" value="<?php echo esc_attr($staff->id); ?>"
+                                                    <?php echo in_array($staff->id, $assigned_staff_ids) ? 'checked' : ''; ?>>
+                                                <?php echo esc_html($staff->name); ?>
+                                            </label>
+                                        <?php endforeach; ?>
                                     </div>
-                                <?php else : ?>
+                                <?php else: ?>
                                     <p class="description" style="color:var(--wsb-warning);">No staff members found.</p>
                                 <?php endif; ?>
                             </div>
 
-                            <button type="submit" class="wsb-btn-primary" style="width:100%; margin-top:20px; padding:15px; font-size:16px;">
+                            <button type="submit" class="wsb-btn-primary"
+                                style="width:100%; margin-top:20px; padding:15px; font-size:16px;">
                                 <?php echo $action === 'edit' ? 'Update Service' : 'Publish Service'; ?>
                             </button>
                         </div>
@@ -665,14 +1381,18 @@ class Wsb_Admin {
             $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
             $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : (isset($_POST['s']) ? $_POST['s'] : '');
             $filter = isset($_GET['cat']) ? sanitize_text_field($_GET['cat']) : (isset($_POST['cat']) ? $_POST['cat'] : '');
-            
+
             $query = "SELECT * FROM $table_services WHERE 1=1";
-            if ($search) $query .= $wpdb->prepare(" AND name LIKE %s", '%' . $wpdb->esc_like($search) . '%');
-            if ($filter) $query .= $wpdb->prepare(" AND category = %s", $filter);
-            if ($filter_status === 'active') $query .= " AND status = 'active'";
-            if ($filter_status === 'inactive') $query .= " AND status = 'inactive'";
+            if ($search)
+                $query .= $wpdb->prepare(" AND name LIKE %s", '%' . $wpdb->esc_like($search) . '%');
+            if ($filter)
+                $query .= $wpdb->prepare(" AND category = %s", $filter);
+            if ($filter_status === 'active')
+                $query .= " AND status = 'active'";
+            if ($filter_status === 'inactive')
+                $query .= " AND status = 'inactive'";
             $query .= " ORDER BY created_at DESC";
-            
+
             $services = $wpdb->get_results($query);
             $categories = $wpdb->get_col("SELECT DISTINCT category FROM $table_services WHERE category != ''");
 
@@ -686,46 +1406,76 @@ class Wsb_Admin {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h1 style="margin:0;">Services Repository</h1>
                     <div>
-                        <a href="<?php echo wp_nonce_url("?page=".$this->plugin_name."-services&action=seed", 'seed_services'); ?>" class="wsb-btn-primary" style="background:var(--wsb-warning); margin-right:10px;">⚡ Inject Dummy Services</a>
-                        <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>&action=add" class="wsb-btn-primary">+ Add New Service</a>
+                        <a href="<?php echo wp_nonce_url("?page=" . $this->plugin_name . "-services&action=seed", 'seed_services'); ?>"
+                            class="wsb-btn-primary" style="background:var(--wsb-warning); margin-right:10px;">⚡ Inject Dummy
+                            Services</a>
+                        <a href="?page=wsb_main&tab=services&action=add" class="wsb-btn-primary">+ Add New Service</a>
                     </div>
                 </div>
 
                 <style>
-                    .service-filter-card { border-left: 4px solid transparent; text-decoration: none; color: inherit; display: block; border: 1px solid var(--wsb-border); border-radius: 12px; background: var(--wsb-panel-dark); padding: 20px; transition: transform 0.2s; }
-                    .service-filter-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-                    .card-active { background: rgba(59, 130, 246, 0.1) !important; border-left: 4px solid var(--wsb-primary) !important; border-color: var(--wsb-primary) !important; }
+                    .service-filter-card {
+                        border-left: 4px solid transparent;
+                        text-decoration: none;
+                        color: inherit;
+                        display: block;
+                        border: 1px solid var(--wsb-border);
+                        border-radius: 12px;
+                        background: var(--wsb-panel-dark);
+                        padding: 20px;
+                        transition: transform 0.2s;
+                    }
+
+                    .service-filter-card:hover {
+                        transform: translateY(-3px);
+                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+                    }
+
+                    .card-active {
+                        background: rgba(59, 130, 246, 0.1) !important;
+                        border-left: 4px solid var(--wsb-primary) !important;
+                        border-color: var(--wsb-primary) !important;
+                    }
                 </style>
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
-                    <a href="<?php echo $page_url; ?>&filter_status=all" class="service-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
+                    <a href="<?php echo $page_url; ?>&filter_status=all"
+                        class="service-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Services</h3>
-                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($total_services); ?></p>
+                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                            <?php echo intval($total_services); ?></p>
                     </a>
-                    <a href="<?php echo $page_url; ?>&filter_status=active" class="service-filter-card <?php echo $filter_status === 'active' ? 'card-active' : ''; ?>">
+                    <a href="<?php echo $page_url; ?>&filter_status=active"
+                        class="service-filter-card <?php echo $filter_status === 'active' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-success);">Live Offerings</h3>
-                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($active_services); ?></p>
+                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                            <?php echo intval($active_services); ?></p>
                     </a>
-                    <a href="<?php echo $page_url; ?>&filter_status=inactive" class="service-filter-card <?php echo $filter_status === 'inactive' ? 'card-active' : ''; ?>">
+                    <a href="<?php echo $page_url; ?>&filter_status=inactive"
+                        class="service-filter-card <?php echo $filter_status === 'inactive' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-warning);">Draft / Inactive</h3>
-                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($inactive_services); ?></p>
+                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                            <?php echo intval($inactive_services); ?></p>
                     </a>
                 </div>
-                
+
                 <form method="get" action="" style="display:flex; gap:10px; margin-bottom:20px;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>">
-                    <?php if($filter_status !== 'all'): ?>
+                    <?php if ($filter_status !== 'all'): ?>
                         <input type="hidden" name="filter_status" value="<?php echo esc_attr($filter_status); ?>">
                     <?php endif; ?>
-                    <input type="text" name="s" placeholder="Search services..." value="<?php echo esc_attr($search); ?>" style="background:#0f172a; border:1px solid var(--wsb-border); color:white; padding:8px 12px; border-radius:6px; flex-grow:1;">
-                    <select name="cat" style="background:#0f172a; border:1px solid var(--wsb-border); color:white; padding:8px 12px; border-radius:6px;">
+                    <input type="text" name="s" placeholder="Search services..." value="<?php echo esc_attr($search); ?>"
+                        style="background:#0f172a; border:1px solid var(--wsb-border); color:white; padding:8px 12px; border-radius:6px; flex-grow:1;">
+                    <select name="cat"
+                        style="background:#0f172a; border:1px solid var(--wsb-border); color:white; padding:8px 12px; border-radius:6px;">
                         <option value="">All Categories</option>
-                        <?php foreach($categories as $cat): ?>
-                            <option value="<?php echo esc_attr($cat); ?>" <?php selected($filter, $cat); ?>><?php echo esc_html($cat); ?></option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?php echo esc_attr($cat); ?>" <?php selected($filter, $cat); ?>>
+                                <?php echo esc_html($cat); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <button type="submit" class="wsb-btn-primary" style="padding:8px 20px;">Filter</button>
-                    <?php if($search || $filter): ?>
-                        <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>" class="wsb-btn-primary" style="background:var(--wsb-danger);">Clear</a>
+                    <?php if ($search || $filter): ?>
+                        <a href="?page=wsb_main&tab=services" class="wsb-btn-primary" style="background:var(--wsb-danger);">Clear</a>
                     <?php endif; ?>
                 </form>
 
@@ -740,43 +1490,70 @@ class Wsb_Admin {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($services)) : ?>
-                            <?php foreach ($services as $service) : ?>
-                                <tr class="wsb-clickable-row" data-href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>&action=edit&id=<?php echo $service->id; ?>">
+                        <?php if (!empty($services)): ?>
+                            <?php foreach ($services as $service): ?>
+                                <tr class="wsb-clickable-row"
+                                    data-href="?page=wsb_main&tab=services&action=edit&id=<?php echo $service->id; ?>">
                                     <td>
-                                        <?php if(!empty($service->image_url)): ?>
-                                            <div style="width:40px; height:40px; border-radius:6px; background:url('<?php echo esc_url($service->image_url); ?>') center/cover; border:1px solid var(--wsb-border);"></div>
+                                        <?php if (!empty($service->image_url)): ?>
+                                            <div
+                                                style="width:40px; height:40px; border-radius:6px; background:url('<?php echo esc_url($service->image_url); ?>') center/cover; border:1px solid var(--wsb-border);">
+                                            </div>
                                         <?php else: ?>
-                                            <div style="width:40px; height:40px; border-radius:6px; background:var(--wsb-border); display:flex; align-items:center; justify-content:center; color:var(--wsb-text-muted); font-size:20px;">✂️</div>
+                                            <div
+                                                style="width:40px; height:40px; border-radius:6px; background:var(--wsb-border); display:flex; align-items:center; justify-content:center; color:var(--wsb-text-muted); font-size:20px;">
+                                                ✂️</div>
                                         <?php endif; ?>
                                     </td>
                                     <td>
                                         <div class="wsb-customer-info">
-                                            <span class="wsb-customer-name" style="font-size:15px;"><?php echo esc_html($service->name); ?></span>
-                                            <span class="wsb-customer-meta">Cap: <?php echo esc_html($service->capacity); ?> | Buffer: <?php echo esc_html($service->buffer_time); ?>m</span>
+                                            <span class="wsb-customer-name"
+                                                style="font-size:15px;"><?php echo esc_html($service->name); ?></span>
+                                            <span class="wsb-customer-meta">Cap: <?php echo esc_html($service->capacity); ?> | Buffer:
+                                                <?php echo esc_html($service->buffer_time); ?>m</span>
                                         </div>
                                     </td>
                                     <td>
                                         <div class="wsb-customer-info">
-                                            <span class="wsb-customer-name">$<?php echo esc_html($service->price); ?></span>
+                                            <span class="wsb-customer-name"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($service->price); ?></span>
                                             <span class="wsb-customer-meta"><?php echo esc_html($service->duration); ?> minutes</span>
                                         </div>
                                     </td>
-                                    <td><span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html($service->category ?: 'Uncategorized'); ?></span></td>
+                                    <td><span
+                                            style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html($service->category ?: 'Uncategorized'); ?></span>
+                                    </td>
                                     <td align="right">
                                         <div class="wsb-row-actions">
-                                            <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>&action=edit&id=<?php echo $service->id; ?>" class="wsb-row-action wsb-action-edit" title="Edit Service">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                            <a href="?page=wsb_main&tab=services&action=edit&id=<?php echo $service->id; ?>"
+                                                class="wsb-row-action wsb-action-edit" title="Edit Service">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                </svg>
                                             </a>
-                                            <a href="?page=<?php echo esc_attr($this->plugin_name . '-services'); ?>&action=delete&id=<?php echo $service->id; ?>" class="wsb-row-action wsb-action-delete" title="Delete Service" onclick="return confirm('Are you sure you want to completely delete this service?');">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                            <a href="?page=wsb_main&tab=services&action=delete&id=<?php echo $service->id; ?>"
+                                                class="wsb-row-action wsb-action-delete" title="Delete Service"
+                                                onclick="return confirm('Are you sure you want to completely delete this service?');">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                                    <path
+                                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                    </path>
+                                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                </svg>
                                             </a>
                                         </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
-                        <?php else : ?>
-                            <tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No services match your criteria.</td></tr>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No services
+                                    match your criteria.</td>
+                            </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -785,10 +1562,11 @@ class Wsb_Admin {
         }
     }
 
-    public function display_staff_page() {
+    public function display_staff_page()
+    {
         global $wpdb;
         $table_staff = $wpdb->prefix . 'wsb_staff';
-        
+
         // Auto-patch schema for advanced fields
         $wpdb->hide_errors();
         $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN schedule_config text AFTER description");
@@ -802,7 +1580,7 @@ class Wsb_Admin {
         $staff_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
         // Delete Handler
-        if ($action === 'delete' && $staff_id && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_staff_'.$staff_id)) {
+        if ($action === 'delete' && $staff_id && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_staff_' . $staff_id)) {
             $wpdb->delete($table_staff, array('id' => $staff_id));
             echo '<div class="notice notice-success is-dismissible"><p>Staff record purged from the system.</p></div>';
             $action = 'list';
@@ -812,28 +1590,40 @@ class Wsb_Admin {
         if ($action === 'seed' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'seed_staff')) {
             $dummy_staff = array(
                 array(
-                    'name' => 'Alexander Pierce', 'email' => 'alex@example.com', 'phone' => '555-0102', 'status' => 'active',
+                    'name' => 'Alexander Pierce',
+                    'email' => 'alex@example.com',
+                    'phone' => '555-0102',
+                    'status' => 'active',
                     'description' => 'Master barber with 10 years of experience in classic cuts and hot towel shaves.',
-                    'qualification' => 'Master Barber', 'address' => '123 Main St, Suite 100',
+                    'qualification' => 'Master Barber',
+                    'address' => '123 Main St, Suite 100',
                     'image_url' => 'https://ui-avatars.com/api/?name=Alexander+Pierce&background=0D8ABC&color=fff&size=200',
                     'schedule_config' => '{"mon":{"active":"1","start":"09:00","end":"17:00"},"tue":{"active":"1","start":"09:00","end":"17:00"},"wed":{"active":"1","start":"09:00","end":"17:00"},"thu":{"active":"1","start":"09:00","end":"17:00"},"fri":{"active":"1","start":"09:00","end":"17:00"}}'
                 ),
                 array(
-                    'name' => 'Sophia Lauren', 'email' => 'sophia@example.com', 'phone' => '555-0199', 'status' => 'active',
+                    'name' => 'Sophia Lauren',
+                    'email' => 'sophia@example.com',
+                    'phone' => '555-0199',
+                    'status' => 'active',
                     'description' => 'Expert colorist specializing in balayage and creative lifting.',
-                    'qualification' => 'Senior Colorist', 'address' => '456 Styling Ave',
+                    'qualification' => 'Senior Colorist',
+                    'address' => '456 Styling Ave',
                     'image_url' => 'https://ui-avatars.com/api/?name=Sophia+Lauren&background=D81B60&color=fff&size=200',
                     'schedule_config' => '{"mon":{"active":"1","start":"10:00","end":"18:00"},"tue":{"active":"1","start":"10:00","end":"18:00"},"thu":{"active":"1","start":"10:00","end":"18:00"},"sat":{"active":"1","start":"08:00","end":"14:00"}}'
                 ),
                 array(
-                    'name' => 'Marcus Reed', 'email' => 'marcus@example.com', 'phone' => '555-0211', 'status' => 'inactive',
+                    'name' => 'Marcus Reed',
+                    'email' => 'marcus@example.com',
+                    'phone' => '555-0211',
+                    'status' => 'inactive',
                     'description' => 'Specializes in therapeutic massages and deep tissue recovery.',
-                    'qualification' => 'Licensed Massage Therapist', 'address' => '789 Recovery Blvd',
+                    'qualification' => 'Licensed Massage Therapist',
+                    'address' => '789 Recovery Blvd',
                     'image_url' => 'https://ui-avatars.com/api/?name=Marcus+Reed&background=43A047&color=fff&size=200',
                     'schedule_config' => '{"mon":{"active":"1","start":"08:00","end":"14:00"},"wed":{"active":"1","start":"12:00","end":"20:00"},"fri":{"active":"1","start":"08:00","end":"16:00"}}'
                 )
             );
-            foreach($dummy_staff as $st) {
+            foreach ($dummy_staff as $st) {
                 $wpdb->insert($table_staff, $st);
             }
             echo '<div class="notice notice-success is-dismissible"><p>Fully loaded dummy staff successfully injected into roster.</p></div>';
@@ -873,72 +1663,101 @@ class Wsb_Admin {
                 $s = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table_staff} WHERE id = %d", $staff_id));
                 $schedule = json_decode($s->schedule_config, true) ?: array();
             }
-            $days = array('mon'=>'Monday', 'tue'=>'Tuesday', 'wed'=>'Wednesday', 'thu'=>'Thursday', 'fri'=>'Friday', 'sat'=>'Saturday', 'sun'=>'Sunday');
+            $days = array('mon' => 'Monday', 'tue' => 'Tuesday', 'wed' => 'Wednesday', 'thu' => 'Thursday', 'fri' => 'Friday', 'sat' => 'Saturday', 'sun' => 'Sunday');
             ?>
             <div class="wrap wsb-admin-wrap">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h1 style="margin:0;"><?php echo $action === 'edit' ? 'Edit Staff Profile' : 'Add New Staff'; ?></h1>
-                    <a href="?page=<?php echo esc_attr($this->plugin_name . '-staff'); ?>" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to Roster</a>
+                    <a href="?page=wsb_main&tab=staff" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
+                        Roster</a>
                 </div>
                 <hr class="wp-header-end" style="margin-bottom:20px;">
 
-                <form method="post" action="?page=<?php echo esc_attr($this->plugin_name . '-staff'); ?>&action=<?php echo $action; ?><?php echo $staff_id ? '&id='.$staff_id : ''; ?>">
+                <form method="post"
+                    action="?page=wsb_main&tab=staff&action=<?php echo $action; ?><?php echo $staff_id ? '&id=' . $staff_id : ''; ?>">
                     <?php wp_nonce_field('wsb_staff_save', 'wsb_staff_nonce'); ?>
-                    
+
                     <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
                         <div>
                             <!-- Core Identity -->
-                            <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary); margin-bottom:20px;">
+                            <div
+                                style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary); margin-bottom:20px;">
                                 <h3 style="margin-top:0; color:var(--wsb-primary);">👤 Personal Information</h3>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Full Name</label>
-                                        <input name="staff_name" type="text" value="<?php echo $s ? esc_attr($s->name) : ''; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;" required>
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Full
+                                            Name</label>
+                                        <input name="staff_name" type="text" value="<?php echo $s ? esc_attr($s->name) : ''; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"
+                                            required>
                                     </div>
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Profession / Qualification</label>
-                                        <input name="staff_qualification" type="text" placeholder="e.g. Senior Hairstylist, Master Technician" value="<?php echo $s && isset($s->qualification) ? esc_attr($s->qualification) : ''; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;">
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Profession /
+                                            Qualification</label>
+                                        <input name="staff_qualification" type="text"
+                                            placeholder="e.g. Senior Hairstylist, Master Technician"
+                                            value="<?php echo $s && isset($s->qualification) ? esc_attr($s->qualification) : ''; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;">
                                     </div>
                                 </div>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Email Address</label>
-                                        <input name="staff_email" type="email" value="<?php echo $s ? esc_attr($s->email) : ''; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;" required>
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Email
+                                            Address</label>
+                                        <input name="staff_email" type="email" value="<?php echo $s ? esc_attr($s->email) : ''; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"
+                                            required>
                                     </div>
                                     <div>
-                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Phone Number</label>
-                                        <input name="staff_phone" type="text" value="<?php echo $s ? esc_attr($s->phone) : ''; ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;">
+                                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Phone
+                                            Number</label>
+                                        <input name="staff_phone" type="text" value="<?php echo $s ? esc_attr($s->phone) : ''; ?>"
+                                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;">
                                     </div>
                                 </div>
                                 <div style="margin-bottom:15px;">
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Physical Address</label>
-                                    <textarea name="staff_address" rows="2" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"><?php echo $s && isset($s->address) ? esc_textarea($s->address) : ''; ?></textarea>
+                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Physical
+                                        Address</label>
+                                    <textarea name="staff_address" rows="2"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"><?php echo $s && isset($s->address) ? esc_textarea($s->address) : ''; ?></textarea>
                                 </div>
                                 <div>
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Public Biography / Description</label>
-                                    <textarea name="description" rows="3" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"><?php echo $s ? esc_textarea($s->description) : ''; ?></textarea>
+                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Public Biography /
+                                        Description</label>
+                                    <textarea name="description" rows="3"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"><?php echo $s ? esc_textarea($s->description) : ''; ?></textarea>
                                 </div>
                             </div>
 
                             <!-- Schedule Settings -->
-                            <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-warning);">
+                            <div
+                                style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-warning);">
                                 <h3 style="margin-top:0; color:var(--wsb-warning);">📅 Weekly Schedule</h3>
-                                <p style="color:var(--wsb-text-muted); font-size:13px; margin-bottom:15px;">Configure the working hours for this provider. If not working on a day, leave times blank or uncheck.</p>
-                                
-                                <?php foreach($days as $key => $label): 
+                                <p style="color:var(--wsb-text-muted); font-size:13px; margin-bottom:15px;">Configure the working
+                                    hours for this provider. If not working on a day, leave times blank or uncheck.</p>
+
+                                <?php foreach ($days as $key => $label):
                                     $is_working = isset($schedule[$key]['active']) && $schedule[$key]['active'] == '1';
                                     $start = isset($schedule[$key]['start']) ? $schedule[$key]['start'] : '09:00';
                                     $end = isset($schedule[$key]['end']) ? $schedule[$key]['end'] : '17:00';
-                                ?>
-                                    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                    ?>
+                                    <div
+                                        style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
                                         <label style="display:flex; align-items:center; gap:10px; width:150px; cursor:pointer;">
-                                            <input type="checkbox" name="schedule[<?php echo $key; ?>][active]" value="1" <?php checked($is_working); ?> style="background:#0f172a; border:1px solid var(--wsb-primary);">
-                                            <strong style="color:<?php echo $is_working ? 'white' : 'var(--wsb-text-muted)'; ?>"><?php echo $label; ?></strong>
+                                            <input type="checkbox" name="schedule[<?php echo $key; ?>][active]" value="1" <?php checked($is_working); ?>
+                                                style="background:#0f172a; border:1px solid var(--wsb-primary);">
+                                            <strong
+                                                style="color:<?php echo $is_working ? 'white' : 'var(--wsb-text-muted)'; ?>"><?php echo $label; ?></strong>
                                         </label>
-                                        <div style="display:flex; align-items:center; gap:10px; opacity:<?php echo $is_working ? '1' : '0.4'; ?>;">
-                                            <input type="time" name="schedule[<?php echo $key; ?>][start]" value="<?php echo esc_attr($start); ?>" style="background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:4px 8px; border-radius:4px;">
+                                        <div
+                                            style="display:flex; align-items:center; gap:10px; opacity:<?php echo $is_working ? '1' : '0.4'; ?>;">
+                                            <input type="time" name="schedule[<?php echo $key; ?>][start]"
+                                                value="<?php echo esc_attr($start); ?>"
+                                                style="background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:4px 8px; border-radius:4px;">
                                             <span style="color:var(--wsb-text-muted);">to</span>
-                                            <input type="time" name="schedule[<?php echo $key; ?>][end]" value="<?php echo esc_attr($end); ?>" style="background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:4px 8px; border-radius:4px;">
+                                            <input type="time" name="schedule[<?php echo $key; ?>][end]"
+                                                value="<?php echo esc_attr($end); ?>"
+                                                style="background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:4px 8px; border-radius:4px;">
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -947,28 +1766,44 @@ class Wsb_Admin {
 
                         <div>
                             <!-- Side Panel - Image/Status -->
-                            <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); margin-bottom:20px;">
+                            <div
+                                style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); margin-bottom:20px;">
                                 <h3 style="margin-top:0;">Profile Image</h3>
                                 <div style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-bottom:15px;">
-                                    <div id="wsb-staff-preview" style="width:120px; height:120px; border-radius:50%; border:2px dashed var(--wsb-border); background:#0f172a <?php echo $s && isset($s->image_url) && $s->image_url ? 'url('.esc_url($s->image_url).') center/cover' : ''; ?>;"></div>
-                                    <input type="hidden" name="staff_image_url" id="staff_image_url" value="<?php echo $s && isset($s->image_url) ? esc_url($s->image_url) : ''; ?>">
-                                    <button type="button" class="wsb-btn-primary wsb-select-image" data-target="#staff_image_url" data-preview="#wsb-staff-preview" style="background:var(--wsb-border); color:white; width:100%;">Select Avatar</button>
+                                    <div id="wsb-staff-preview"
+                                        style="width:120px; height:120px; border-radius:50%; border:2px dashed var(--wsb-border); background:#0f172a <?php echo $s && isset($s->image_url) && $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
+                                    </div>
+                                    <input type="hidden" name="staff_image_url" id="staff_image_url"
+                                        value="<?php echo $s && isset($s->image_url) ? esc_url($s->image_url) : ''; ?>">
+                                    <button type="button" class="wsb-btn-primary wsb-select-image" data-target="#staff_image_url"
+                                        data-preview="#wsb-staff-preview"
+                                        style="background:var(--wsb-border); color:white; width:100%;">Select Avatar</button>
                                 </div>
                                 <hr style="border:0; border-top:1px solid var(--wsb-border); margin:15px 0;">
                                 <div style="margin-bottom:15px;">
-                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">System Status</label>
-                                    <select name="status" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;">
-                                        <option value="active" <?php selected($s ? $s->status : 'active', 'active'); ?>>Active (Accepting Bookings)</option>
-                                        <option value="inactive" <?php selected($s ? $s->status : '', 'inactive'); ?>>Inactive (Hidden)</option>
+                                    <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">System
+                                        Status</label>
+                                    <select name="status"
+                                        style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;">
+                                        <option value="active" <?php selected($s ? $s->status : 'active', 'active'); ?>>Active
+                                            (Accepting Bookings)</option>
+                                        <option value="inactive" <?php selected($s ? $s->status : '', 'inactive'); ?>>Inactive
+                                            (Hidden)</option>
                                     </select>
                                 </div>
-                                <button type="submit" class="wsb-btn-primary" style="width:100%; padding:12px; font-size:16px; background:var(--wsb-success);">Save Staff Configuration</button>
+                                <button type="submit" class="wsb-btn-primary"
+                                    style="width:100%; padding:12px; font-size:16px; background:var(--wsb-success);">Save Staff
+                                    Configuration</button>
                             </div>
 
-                            <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid #ef4444;">
+                            <div
+                                style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid #ef4444;">
                                 <h3 style="margin-top:0; color:#ef4444;">🌴 Time off & Holidays</h3>
-                                <p style="color:var(--wsb-text-muted); font-size:13px;">Enter exact dates where this staff member is unavailable. Use YYYY-MM-DD format on a new line for each date.</p>
-                                <textarea name="holidays" rows="5" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;" placeholder="2026-12-25&#10;2026-11-28"><?php echo $s ? esc_textarea($s->holidays) : ''; ?></textarea>
+                                <p style="color:var(--wsb-text-muted); font-size:13px;">Enter exact dates where this staff member is
+                                    unavailable. Use YYYY-MM-DD format on a new line for each date.</p>
+                                <textarea name="holidays" rows="5"
+                                    style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:10px; border-radius:6px;"
+                                    placeholder="2026-12-25&#10;2026-11-28"><?php echo $s ? esc_textarea($s->holidays) : ''; ?></textarea>
                             </div>
                         </div>
                     </div>
@@ -994,32 +1829,60 @@ class Wsb_Admin {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h1 style="margin:0;">Staff Roster</h1>
                     <div>
-                        <a href="<?php echo wp_nonce_url("?page=".$this->plugin_name."-staff&action=seed", 'seed_staff'); ?>" class="wsb-btn-primary" style="background:var(--wsb-warning); margin-right:10px;">⚡ Inject Dummy Staff</a>
-                        <a href="?page=<?php echo esc_attr($this->plugin_name . '-staff'); ?>&action=add" class="wsb-btn-primary">+ Onboard Staff</a>
+                        <a href="<?php echo wp_nonce_url("?page=" . $this->plugin_name . "-staff&action=seed", 'seed_staff'); ?>"
+                            class="wsb-btn-primary" style="background:var(--wsb-warning); margin-right:10px;">⚡ Inject Dummy
+                            Staff</a>
+                        <a href="?page=wsb_main&tab=staff&action=add" class="wsb-btn-primary">+ Onboard Staff</a>
                     </div>
                 </div>
 
                 <style>
-                    .staff-filter-card { border-left: 4px solid transparent; text-decoration: none; color: inherit; display: block; border: 1px solid var(--wsb-border); border-radius: 12px; background: var(--wsb-panel-dark); padding: 20px; transition: transform 0.2s; }
-                    .staff-filter-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-                    .card-active { background: rgba(59, 130, 246, 0.1) !important; border-left: 4px solid var(--wsb-primary) !important; border-color: var(--wsb-primary) !important; }
+                    .staff-filter-card {
+                        border-left: 4px solid transparent;
+                        text-decoration: none;
+                        color: inherit;
+                        display: block;
+                        border: 1px solid var(--wsb-border);
+                        border-radius: 12px;
+                        background: var(--wsb-panel-dark);
+                        padding: 20px;
+                        transition: transform 0.2s;
+                    }
+
+                    .staff-filter-card:hover {
+                        transform: translateY(-3px);
+                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+                    }
+
+                    .card-active {
+                        background: rgba(59, 130, 246, 0.1) !important;
+                        border-left: 4px solid var(--wsb-primary) !important;
+                        border-color: var(--wsb-primary) !important;
+                    }
                 </style>
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
-                    <a href="<?php echo $page_url; ?>&filter_status=all" class="staff-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
+                    <a href="<?php echo $page_url; ?>&filter_status=all"
+                        class="staff-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Staff</h3>
-                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($total_staff); ?></p>
+                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                            <?php echo intval($total_staff); ?></p>
                     </a>
-                    <a href="<?php echo $page_url; ?>&filter_status=active" class="staff-filter-card <?php echo $filter_status === 'active' ? 'card-active' : ''; ?>">
+                    <a href="<?php echo $page_url; ?>&filter_status=active"
+                        class="staff-filter-card <?php echo $filter_status === 'active' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-success);">Active Providers</h3>
-                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($active_staff); ?></p>
+                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                            <?php echo intval($active_staff); ?></p>
                     </a>
-                    <a href="<?php echo $page_url; ?>&filter_status=inactive" class="staff-filter-card <?php echo $filter_status === 'inactive' ? 'card-active' : ''; ?>">
+                    <a href="<?php echo $page_url; ?>&filter_status=inactive"
+                        class="staff-filter-card <?php echo $filter_status === 'inactive' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-warning);">Inactive / On Leave</h3>
-                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($inactive_staff); ?></p>
+                        <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                            <?php echo intval($inactive_staff); ?></p>
                     </a>
                 </div>
-                
-                <div style="background: var(--wsb-panel-dark); border-radius: 12px; border: 1px solid var(--wsb-border); overflow: hidden;">
+
+                <div
+                    style="background: var(--wsb-panel-dark); border-radius: 12px; border: 1px solid var(--wsb-border); overflow: hidden;">
                     <table class="wsb-modern-table" style="margin:0; width:100%;">
                         <thead>
                             <tr>
@@ -1030,45 +1893,73 @@ class Wsb_Admin {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (!empty($staff)) : foreach ($staff as $s) : ?>
-                                <tr class="wsb-clickable-row" data-href="?page=<?php echo esc_attr($this->plugin_name . '-staff'); ?>&action=edit&id=<?php echo $s->id; ?>">
-                                    <td>
-                                        <div style="display:flex; align-items:center; gap:15px;">
-                                            <?php if (!empty($s->image_url)) : ?>
-                                                <div style="width:40px; height:40px; border-radius:50%; background:url('<?php echo esc_url($s->image_url); ?>') center/cover; border:2px solid var(--wsb-border);"></div>
-                                            <?php else: ?>
-                                                <div style="width:40px; height:40px; border-radius:50%; background:var(--wsb-border); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:16px;">
-                                                    <?php echo esc_html(strtoupper(substr($s->name, 0, 1))); ?>
-                                                </div>
-                                            <?php endif; ?>
-                                            <div>
-                                                <strong style="color:white; font-size:15px; display:block;"><?php echo esc_html($s->name); ?></strong>
-                                                <?php if(!empty($s->qualification)): ?>
-                                                    <span style="color:var(--wsb-primary); font-size:12px;"><?php echo esc_html($s->qualification); ?></span>
+                            <?php if (!empty($staff)):
+                                foreach ($staff as $s): ?>
+                                    <tr class="wsb-clickable-row" data-href="?page=wsb_main&tab=staff&action=edit&id=<?php echo $s->id; ?>">
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:15px;">
+                                                <?php if (!empty($s->image_url)): ?>
+                                                    <div
+                                                        style="width:40px; height:40px; border-radius:50%; background:url('<?php echo esc_url($s->image_url); ?>') center/cover; border:2px solid var(--wsb-border);">
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div
+                                                        style="width:40px; height:40px; border-radius:50%; background:var(--wsb-border); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:16px;">
+                                                        <?php echo esc_html(strtoupper(substr($s->name, 0, 1))); ?>
+                                                    </div>
                                                 <?php endif; ?>
+                                                <div>
+                                                    <strong
+                                                        style="color:white; font-size:15px; display:block;"><?php echo esc_html($s->name); ?></strong>
+                                                    <?php if (!empty($s->qualification)): ?>
+                                                        <span
+                                                            style="color:var(--wsb-primary); font-size:12px;"><?php echo esc_html($s->qualification); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="wsb-customer-info">
-                                            <span style="color:var(--wsb-text-muted); font-size:13px;">✉️ <?php echo esc_html($s->email); ?></span>
-                                            <span style="color:var(--wsb-text-muted); font-size:13px; margin-top:3px;">📞 <?php echo esc_html($s->phone ?: 'N/A'); ?></span>
-                                        </div>
-                                    </td>
-                                    <td><span class="wsb-status wsb-status-<?php echo $s->status === 'active' ? 'completed' : 'cancelled'; ?>"><?php echo esc_html(ucfirst($s->status)); ?></span></td>
-                                    <td align="right">
-                                        <div class="wsb-row-actions">
-                                            <a href="?page=<?php echo esc_attr($this->plugin_name . '-staff'); ?>&action=edit&id=<?php echo $s->id; ?>" class="wsb-row-action wsb-action-edit" title="Edit Staff Member">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                            </a>
-                                            <a href="<?php echo wp_nonce_url("?page=".$this->plugin_name."-staff&action=delete&id=".$s->id, 'delete_staff_'.$s->id); ?>" class="wsb-row-action wsb-action-delete" title="Remove Staff Member" onclick="return confirm('Are you sure you want to fire this staff member? This deletes their record entirely.');">
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                            </a>
-                                        </div>
-                                    </td>
+                                        </td>
+                                        <td>
+                                            <div class="wsb-customer-info">
+                                                <span style="color:var(--wsb-text-muted); font-size:13px;">✉️
+                                                    <?php echo esc_html($s->email); ?></span>
+                                                <span style="color:var(--wsb-text-muted); font-size:13px; margin-top:3px;">📞
+                                                    <?php echo esc_html($s->phone ?: 'N/A'); ?></span>
+                                            </div>
+                                        </td>
+                                        <td><span
+                                                class="wsb-status wsb-status-<?php echo $s->status === 'active' ? 'completed' : 'cancelled'; ?>"><?php echo esc_html(ucfirst($s->status)); ?></span>
+                                        </td>
+                                        <td align="right">
+                                            <div class="wsb-row-actions">
+                                                <a href="?page=wsb_main&tab=staff&action=edit&id=<?php echo $s->id; ?>"
+                                                    class="wsb-row-action wsb-action-edit" title="Edit Staff Member">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                    </svg>
+                                                </a>
+                                                <a href="<?php echo wp_nonce_url("?page=" . $this->plugin_name . "-staff&action=delete&id=" . $s->id, 'delete_staff_' . $s->id); ?>"
+                                                    class="wsb-row-action wsb-action-delete" title="Remove Staff Member"
+                                                    onclick="return confirm('Are you sure you want to fire this staff member? This deletes their record entirely.');">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path
+                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                        </path>
+                                                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; else: ?>
+                                <tr>
+                                    <td colspan="4" style="padding:40px; text-align:center; color:var(--wsb-text-muted);">Roster is
+                                        empty.</td>
                                 </tr>
-                            <?php endforeach; else : ?>
-                                <tr><td colspan="4" style="padding:40px; text-align:center; color:var(--wsb-text-muted);">Roster is empty.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -1078,7 +1969,8 @@ class Wsb_Admin {
         }
     }
 
-    public function display_customers_page() {
+    public function display_customers_page()
+    {
         global $wpdb;
         $table_customers = $wpdb->prefix . 'wsb_customers';
         $action = isset($_GET['action']) ? $_GET['action'] : 'list';
@@ -1086,12 +1978,12 @@ class Wsb_Admin {
         // Seed Dummy Data Handler
         if ($action === 'seed' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'seed_customers')) {
             $dummies = array(
-                array('first_name'=>'Emily', 'last_name'=>'Blunt', 'email'=>'emily@example.com', 'phone'=>'(555) 123-4567'),
-                array('first_name'=>'John', 'last_name'=>'Krasinski', 'email'=>'john@example.com', 'phone'=>'(555) 987-6543'),
-                array('first_name'=>'Margot', 'last_name'=>'Robbie', 'email'=>'margot@example.com', 'phone'=>'(555) 222-3333'),
-                array('first_name'=>'Ryan', 'last_name'=>'Gosling', 'email'=>'ryan@example.com', 'phone'=>'(555) 444-5555')
+                array('first_name' => 'Emily', 'last_name' => 'Blunt', 'email' => 'emily@example.com', 'phone' => '(555) 123-4567'),
+                array('first_name' => 'John', 'last_name' => 'Krasinski', 'email' => 'john@example.com', 'phone' => '(555) 987-6543'),
+                array('first_name' => 'Margot', 'last_name' => 'Robbie', 'email' => 'margot@example.com', 'phone' => '(555) 222-3333'),
+                array('first_name' => 'Ryan', 'last_name' => 'Gosling', 'email' => 'ryan@example.com', 'phone' => '(555) 444-5555')
             );
-            foreach($dummies as $d) {
+            foreach ($dummies as $d) {
                 // To make them realistic, we'll randomize their joined date a bit within the last 40 days
                 $random_days = rand(1, 40);
                 $d['created_at'] = gmdate('Y-m-d H:i:s', strtotime("-{$random_days} days"));
@@ -1123,13 +2015,13 @@ class Wsb_Admin {
                   GROUP BY c.id
                   {$having_clause}
                   ORDER BY {$order_clause}";
-        
+
         $customers = $wpdb->get_results($query);
 
         // Core Dashboard Metrics
         $total_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$table_customers}");
         $recent_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$table_customers} WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
-        
+
         $vip_customers = $wpdb->get_var("
             SELECT COUNT(*) FROM (
                 SELECT c.id FROM {$table_customers} c
@@ -1145,32 +2037,59 @@ class Wsb_Admin {
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <h1 style="margin:0;">Client CRM & Directory</h1>
                 <div>
-                    <a href="<?php echo wp_nonce_url("?page=".$this->plugin_name."-customers&action=seed", 'seed_customers'); ?>" class="wsb-btn-primary" style="background:var(--wsb-warning);">⚡ Inject Dummy Customers</a>
+                    <a href="<?php echo wp_nonce_url("?page=" . $this->plugin_name . "-customers&action=seed", 'seed_customers'); ?>"
+                        class="wsb-btn-primary" style="background:var(--wsb-warning);">⚡ Inject Dummy Customers</a>
                 </div>
             </div>
 
             <!-- Dashboard Interactive Filters -->
             <style>
-                .customer-filter-card { border-left: 4px solid transparent; text-decoration: none; color: inherit; display: block; border: 1px solid var(--wsb-border); border-radius: 12px; background: var(--wsb-panel-dark); padding: 20px; transition: transform 0.2s; }
-                .customer-filter-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-                .card-active { background: rgba(59, 130, 246, 0.1) !important; border-left: 4px solid var(--wsb-primary) !important; border-color: var(--wsb-primary) !important; }
+                .customer-filter-card {
+                    border-left: 4px solid transparent;
+                    text-decoration: none;
+                    color: inherit;
+                    display: block;
+                    border: 1px solid var(--wsb-border);
+                    border-radius: 12px;
+                    background: var(--wsb-panel-dark);
+                    padding: 20px;
+                    transition: transform 0.2s;
+                }
+
+                .customer-filter-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+                }
+
+                .card-active {
+                    background: rgba(59, 130, 246, 0.1) !important;
+                    border-left: 4px solid var(--wsb-primary) !important;
+                    border-color: var(--wsb-primary) !important;
+                }
             </style>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
-                <a href="<?php echo $page_url; ?>&filter_status=all" class="customer-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
+                <a href="<?php echo $page_url; ?>&filter_status=all"
+                    class="customer-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Client Base</h3>
-                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($total_customers); ?></p>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($total_customers); ?></p>
                 </a>
-                <a href="<?php echo $page_url; ?>&filter_status=recent" class="customer-filter-card <?php echo $filter_status === 'recent' ? 'card-active' : ''; ?>">
+                <a href="<?php echo $page_url; ?>&filter_status=recent"
+                    class="customer-filter-card <?php echo $filter_status === 'recent' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-success);">Recent Signups (30d)</h3>
-                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($recent_customers); ?></p>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($recent_customers); ?></p>
                 </a>
-                <a href="<?php echo $page_url; ?>&filter_status=vip" class="customer-filter-card <?php echo $filter_status === 'vip' ? 'card-active' : ''; ?>">
+                <a href="<?php echo $page_url; ?>&filter_status=vip"
+                    class="customer-filter-card <?php echo $filter_status === 'vip' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-warning);">VIP Clients (LTV)</h3>
-                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);"><?php echo intval($vip_customers); ?></p>
+                    <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
+                        <?php echo intval($vip_customers); ?></p>
                 </a>
             </div>
 
-            <div style="background: var(--wsb-panel-dark); border-radius: 12px; border: 1px solid var(--wsb-border); overflow: hidden;">
+            <div
+                style="background: var(--wsb-panel-dark); border-radius: 12px; border: 1px solid var(--wsb-border); overflow: hidden;">
                 <table class="wsb-modern-table" style="margin:0; width:100%;">
                     <thead>
                         <tr>
@@ -1181,35 +2100,48 @@ class Wsb_Admin {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($customers)) : foreach ($customers as $c) : ?>
+                        <?php if (!empty($customers)):
+                            foreach ($customers as $c): ?>
+                                <tr>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:15px;">
+                                            <div
+                                                style="width:40px; height:40px; border-radius:50%; background:var(--wsb-border); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:16px;">
+                                                <?php echo esc_html(strtoupper(substr($c->first_name, 0, 1) . substr($c->last_name, 0, 1))); ?>
+                                            </div>
+                                            <div>
+                                                <strong
+                                                    style="color:white; font-size:15px; display:block;"><?php echo esc_html($c->first_name . ' ' . $c->last_name); ?></strong>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px; font-family:monospace;">ID:
+                                                    #<?php echo esc_html(str_pad($c->id, 5, '0', STR_PAD_LEFT)); ?></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="wsb-customer-info">
+                                            <span style="color:var(--wsb-text-muted); font-size:13px;">✉️
+                                                <?php echo esc_html($c->email); ?></span>
+                                            <span style="color:var(--wsb-text-muted); font-size:13px; margin-top:3px;">📞
+                                                <?php echo esc_html($c->phone ?: 'N/A'); ?></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span style="color:var(--wsb-text-muted); font-size:13px; display:block;">Joined:
+                                            <?php echo esc_html(date('M d, Y', strtotime($c->created_at))); ?></span>
+                                        <span
+                                            style="color:var(--wsb-primary); font-size:12px; font-weight:bold; margin-top:3px; display:block;">Bookings:
+                                            <?php echo intval($c->booking_count); ?></span>
+                                    </td>
+                                    <td align="right">
+                                        <strong
+                                            style="color:var(--wsb-success); font-size:16px;"><?php echo $c->total_spent > 0 ? '$' . number_format($c->total_spent, 2) : '-'; ?></strong>
+                                    </td>
+                                </tr>
+                            <?php endforeach; else: ?>
                             <tr>
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:15px;">
-                                        <div style="width:40px; height:40px; border-radius:50%; background:var(--wsb-border); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:16px;">
-                                            <?php echo esc_html(strtoupper(substr($c->first_name, 0, 1) . substr($c->last_name, 0, 1))); ?>
-                                        </div>
-                                        <div>
-                                            <strong style="color:white; font-size:15px; display:block;"><?php echo esc_html($c->first_name . ' ' . $c->last_name); ?></strong>
-                                            <span style="color:var(--wsb-text-muted); font-size:12px; font-family:monospace;">ID: #<?php echo esc_html(str_pad($c->id, 5, '0', STR_PAD_LEFT)); ?></span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="wsb-customer-info">
-                                        <span style="color:var(--wsb-text-muted); font-size:13px;">✉️ <?php echo esc_html($c->email); ?></span>
-                                        <span style="color:var(--wsb-text-muted); font-size:13px; margin-top:3px;">📞 <?php echo esc_html($c->phone ?: 'N/A'); ?></span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span style="color:var(--wsb-text-muted); font-size:13px; display:block;">Joined: <?php echo esc_html(date('M d, Y', strtotime($c->created_at))); ?></span>
-                                    <span style="color:var(--wsb-primary); font-size:12px; font-weight:bold; margin-top:3px; display:block;">Bookings: <?php echo intval($c->booking_count); ?></span>
-                                </td>
-                                <td align="right">
-                                    <strong style="color:var(--wsb-success); font-size:16px;"><?php echo $c->total_spent > 0 ? '$' . number_format($c->total_spent, 2) : '-'; ?></strong>
-                                </td>
+                                <td colspan="4" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No client
+                                    records found.</td>
                             </tr>
-                        <?php endforeach; else : ?>
-                            <tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No client records found.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -1217,7 +2149,8 @@ class Wsb_Admin {
         </div>
         <?php
     }
-    public function display_finance_page() {
+    public function display_finance_page()
+    {
         global $wpdb;
 
         // Global Filter Logic
@@ -1262,17 +2195,19 @@ class Wsb_Admin {
                   WHERE 1=1 {$where_date}
                   ORDER BY p.created_at DESC";
         $payments = $wpdb->get_results($query);
-        
+
         ?>
         <div class="wrap wsb-admin-wrap">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h1 style="margin:0;">Financial Ledger & Revenue</h1>
-                
+
                 <!-- Master Dashboard Filter -->
                 <form method="get" style="display:flex; align-items:center; gap:10px;">
                     <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>">
                     <span style="color:var(--wsb-text-muted); font-size:14px;">Reporting Period:</span>
-                    <select name="period" style="background:#0f172a; color:white; border:1px solid var(--wsb-primary); padding:6px 12px; border-radius:6px; font-weight:bold;" onchange="this.form.submit()">
+                    <select name="period"
+                        style="background:#0f172a; color:white; border:1px solid var(--wsb-primary); padding:6px 12px; border-radius:6px; font-weight:bold;"
+                        onchange="this.form.submit()">
                         <option value="all" <?php selected($period, 'all'); ?>>All Time</option>
                         <option value="today" <?php selected($period, 'today'); ?>>Today</option>
                         <option value="7days" <?php selected($period, '7days'); ?>>Last 7 Days</option>
@@ -1281,44 +2216,51 @@ class Wsb_Admin {
                     </select>
                 </form>
             </div>
-            
+
             <!-- Metric Cards -->
-            <div class="wsb-dashboard-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom:30px;">
+            <div class="wsb-dashboard-grid"
+                style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom:30px;">
                 <div class="wsb-stat-card" style="border-left: 4px solid var(--wsb-success);">
                     <h3 style="margin-top:0; font-size:16px;">Total Realized Revenue</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-success);">$<?php echo number_format((float)$total_revenue, 2); ?></p>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-success);">
+                        <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $total_revenue, 2); ?></p>
                 </div>
                 <div class="wsb-stat-card" style="border-left: 4px solid var(--wsb-primary);">
                     <h3 style="margin-top:0; font-size:16px;">Verified Transactions</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-primary);"><?php echo intval($total_transactions); ?></p>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-primary);">
+                        <?php echo intval($total_transactions); ?></p>
                 </div>
                 <div class="wsb-stat-card" style="border-left: 4px solid #10b981;">
                     <h3 style="margin-top:0; font-size:16px;">Avg. Transaction Value</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:#10b981;">$<?php echo number_format((float)$avg_transaction, 2); ?></p>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:#10b981;">
+                        <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $avg_transaction, 2); ?></p>
                 </div>
                 <div class="wsb-stat-card" style="border-left: 4px solid var(--wsb-warning);">
                     <h3 style="margin-top:0; font-size:16px;">Pending / Outstanding</h3>
-                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-warning);">$<?php echo number_format((float)$pending_revenue, 2); ?></p>
+                    <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-warning);">
+                        <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $pending_revenue, 2); ?></p>
                 </div>
             </div>
 
             <!-- Dynamic Chart -->
-            <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); margin-bottom:30px;">
+            <div
+                style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); margin-bottom:30px;">
                 <h3 style="margin:0 0 20px 0; color: #fff;">Revenue Performance Analysis</h3>
                 <div style="position:relative; height:300px; width:100%;">
                     <canvas id="wsbRevenueChart"></canvas>
                 </div>
             </div>
 
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <script>
-                document.addEventListener('DOMContentLoaded', function() {
+                (function () {
                     const rawData = <?php echo $chart_json; ?>;
-                    const ctx = document.getElementById('wsbRevenueChart').getContext('2d');
+                    const canvas = document.getElementById('wsbRevenueChart');
+                    if (!canvas) return;
+
+                    const ctx = canvas.getContext('2d');
                     const labels = rawData.map(item => item.label);
                     const values = rawData.map(item => parseFloat(item.val));
 
-                    // Multi-step Gradient for Bar Chart
                     let gradient = ctx.createLinearGradient(0, 0, 0, 300);
                     gradient.addColorStop(0, '#3b82f6');
                     gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
@@ -1326,15 +2268,14 @@ class Wsb_Admin {
                     new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: labels.length ? labels : ['No Data in Period'],
+                            labels: labels.length ? labels : ['No Data'],
                             datasets: [{
                                 label: 'Revenue ($)',
                                 data: values.length ? values : [0],
                                 backgroundColor: gradient,
                                 borderColor: '#60a5fa',
                                 borderWidth: 1,
-                                borderRadius: 6, // Rounded bars for a modern look
-                                borderSkipped: false,
+                                borderRadius: 6
                             }]
                         },
                         options: {
@@ -1346,31 +2287,21 @@ class Wsb_Admin {
                                     backgroundColor: '#1e293b',
                                     titleColor: '#94a3b8',
                                     bodyColor: '#fff',
-                                    bodyFont: { weight: 'bold' },
-                                    displayColors: false,
-                                    padding: 12,
-                                    borderColor: 'var(--wsb-primary)',
-                                    borderWidth: 1
+                                    padding: 12
                                 }
                             },
                             scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                                    ticks: { color: '#94a3b8', callback: function(val) { return '$' + val; } }
-                                },
-                                x: {
-                                    grid: { display: false, drawBorder: false },
-                                    ticks: { color: '#94a3b8' }
-                                }
+                                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
                             }
                         }
                     });
-                });
+                })();
             </script>
-            
+
             <!-- Ledger Data Table -->
-            <div style="background:var(--wsb-panel-dark); border-radius:12px; border:1px solid var(--wsb-border); overflow:hidden;">
+            <div
+                style="background:var(--wsb-panel-dark); border-radius:12px; border:1px solid var(--wsb-border); overflow:hidden;">
                 <div style="padding: 20px; border-bottom: 1px solid var(--wsb-border);">
                     <h3 style="margin:0; color: #fff;">Recent Activity</h3>
                 </div>
@@ -1386,22 +2317,36 @@ class Wsb_Admin {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($payments)) : foreach ($payments as $p) : ?>
+                        <?php if (!empty($payments)):
+                            foreach ($payments as $p): ?>
+                                <tr>
+                                    <td><strong
+                                            style="color:var(--wsb-text-muted); font-family:monospace;"><?php echo esc_html($p->transaction_id ?: 'N/A'); ?></strong>
+                                    </td>
+                                    <td><span
+                                            style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html(strtoupper($p->gateway)); ?></span>
+                                    </td>
+                                    <td><strong
+                                            style="color:var(--wsb-success);"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo number_format((float) $p->amount, 2); ?></strong>
+                                    </td>
+                                    <td>
+                                        <div class="wsb-customer-info">
+                                            <span class="wsb-customer-name" style="color:var(--wsb-primary);">Booking
+                                                #<?php echo esc_html(str_pad($p->booking_id, 5, '0', STR_PAD_LEFT)); ?></span>
+                                            <span
+                                                class="wsb-customer-meta"><?php echo esc_html($p->first_name . ' ' . $p->last_name . ' - ' . $p->service_name); ?></span>
+                                        </div>
+                                    </td>
+                                    <td><?php echo esc_html(date('M d, Y', strtotime($p->created_at))); ?></td>
+                                    <td><span
+                                            class="wsb-status wsb-status-<?php echo esc_attr($p->status); ?>"><?php echo esc_html(ucfirst($p->status)); ?></span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; else: ?>
                             <tr>
-                                <td><strong style="color:var(--wsb-text-muted); font-family:monospace;"><?php echo esc_html($p->transaction_id ?: 'N/A'); ?></strong></td>
-                                <td><span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;"><?php echo esc_html(strtoupper($p->gateway)); ?></span></td>
-                                <td><strong style="color:var(--wsb-success);">$<?php echo number_format((float)$p->amount, 2); ?></strong></td>
-                                <td>
-                                    <div class="wsb-customer-info">
-                                        <span class="wsb-customer-name" style="color:var(--wsb-primary);">Booking #<?php echo esc_html(str_pad($p->booking_id, 5, '0', STR_PAD_LEFT)); ?></span>
-                                        <span class="wsb-customer-meta"><?php echo esc_html($p->first_name . ' ' . $p->last_name . ' - ' . $p->service_name); ?></span>
-                                    </div>
-                                </td>
-                                <td><?php echo esc_html(date('M d, Y', strtotime($p->created_at))); ?></td>
-                                <td><span class="wsb-status wsb-status-<?php echo esc_attr($p->status); ?>"><?php echo esc_html(ucfirst($p->status)); ?></span></td>
+                                <td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No payment
+                                    records found in this timeframe.</td>
                             </tr>
-                        <?php endforeach; else : ?>
-                            <tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No payment records found in this timeframe.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -1410,20 +2355,21 @@ class Wsb_Admin {
         <?php
     }
 
-    public function display_settings_page() {
+    public function display_settings_page()
+    {
         global $wpdb;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['wsb_settings_nonce']) && wp_verify_nonce($_POST['wsb_settings_nonce'], 'wsb_save_settings')) {
                 update_option('wsb_currency', sanitize_text_field($_POST['wsb_currency']));
-                
+
                 // Payment Integrations
                 update_option('wsb_stripe_publishable_key', sanitize_text_field($_POST['wsb_stripe_publishable_key']));
                 update_option('wsb_stripe_secret_key', sanitize_text_field($_POST['wsb_stripe_secret_key']));
-                
+
                 update_option('wsb_paypal_client_id', sanitize_text_field($_POST['wsb_paypal_client_id']));
                 update_option('wsb_paypal_secret', sanitize_text_field($_POST['wsb_paypal_secret']));
-                
+
                 echo '<div class="notice notice-success is-dismissible"><p>System Integration Settings securely saved!</p></div>';
             }
 
@@ -1441,27 +2387,127 @@ class Wsb_Admin {
         ?>
         <div class="wrap wsb-admin-wrap">
             <h1 style="margin-bottom:20px;">System Settings & Integrations</h1>
-            
+
             <style>
-                .wsb-accordion { background: var(--wsb-panel-dark); border: 1px solid var(--wsb-border); border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
-                .wsb-accordion summary { background: rgba(255,255,255,0.02); padding: 15px 20px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; border-bottom: 1px solid transparent; }
-                .wsb-accordion details[open] summary { border-bottom: 1px solid var(--wsb-border); }
-                .wsb-accordion .content { padding: 20px; }
-                .wsb-accordion input[type="text"], .wsb-accordion input[type="password"], .wsb-accordion select { background: #0f172a; color: white; border: 1px solid var(--wsb-border); padding: 10px; border-radius: 6px; width: 100%; max-width: 400px; margin-top: 5px; }
-                .wsb-layout-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
-                .wsb-layout-option { position: relative; cursor: pointer; }
-                .wsb-layout-option input { position: absolute; opacity: 0; }
-                .wsb-layout-preview { aspect-ratio: 4/3; background: #0f172a; border: 2px solid var(--wsb-border); border-radius: 10px; transition: all 0.2s; display: flex; flex-direction: column; gap: 4px; padding: 10px; overflow: hidden; position: relative; }
-                .wsb-layout-option input:checked + .wsb-layout-preview { border-color: var(--wsb-primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
-                .wsb-layout-preview::after { content: '✓'; position: absolute; top: 5px; right: 5px; background: var(--wsb-primary); color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; opacity: 0; transform: scale(0); transition: all 0.2s; }
-                .wsb-layout-option input:checked + .wsb-layout-preview::after { opacity: 1; transform: scale(1); }
-                .wsb-layout-name { display: block; text-align: center; margin-top: 8px; font-size: 13px; color: var(--wsb-text-muted); font-weight: 500; }
-                .wsb-layout-option:hover .wsb-layout-preview { border-color: rgba(255,255,255,0.2); }
+                .wsb-accordion {
+                    background: var(--wsb-panel-dark);
+                    border: 1px solid var(--wsb-border);
+                    border-radius: 8px;
+                    margin-bottom: 15px;
+                    overflow: hidden;
+                }
+
+                .wsb-accordion summary {
+                    background: rgba(255, 255, 255, 0.02);
+                    padding: 15px 20px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    user-select: none;
+                    border-bottom: 1px solid transparent;
+                }
+
+                .wsb-accordion details[open] summary {
+                    border-bottom: 1px solid var(--wsb-border);
+                }
+
+                .wsb-accordion .content {
+                    padding: 20px;
+                }
+
+                .wsb-accordion input[type="text"],
+                .wsb-accordion input[type="password"],
+                .wsb-accordion select {
+                    background: #0f172a;
+                    color: white;
+                    border: 1px solid var(--wsb-border);
+                    padding: 10px;
+                    border-radius: 6px;
+                    width: 100%;
+                    max-width: 400px;
+                    margin-top: 5px;
+                }
+
+                .wsb-layout-selector {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 15px;
+                    margin-top: 15px;
+                }
+
+                .wsb-layout-option {
+                    position: relative;
+                    cursor: pointer;
+                }
+
+                .wsb-layout-option input {
+                    position: absolute;
+                    opacity: 0;
+                }
+
+                .wsb-layout-preview {
+                    aspect-ratio: 4/3;
+                    background: #0f172a;
+                    border: 2px solid var(--wsb-border);
+                    border-radius: 10px;
+                    transition: all 0.2s;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    padding: 10px;
+                    overflow: hidden;
+                    position: relative;
+                }
+
+                .wsb-layout-option input:checked+.wsb-layout-preview {
+                    border-color: var(--wsb-primary);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+                }
+
+                .wsb-layout-preview::after {
+                    content: '✓';
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    background: var(--wsb-primary);
+                    color: white;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 10px;
+                    opacity: 0;
+                    transform: scale(0);
+                    transition: all 0.2s;
+                }
+
+                .wsb-layout-option input:checked+.wsb-layout-preview::after {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+
+                .wsb-layout-name {
+                    display: block;
+                    text-align: center;
+                    margin-top: 8px;
+                    font-size: 13px;
+                    color: var(--wsb-text-muted);
+                    font-weight: 500;
+                }
+
+                .wsb-layout-option:hover .wsb-layout-preview {
+                    border-color: rgba(255, 255, 255, 0.2);
+                }
             </style>
 
             <form method="post">
                 <?php wp_nonce_field('wsb_save_settings', 'wsb_settings_nonce'); ?>
-                
+
                 <!-- General Settings -->
                 <details class="wsb-accordion" open>
                     <summary>🌍 General Configuration</summary>
@@ -1493,8 +2539,13 @@ class Wsb_Admin {
                         </label>
                         <label style="color:var(--wsb-text-muted); display:block; margin-bottom:15px;">
                             <strong style="color:white; display:block; margin-bottom:5px;">Secret Key</strong>
-                            <input name="wsb_stripe_secret_key" type="password" value="<?php echo esc_attr($stripe_sk); ?>">
+                            <input name="wsb_stripe_secret_key" id="wsb_stripe_secret_key" type="password" value="<?php echo esc_attr($stripe_sk); ?>">
                         </label>
+                        
+                        <button type="button" id="wsb-test-stripe-btn" class="button" style="background: var(--wsb-primary); color: white; border: none; padding: 8px 15px; font-weight:600; border-radius: 6px; cursor:pointer;">Test Stripe Connection</button>
+                        <span id="wsb-stripe-test-spinner" style="display:none; color:var(--wsb-text-muted); margin-left:15px;">Testing credentials...</span>
+                        
+                        <div id="wsb-stripe-test-result" style="margin-top: 15px; font-weight:600; font-size:14px; display:none;"></div>
                     </div>
                 </details>
 
@@ -1517,31 +2568,41 @@ class Wsb_Admin {
                 <details class="wsb-accordion" open>
                     <summary>🔗 Frontend Integration</summary>
                     <div class="content">
-                        <p style="color:var(--wsb-text-muted);">Embed the scheduling widget onto any page or post utilizing this exact shortcode:</p>
-                        <code style="background: rgba(59, 130, 246, 0.1); color: var(--wsb-primary); padding: 15px; border-radius: 8px; display: block; font-size: 18px; border: 1px dashed var(--wsb-primary); text-align: center;">[wsb_booking_widget]</code>
-                        <p style="color:var(--wsb-text-muted); margin-top:15px;">Or directly copy your Booking System static route link:</p>
-                        <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();" style="width:100%; max-width:100% !important; background:rgba(0,0,0,0.2) !important; color:var(--wsb-success) !important; cursor:pointer;">
+                        <p style="color:var(--wsb-text-muted);">Embed the scheduling widget onto any page or post utilizing this
+                            exact shortcode:</p>
+                        <code
+                            style="background: rgba(59, 130, 246, 0.1); color: var(--wsb-primary); padding: 15px; border-radius: 8px; display: block; font-size: 18px; border: 1px dashed var(--wsb-primary); text-align: center;">[wsb_booking_widget]</code>
+                        <p style="color:var(--wsb-text-muted); margin-top:15px;">Or directly copy your Booking System static
+                            route link:</p>
+                        <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();"
+                            style="width:100%; max-width:100% !important; background:rgba(0,0,0,0.2) !important; color:var(--wsb-success) !important; cursor:pointer;">
                     </div>
                 </details>
 
                 <div style="margin-bottom:40px;">
-                    <button type="submit" class="wsb-btn-primary" style="padding:12px 30px; font-size:16px;">Save System Architecture</button>
+                    <button type="submit" class="wsb-btn-primary" style="padding:12px 30px; font-size:16px;">Save System
+                        Architecture</button>
                 </div>
             </form>
 
-            <div style="background: rgba(239, 68, 68, 0.05); padding: 20px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <div
+                style="background: rgba(239, 68, 68, 0.05); padding: 20px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
                 <h3 style="margin-top:0; color: #ef4444;">Developer Tools</h3>
-                <p style="color: var(--wsb-text-muted);">Use this to populate the custom database tables with dummy realistic data to test the system visually.</p>
+                <p style="color: var(--wsb-text-muted);">Use this to populate the custom database tables with dummy realistic
+                    data to test the system visually.</p>
                 <form method="post">
                     <?php wp_nonce_field('wsb_generate_dummy', 'wsb_dummy_nonce'); ?>
-                    <input type="submit" name="generate_dummy" value="Force Global Dummy Injection" class="wsb-btn-primary" style="background:#ef4444; border:none; padding:10px 15px;" onclick="return confirm('WARNING: Generating data will duplicate records. Proceed?');" />
+                    <input type="submit" name="generate_dummy" value="Force Global Dummy Injection" class="wsb-btn-primary"
+                        style="background:#ef4444; border:none; padding:10px 15px;"
+                        onclick="return confirm('WARNING: Generating data will duplicate records. Proceed?');" />
                 </form>
             </div>
         </div>
         <?php
     }
 
-    private function generate_dummy_data($wpdb) {
+    private function generate_dummy_data($wpdb)
+    {
         $tables = array(
             'services' => $wpdb->prefix . 'wsb_services',
             'staff' => $wpdb->prefix . 'wsb_staff',
@@ -1559,7 +2620,7 @@ class Wsb_Admin {
             array('name' => 'Fitness Consultation', 'description' => '1-on-1 private training assessment.', 'price' => 60.00, 'duration' => 60, 'category' => 'Fitness', 'capacity' => 1),
         );
         $service_ids = array();
-        foreach($services_data as $s) {
+        foreach ($services_data as $s) {
             $wpdb->insert($tables['services'], $s);
             $service_ids[] = $wpdb->insert_id;
         }
@@ -1571,7 +2632,7 @@ class Wsb_Admin {
             array('name' => 'Michael Chen', 'email' => 'michael@example.com', 'phone' => '555-0103'),
         );
         $staff_ids = array();
-        foreach($staff_data as $st) {
+        foreach ($staff_data as $st) {
             $wpdb->insert($tables['staff'], $st);
             $staff_ids[] = $wpdb->insert_id;
         }
@@ -1592,18 +2653,18 @@ class Wsb_Admin {
             array('first_name' => 'Chris', 'last_name' => 'Wilson', 'email' => 'chrisw@test.com', 'phone' => '555-333-4444'),
         );
         $customer_ids = array();
-        foreach($customer_data as $c) {
+        foreach ($customer_data as $c) {
             $wpdb->insert($tables['customers'], $c);
             $customer_ids[] = $wpdb->insert_id;
         }
 
         // 4. Insert Bookings & Payments
         $statuses = array('confirmed', 'pending', 'completed');
-        for ($i=0; $i<15; $i++) {
+        for ($i = 0; $i < 15; $i++) {
             $cid = $customer_ids[array_rand($customer_ids)];
             $sid = $service_ids[array_rand($service_ids)];
             $stid = $staff_ids[array_rand($staff_ids)];
-            
+
             // Generate random date between today and next 14 days
             $random_days = rand(0, 14);
             $booking_date = date('Y-m-d', strtotime("+$random_days days"));
@@ -1629,18 +2690,20 @@ class Wsb_Admin {
                 'booking_id' => $booking_id,
                 'amount' => $amount,
                 'gateway' => 'stripe',
-                'transaction_id' => 'ch_test_' . rand(1000,9999),
+                'transaction_id' => 'ch_test_' . rand(1000, 9999),
                 'status' => ($status === 'pending') ? 'pending' : 'completed'
             ));
         }
     }
 
-    public function display_design_page() {
+    public function display_design_page()
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wsb_design_nonce']) && wp_verify_nonce($_POST['wsb_design_nonce'], 'wsb_save_design')) {
             update_option('wsb_service_layout', sanitize_text_field($_POST['wsb_service_layout']));
             update_option('wsb_brand_color', sanitize_hex_color($_POST['wsb_brand_color']));
             update_option('wsb_brand_color_end', sanitize_hex_color($_POST['wsb_brand_color_end']));
             update_option('wsb_accent_color', sanitize_hex_color($_POST['wsb_accent_color']));
+            update_option('wsb_virtual_bg_color', sanitize_hex_color($_POST['wsb_virtual_bg_color']));
             echo '<div class="notice notice-success is-dismissible"><p>Design and aesthetic preferences saved!</p></div>';
         }
 
@@ -1648,91 +2711,277 @@ class Wsb_Admin {
         $brand_color = get_option('wsb_brand_color', '#6366f1');
         $brand_color_end = get_option('wsb_brand_color_end', '#a855f7');
         $accent_color = get_option('wsb_accent_color', '#4f46e5');
+        $virtual_bg_color = get_option('wsb_virtual_bg_color', '#f8fafc');
         ?>
         <div class="wrap wsb-admin-wrap">
             <h1 style="margin-bottom:20px;">Frontend Experience & Designer</h1>
-            <p style="color:var(--wsb-text-muted); margin-bottom:30px;">Customize how your booking widget looks and feels to your customers.</p>
+            <p style="color:var(--wsb-text-muted); margin-bottom:30px;">Customize how your booking widget looks and feels to
+                your customers.</p>
 
             <style>
-                .wsb-design-section { background: var(--wsb-panel-dark); border: 1px solid var(--wsb-border); border-radius: 12px; padding: 30px; margin-bottom: 25px; }
-                .wsb-color-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; padding-bottom: 30px; border-bottom: 1px solid var(--wsb-border); }
-                .wsb-layout-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }
-                .wsb-layout-option { position: relative; cursor: pointer; }
-                .wsb-layout-option input { position: absolute; opacity: 0; }
-                .wsb-layout-preview { aspect-ratio: 4/3; background: #0f172a; border: 2px solid var(--wsb-border); border-radius: 10px; transition: all 0.2s; display: flex; justify-content:center; align-items:center; overflow: hidden; position: relative; }
-                .wsb-layout-option input:checked + .wsb-layout-preview { border-color: var(--wsb-primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); }
-                .wsb-layout-preview::after { content: '✓'; position: absolute; top: 8px; right: 8px; background: var(--wsb-primary); color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0; transform: scale(0); transition: all 0.2s; z-index:10; }
-                .wsb-layout-option input:checked + .wsb-layout-preview::after { opacity: 1; transform: scale(1); }
-                .wsb-layout-name { display: block; text-align: center; margin-top: 10px; font-size: 13px; color: var(--wsb-text-muted); font-weight: 600; }
-                .wsb-layout-option:hover .wsb-layout-preview { border-color: rgba(255,255,255,0.2); }
-                
-                @media (max-width: 1200px) { .wsb-layout-selector { grid-template-columns: repeat(3, 1fr); } }
-                @media (max-width: 900px) { .wsb-layout-selector { grid-template-columns: repeat(2, 1fr); } }
-                @media (max-width: 768px) { .wsb-color-row { grid-template-columns: 1fr; } }
+                .wsb-design-section {
+                    background: var(--wsb-panel-dark);
+                    border: 1px solid var(--wsb-border);
+                    border-radius: 12px;
+                    padding: 30px;
+                    margin-bottom: 25px;
+                }
+
+                .wsb-color-row {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 20px;
+                    margin-bottom: 40px;
+                    padding-bottom: 30px;
+                    border-bottom: 1px solid var(--wsb-border);
+                }
+
+                .wsb-layout-selector {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 15px;
+                    margin-top: 20px;
+                }
+
+                .wsb-layout-option {
+                    position: relative;
+                    cursor: pointer;
+                }
+
+                .wsb-layout-option input {
+                    position: absolute;
+                    opacity: 0;
+                }
+
+                .wsb-layout-preview {
+                    aspect-ratio: 4/3;
+                    background: #0f172a;
+                    border: 2px solid var(--wsb-border);
+                    border-radius: 10px;
+                    transition: all 0.2s;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    overflow: hidden;
+                    position: relative;
+                }
+
+                .wsb-layout-option input:checked+.wsb-layout-preview {
+                    border-color: var(--wsb-primary);
+                    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+                }
+
+                .wsb-layout-preview::after {
+                    content: '✓';
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    background: var(--wsb-primary);
+                    color: white;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    opacity: 0;
+                    transform: scale(0);
+                    transition: all 0.2s;
+                    z-index: 10;
+                }
+
+                .wsb-layout-option input:checked+.wsb-layout-preview::after {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+
+                .wsb-layout-name {
+                    display: block;
+                    text-align: center;
+                    margin-top: 10px;
+                    font-size: 13px;
+                    color: var(--wsb-text-muted);
+                    font-weight: 600;
+                }
+
+                .wsb-layout-option:hover .wsb-layout-preview {
+                    border-color: rgba(255, 255, 255, 0.2);
+                }
+
+                @media (max-width: 1200px) {
+                    .wsb-layout-selector {
+                        grid-template-columns: repeat(3, 1fr);
+                    }
+                }
+
+                @media (max-width: 900px) {
+                    .wsb-color-row {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+
+                    .wsb-layout-selector {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+
+                .wsb-color-card {
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 16px;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                }
+                .wsb-color-card:hover {
+                    background: rgba(255, 255, 255, 0.06);
+                    border-color: rgba(255, 255, 255, 0.1);
+                    transform: translateY(-2px);
+                }
+                .wsb-color-picker-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    background: #090d16;
+                    border: 1px solid var(--wsb-border);
+                    border-radius: 10px;
+                    padding: 10px 15px;
+                }
+                .wsb-color-swatch {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    border: 2px solid rgba(255,255,255,0.2);
+                    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+                    flex-shrink: 0;
+                }
+                .wsb-color-hex {
+                    font-family: monospace;
+                    font-size: 14px;
+                    color: #e2e8f0;
+                }
+                .wsb-hidden-color-input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                    overflow: hidden;
+                    pointer-events: none;
+                }
+                @media (max-width: 768px) {
+                    .wsb-color-row {
+                        grid-template-columns: 1fr;
+                    }
+                }
             </style>
 
             <form method="post">
                 <?php wp_nonce_field('wsb_save_design', 'wsb_design_nonce'); ?>
 
                 <div class="wsb-design-section">
-                    <h2 style="color:white; margin-bottom:20px;">🎨 Brand Identity & Gradients</h2>
+                    <h2 style="color:white; margin-bottom:25px; font-weight: 700; letter-spacing: -0.02em;">🎨 Brand Identity & Gradients</h2>
                     <div class="wsb-color-row">
-                        <div>
-                            <strong style="color:white; display:block; margin-bottom:10px;">Primary Color (Start)</strong>
-                            <input type="color" name="wsb_brand_color" value="<?php echo esc_attr($brand_color); ?>" style="width:100%; height:50px; cursor:pointer;" />
-                        </div>
-                        <div>
-                            <strong style="color:white; display:block; margin-bottom:10px;">Gradient Color (End)</strong>
-                            <input type="color" name="wsb_brand_color_end" value="<?php echo esc_attr($brand_color_end); ?>" style="width:100%; height:50px; cursor:pointer;" />
-                        </div>
-                        <div>
-                            <strong style="color:white; display:block; margin-bottom:10px;">Interactive Accent</strong>
-                            <input type="color" name="wsb_accent_color" value="<?php echo esc_attr($accent_color); ?>" style="width:100%; height:50px; cursor:pointer;" />
-                        </div>
+                        <label class="wsb-color-card">
+                            <strong style="color:white; font-size: 14px; font-weight: 600; display:block;">Primary Color (Start)</strong>
+                            <div class="wsb-color-picker-wrapper">
+                                <div class="wsb-color-swatch" style="background: <?php echo esc_attr($brand_color); ?>;"></div>
+                                <span class="wsb-color-hex"><?php echo esc_html($brand_color); ?></span>
+                                <input type="color" name="wsb_brand_color" value="<?php echo esc_attr($brand_color); ?>" class="wsb-hidden-color-input" onchange="this.previousElementSibling.textContent = this.value; this.previousElementSibling.previousElementSibling.style.background = this.value;">
+                            </div>
+                        </label>
+                        
+                        <label class="wsb-color-card">
+                            <strong style="color:white; font-size: 14px; font-weight: 600; display:block;">Gradient Color (End)</strong>
+                            <div class="wsb-color-picker-wrapper">
+                                <div class="wsb-color-swatch" style="background: <?php echo esc_attr($brand_color_end); ?>;"></div>
+                                <span class="wsb-color-hex"><?php echo esc_html($brand_color_end); ?></span>
+                                <input type="color" name="wsb_brand_color_end" value="<?php echo esc_attr($brand_color_end); ?>" class="wsb-hidden-color-input" onchange="this.previousElementSibling.textContent = this.value; this.previousElementSibling.previousElementSibling.style.background = this.value;">
+                            </div>
+                        </label>
+                        
+                        <label class="wsb-color-card">
+                            <strong style="color:white; font-size: 14px; font-weight: 600; display:block;">Interactive Accent</strong>
+                            <div class="wsb-color-picker-wrapper">
+                                <div class="wsb-color-swatch" style="background: <?php echo esc_attr($accent_color); ?>;"></div>
+                                <span class="wsb-color-hex"><?php echo esc_html($accent_color); ?></span>
+                                <input type="color" name="wsb_accent_color" value="<?php echo esc_attr($accent_color); ?>" class="wsb-hidden-color-input" onchange="this.previousElementSibling.textContent = this.value; this.previousElementSibling.previousElementSibling.style.background = this.value;">
+                            </div>
+                        </label>
+                        
+                        <label class="wsb-color-card">
+                            <strong style="color:white; font-size: 14px; font-weight: 600; display:block;">Service Page Background</strong>
+                            <div class="wsb-color-picker-wrapper">
+                                <div class="wsb-color-swatch" style="background: <?php echo esc_attr($virtual_bg_color); ?>;"></div>
+                                <span class="wsb-color-hex"><?php echo esc_html($virtual_bg_color); ?></span>
+                                <input type="color" name="wsb_virtual_bg_color" value="<?php echo esc_attr($virtual_bg_color); ?>" class="wsb-hidden-color-input" onchange="this.previousElementSibling.textContent = this.value; this.previousElementSibling.previousElementSibling.style.background = this.value;">
+                            </div>
+                        </label>
                     </div>
 
                     <h2 style="color:white; margin-bottom:10px;">📐 Layout & Aesthetic Style</h2>
-                    <p style="color:var(--wsb-text-muted); font-size:13px; margin-bottom:25px;">Choose from 18 professionally crafted design languages for your service display.</p>
+                    <p style="color:var(--wsb-text-muted); font-size:13px; margin-bottom:25px;">Choose from 18 professionally
+                        crafted design languages for your service display.</p>
 
                     <div class="wsb-layout-selector">
-                        <?php 
+                        <?php
                         $layouts = [
-                            'modern_grid' => 'Modern Grid',
-                            'classic_list' => 'Classic List',
-                            'glass_cards' => 'Glassmorphism',
-                            'minimal' => 'Pure Minimal',
-                            'carousel' => 'Hero View',
-                            'elegant_wide' => 'Elegant Wide',
-                            'neon_night' => 'Neon Night',
-                            'retro_pop' => 'Retro Pop',
-                            'brutalist_mono' => 'Brutalist',
-                            'soft_blush' => 'Soft Blush',
-                            'metro_grid' => 'Metro Grid',
-                            'outline_modern' => 'Outline',
-                            'gradient_mesh' => 'Mesh Gradient',
-                            'royal_gold' => 'Royal Gold',
-                            'eco_fresh' => 'Eco Fresh',
-                            'floating_cards' => 'Floating',
-                            'dark_minimal_list' => 'Dark Minimal',
-                            'glass_cards_v2' => 'Glass V2'
+                            'modern_grid' => 'Signature Grid',
+                            'glass_cards_v2' => 'Glass Elite',
+                            'metro_grid' => 'Immersive Metro',
+                            'neon_night' => 'Cyber Dark'
                         ];
-                        foreach($layouts as $val => $name): ?>
-                        <label class="wsb-layout-option">
-                            <input type="radio" name="wsb_service_layout" value="<?php echo $val; ?>" <?php checked($service_layout, $val); ?>>
-                            <div class="wsb-layout-preview">
-                                <div style="font-size:10px; color:rgba(255,255,255,0.2); text-transform:uppercase; font-weight:700;"><?php echo $name; ?></div>
-                                <!-- Background preview hint based on name -->
-                                <?php if($val == 'neon_night'): ?><div style="position:absolute; inset:0; border:1px solid #818cf8; opacity:0.3;"></div><?php endif; ?>
-                                <?php if($val == 'royal_gold'): ?><div style="position:absolute; inset:0; border:1px solid #c5a059; opacity:0.3;"></div><?php endif; ?>
-                            </div>
-                            <span class="wsb-layout-name"><?php echo $name; ?></span>
-                        </label>
+                        foreach ($layouts as $val => $name): ?>
+                            <label class="wsb-layout-option">
+                                <input type="radio" name="wsb_service_layout" value="<?php echo $val; ?>" <?php checked($service_layout, $val); ?>>
+                                <div class="wsb-layout-preview">
+                                    <div
+                                        style="font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; font-weight:700; z-index: 10; position: relative;">
+                                        <?php echo $name; ?></div>
+                                    
+                                    <?php if ($val == 'modern_grid'): ?>
+                                        <div style="position:absolute; inset:0; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); opacity: 0.5;"></div>
+                                        <div style="position:absolute; top: 15%; left: 15%; width: 70%; height: 70%; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;"></div>
+                                    <?php endif; ?>
+
+                                    <?php if ($val == 'neon_night'): ?>
+                                        <div style="position:absolute; inset:0; background: #020617;"></div>
+                                        <div style="position:absolute; top: 20%; left: 20%; width: 60%; height: 60%; border: 1px solid #6366f1; border-radius: 12px; box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);"></div>
+                                    <?php endif; ?>
+
+                                    <?php if ($val == 'glass_cards_v2'): ?>
+                                        <div style="position:absolute; inset:0; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); opacity: 0.3;"></div>
+                                        <div style="position:absolute; top: 20%; left: 20%; width: 60%; height: 60%; background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;"></div>
+                                    <?php endif; ?>
+
+                                    <?php if ($val == 'metro_grid'): ?>
+                                        <div style="position:absolute; inset:0; background: url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=200') center/cover; opacity: 0.4;"></div>
+                                        <div style="position:absolute; bottom: 0; left: 0; right: 0; height: 40%; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);"></div>
+                                    <?php endif; ?>
+                                </div>
+                                <span class="wsb-layout-name"><?php echo $name; ?></span>
+                            </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
 
                 <div style="margin-top:20px;">
-                    <button type="submit" class="button button-primary button-large" style="padding:10px 30px; height:auto;">Apply Premium Design</button>
+                    <button type="submit" class="wsb-btn-premium"
+                        style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: #fff; border: none; padding: 14px 35px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;">
+                        <span>✨</span> Apply Premium Design
+                    </button>
+                    <style>
+                        .wsb-btn-premium:hover {
+                            transform: translateY(-2px);
+                            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
+                            filter: brightness(1.1);
+                        }
+                        .wsb-btn-premium:active {
+                            transform: translateY(0);
+                        }
+                    </style>
                 </div>
             </form>
         </div>

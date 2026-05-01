@@ -32,7 +32,11 @@ class Wp_Service_Booking {
 		add_action( 'wp_enqueue_scripts', array( $plugin_public, 'enqueue_styles' ) );
 		add_action( 'wp_enqueue_scripts', array( $plugin_public, 'enqueue_scripts' ) );
         add_shortcode( 'wsb_booking_widget', array( $plugin_public, 'render_booking_widget' ) );
+        add_shortcode( 'wsb_client_dashboard', array( $plugin_public, 'render_client_dashboard' ) );
         add_action( 'template_redirect', array( $plugin_public, 'virtual_booking_route' ) );
+        add_action( 'init', array( $plugin_public, 'handle_stripe_return' ) );
+        add_filter( 'login_redirect', array( $plugin_public, 'wsb_login_redirect' ), 10, 3 );
+        add_action( 'admin_init', array( $plugin_public, 'wsb_restrict_admin_access' ) );
 	}
 
     private function define_ajax_hooks() {
@@ -42,6 +46,16 @@ class Wp_Service_Booking {
         
         add_action('wp_ajax_wsb_create_booking', array($plugin_ajax, 'create_booking'));
         add_action('wp_ajax_nopriv_wsb_create_booking', array($plugin_ajax, 'create_booking'));
+        
+        add_action('wp_ajax_wsb_client_booking_action', array($plugin_ajax, 'wsb_client_booking_action'));
+        add_action('wp_ajax_wsb_update_account_details', array($plugin_ajax, 'wsb_update_account_details'));
+        add_action('wp_ajax_wsb_test_stripe_connection', array($plugin_ajax, 'test_stripe_connection'));
+        
+        add_action('wp_ajax_wsb_create_stripe_intent', array($plugin_ajax, 'create_stripe_intent'));
+        add_action('wp_ajax_nopriv_wsb_create_stripe_intent', array($plugin_ajax, 'create_stripe_intent'));
+        
+        add_action('wp_ajax_wsb_create_checkout_session', array($plugin_ajax, 'create_checkout_session'));
+        add_action('wp_ajax_nopriv_wsb_create_checkout_session', array($plugin_ajax, 'create_checkout_session'));
     }
 
 	public function run() {

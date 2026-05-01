@@ -1,160 +1,214 @@
 jQuery(document).ready(function($) {
-    // Featured Image Uploader (Event Delegation)
-    var featuredFrame;
-    $(document).on('click', '.wsb-select-image', function(e) {
-        e.preventDefault();
-        var button = $(this);
-        var targetInput = $(button.data('target'));
-        var previewDiv = $(button.data('preview'));
+    // 1. Master Tab Navigation (SPA)
+    $(document).on('click', '.wsb-nav-item[data-tab]', function() {
+        var tab = $(this).data('tab');
+        var sidebarItem = $(this);
 
-        if (featuredFrame) {
-            featuredFrame.open();
-            return;
-        }
+        // UI Feedback
+        $('.wsb-nav-item').removeClass('active');
+        sidebarItem.addClass('active');
 
-        featuredFrame = wp.media({
-            title: 'Select Featured Image',
-            button: { text: 'Use this image' },
-            multiple: false
-        });
-
-        featuredFrame.on('select', function() {
-            var attachment = featuredFrame.state().get('selection').first().toJSON();
-            targetInput.val(attachment.url);
-            previewDiv.css('background', '#0f172a url(' + attachment.url + ') center/cover');
-        });
-
-        featuredFrame.open();
+        loadTab(tab);
     });
 
-    // Multiple Gallery Images Uploader
-    var galleryFrame;
-    $(document).on('click', '.wsb-select-gallery', function(e) {
-        e.preventDefault();
+    function loadTab(tab, extraParams = '') {
+        $('.wsb-loader').fadeIn('fast');
+        $('#wsb-ajax-response').css('opacity', '0.5');
 
-        if (galleryFrame) {
-            galleryFrame.open();
-            return;
-        }
-
-        galleryFrame = wp.media({
-            title: 'Select Gallery Images',
-            button: { text: 'Add to Gallery' },
-            multiple: true
+        var targetUrl = wsb_admin_ajax.ajax_url;
+        
+        $.ajax({
+            url: targetUrl,
+            type: 'POST',
+            data: {
+                action: 'wsb_load_admin_tab',
+                nonce: wsb_admin_ajax.nonce,
+                tab: tab,
+                params: extraParams
+            },
+            success: function(response) {
+                if (response.success) {
+                    try {
+                        $('#wsb-ajax-response').html(response.data.content);
+                        $(document).trigger('wsb-tab-loaded', [tab]);
+                        
+                        // Update URL without reload
+                        var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?page=wsb_main&tab=' + tab + extraParams;
+                        window.history.pushState({path: newUrl}, '', newUrl);
+                    } catch (e) {
+                        console.error('WSB Render Error:', e);
+                    }
+                } else {
+                    console.error('WSB AJAX Error: Success was false.', response);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('WSB AJAX Network Error:', status, error);
+            },
+            complete: function() {
+                $('.wsb-loader').fadeOut('fast');
+                $('#wsb-ajax-response').css('opacity', '1');
+            }
         });
+    }
 
-        galleryFrame.on('select', function() {
-            var selection = galleryFrame.state().get('selection');
-            var urls = [];
-            var previewHtml = '';
+    // Intercept internal links for SPA feel
+    $(document).on('click', '.wsb-master-content a', function(e) {
+        var href = $(this).attr('href');
+        if (href && (href.indexOf('page=wsb_main') !== -1 || href.indexOf('page=wp-service-booking') !== -1) && !$(this).hasClass('wsb-no-ajax')) {
+            e.preventDefault();
+            // Parse tab and other params
+            var urlParams = new URLSearchParams(href.split('?')[1]);
+            var tab = urlParams.get('tab') || 'dashboard';
+            // Also handle old slugs if any
+            if (href.indexOf('bookings') !== -1) tab = 'bookings';
+            if (href.indexOf('services') !== -1) tab = 'services';
+            if (href.indexOf('staff') !== -1) tab = 'staff';
+            if (href.indexOf('customers') !== -1) tab = 'customers';
+            if (href.indexOf('finance') !== -1) tab = 'finance';
+            if (href.indexOf('design') !== -1) tab = 'design';
+            if (href.indexOf('settings') !== -1) tab = 'settings';
 
-            selection.map(function(attachment) {
-                attachment = attachment.toJSON();
-                urls.push(attachment.url);
-                previewHtml += '<div style="width:50px; height:50px; border-radius:4px; background:url(' + attachment.url + ') center/cover; border:1px solid #334155;"></div>';
+            // Reconstruct extra params (like action=edit, id=...)
+            var extra = '';
+            urlParams.forEach((value, key) => {
+                if (key !== 'page' && key !== 'tab') {
+                    extra += '&' + key + '=' + value;
+                }
             });
 
-            $('#service_gallery_urls').val(urls.join(','));
-            $('#wsb-gallery-preview').html(previewHtml);
-        });
+            // Update sidebar UI
+            $('.wsb-nav-item').removeClass('active');
+            $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
 
-        galleryFrame.open();
-    });
-
-    function showLoader() {
-        if ($('#wsb-ajax-loader').length === 0) {
-            $('body').append('<div id="wsb-ajax-loader" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); z-index:999999; display:flex; justify-content:center; align-items:center;"><div style="color:#3b82f6; font-size:24px; font-weight:bold; font-family:Inter, sans-serif;">Loading...</div></div>');
-        }
-        $('#wsb-ajax-loader').fadeIn('fast');
-    }
-
-    function hideLoader() {
-        $('#wsb-ajax-loader').fadeOut('fast');
-    }
-
-    function navigateTo(href) {
-        if (!href || href.indexOf('page=wp-service-booking') === -1) return false;
-        
-        showLoader();
-        $.ajax({
-            url: href,
-            method: 'GET',
-            success: function(response) {
-                var newContent = $(response).find('.wsb-admin-wrap');
-                if(newContent.length) {
-                    $('.wsb-admin-wrap').replaceWith(newContent);
-                    window.history.pushState(null, '', href);
-                    // Scroll to top
-                    window.scrollTo(0, 0);
-                    // Force re-initialization of components if needed
-                    $(document).trigger('wsb-page-loaded');
-                } else {
-                    window.location.href = href; // fallback
-                }
-                hideLoader();
-            },
-            error: function() {
-                window.location.href = href; 
-                hideLoader();
-            }
-        });
-        return true;
-    }
-
-    // Intercept internal plugin navigation links (scoped carefully so it does not break WP Menu clicks)
-    $(document).on('click', '.wsb-admin-wrap a', function(e) {
-        var href = $(this).attr('href');
-        // Only intercept if href contains our plugin page target
-        if (href && href.indexOf('page=wp-service-booking') !== -1 && !$(this).hasClass('wsb-no-ajax')) {
-            // Respect native JS confirms (Action links)
-            if($(this).attr('onclick')) {
-                // We let the onclick handle it. If it returns false, navigation shouldn't happen.
-                // But for AJAX, we need to be careful.
-            }
-            e.preventDefault();
-            navigateTo(href);
+            loadTab(tab, extra);
         }
     });
 
-    // Intercept inline plugin form submissions
-    $(document).on('submit', '.wsb-admin-wrap form', function(e) {
+    // 2. Featured Image & Gallery Logic
+    $(document).on('click', '.wsb-select-image, .wsb-select-gallery', function(e) {
         e.preventDefault();
-        var form = $(this);
-        var action = form.attr('action') || window.location.href;
-        var formData = new FormData(form[0]); // Support file uploads if any
+        var button = $(this);
+        var isMultiple = button.hasClass('wsb-select-gallery');
+        var targetInput = $(button.data('target'));
+        var previewContainer = $(button.data('preview'));
 
-        showLoader();
+        var frame = wp.media({
+            title: isMultiple ? 'Select Gallery Images' : 'Select Image',
+            button: { text: isMultiple ? 'Add to Gallery' : 'Use this image' },
+            multiple: isMultiple
+        });
+
+        frame.on('select', function() {
+            if (isMultiple) {
+                var selection = frame.state().get('selection');
+                var urls = [];
+                var previewHtml = '';
+                selection.map(function(attachment) {
+                    attachment = attachment.toJSON();
+                    urls.push(attachment.url);
+                    previewHtml += '<div style="width:50px; height:50px; border-radius:4px; background:url(' + attachment.url + ') center/cover; border:1px solid #334155; display:inline-block; margin-right:5px;"></div>';
+                });
+                targetInput.val(urls.join(','));
+                previewContainer.html(previewHtml);
+            } else {
+                var attachment = frame.state().get('selection').first().toJSON();
+                targetInput.val(attachment.url);
+                previewContainer.css('background', '#0f172a url(' + attachment.url + ') center/cover');
+            }
+        });
+
+        frame.open();
+    });
+
+    // 3. Form Interceptor
+    $(document).on('submit', '.wsb-master-content form', function(e) {
+        if ($(this).hasClass('wsb-no-ajax')) return;
+        e.preventDefault();
+        
+        var form = $(this);
+        var formData = new FormData(form[0]);
+        var activeTab = $('.wsb-nav-item.active').data('tab') || 'dashboard';
+        
+        formData.append('action', 'wsb_load_admin_tab');
+        formData.append('nonce', wsb_admin_ajax.nonce);
+        formData.append('tab', activeTab);
+        
+        $('.wsb-loader').fadeIn('fast');
         $.ajax({
-            url: action,
-            method: 'POST',
+            url: wsb_admin_ajax.ajax_url,
+            type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
             success: function(response) {
-                 var newContent = $(response).find('.wsb-admin-wrap');
-                 if(newContent.length) {
-                     $('.wsb-admin-wrap').replaceWith(newContent);
-                     // If form submission results in a redirect-like behavior (e.g. going back to list)
-                     // we might want to update the URL if the response has a different origin action.
-                 } else {
-                     window.location.reload(); 
-                 }
-                 hideLoader();
+                if (response.success) {
+                    $('#wsb-ajax-response').html(response.data.content);
+                    $(document).trigger('wsb-tab-loaded', [activeTab]);
+                    
+                    // Update URL with filter params for shareability/refresh
+                    var queryString = form.serialize();
+                    var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?' + queryString;
+                    window.history.pushState({path: newUrl}, '', newUrl);
+                }
+                $('.wsb-loader').fadeOut('fast');
             },
             error: function() {
-                 window.location.reload();
+                console.error('WSB Error: Form submission failed.');
+            },
+            complete: function() {
+                $('.wsb-loader').fadeOut('fast');
             }
         });
     });
+    // Stripe Connection Tester
+    $(document).on('click', '#wsb-test-stripe-btn', function(e) {
+        e.preventDefault();
+        var btn = $(this);
+        var secretKey = $('#wsb_stripe_secret_key').val();
+        var spinner = $('#wsb-stripe-test-spinner');
+        var resultBox = $('#wsb-stripe-test-result');
 
-    // Clickable table rows
-    $(document).on('click', '.wsb-clickable-row', function(e) {
-        // Prevent click if clicking on an anchor tag, button, or input inside the row
-        if ($(e.target).closest('a, button, input, select').length) return;
-        
-        var href = $(this).attr('data-href');
-        if (href) {
-            navigateTo(href);
+        if (!secretKey) {
+            resultBox.css({'color': '#ef4444', 'display': 'block'}).text('Enter a Secret Key first!');
+            return;
         }
+
+        btn.prop('disabled', true);
+        spinner.fadeIn(150);
+        resultBox.hide();
+
+        $.ajax({
+            url: wsb_admin_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wsb_test_stripe_connection',
+                nonce: wsb_admin_ajax.nonce,
+                stripe_sk: secretKey
+            },
+            success: function(response) {
+                spinner.hide();
+                btn.prop('disabled', false);
+                resultBox.fadeIn(150);
+                if (response.success) {
+                    resultBox.css('color', '#10b981').text(response.data.message);
+                } else {
+                    resultBox.css('color', '#ef4444').text(response.data.message);
+                }
+            },
+            error: function() {
+                spinner.hide();
+                btn.prop('disabled', false);
+                resultBox.css({'color': '#ef4444', 'display': 'block'}).text('Network failure. Retry test.');
+            }
+        });
     });
+    // Handle History (Back/Forward)
+    window.onpopstate = function(event) {
+        var params = new URLSearchParams(window.location.search);
+        var tab = params.get('tab') || 'dashboard';
+        $('.wsb-nav-item').removeClass('active');
+        $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
+        loadTab(tab);
+    };
 });

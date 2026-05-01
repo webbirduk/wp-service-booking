@@ -18,16 +18,20 @@
     --wsb-shadow-lg: 0 25px 50px -12px rgba(0,0,0,0.05);
 }
 
+#wsb-booking-wizard-container,
+#wsb-booking-wizard-container * {
+    box-sizing: border-box;
+}
+
 #wsb-booking-wizard-container {
     max-width: 900px;
     margin: 40px auto;
     font-family: 'Inter', system-ui, sans-serif;
     color: var(--wsb-text-main);
-    background: var(--wsb-bg);
-    border: 1px solid var(--wsb-border);
-    border-radius: var(--wsb-radius);
-    padding: 48px;
-    box-shadow: var(--wsb-shadow-lg);
+    background: transparent;
+    border: none;
+    padding: 20px 0;
+    box-shadow: none;
 }
 
 #wsb-booking-wizard-container h3 { margin: 0 0 32px 0; font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
@@ -37,25 +41,62 @@
 .wsb-filter-btn { padding: 12px 24px; border-radius: 30px; border: 1px solid var(--wsb-border); background: white; font-weight: 600; cursor: pointer; transition: 0.3s; color: var(--wsb-text-muted); }
 .wsb-filter-btn.active { background: var(--wsb-gradient); color: white; border-color: var(--wsb-brand); box-shadow: 0 8px 20px var(--wsb-ring); }
 
-/* --- Service Design Engine (18 Layouts) --- */
-.wsb-services-container { display: grid; gap: 24px; }
-.wsb-card-option { background: var(--wsb-panel); border: 1px solid var(--wsb-border); border-radius: var(--wsb-radius); cursor: pointer; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
-.wsb-card-option:hover { transform: translateY(-8px); border-color: var(--wsb-brand); box-shadow: var(--wsb-shadow-md); }
-.wsb-card-option.selected { border-color: var(--wsb-brand); background: #fff; box-shadow: 0 0 0 4px var(--wsb-ring); }
-.wsb-category-badge { position: absolute; top: 15px; left: 15px; background: var(--wsb-brand); color: white; padding: 5px 12px; border-radius: 30px; font-size: 10px; font-weight: 800; text-transform: uppercase; z-index: 5; }
-.wsb-service-image { width: 100%; height: 180px; background-size: cover; background-position: center; border-bottom: 1px solid var(--wsb-border); }
-.wsb-service-content { padding: 28px; }
-.wsb-service-content h4 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
-.wsb-price-tag { color: var(--wsb-brand); font-weight: 800; font-size: 18px; }
+/* --- Service Design Engine (4 Premium Layouts) --- */
+.wsb-services-container { display: grid; gap: 30px; }
+.wsb-card-option { background: var(--wsb-panel); border: 1px solid var(--wsb-border); border-radius: 24px; cursor: pointer; transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1); position: relative; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+.wsb-card-option:hover { transform: translateY(-12px); border-color: var(--wsb-brand); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12); }
+.wsb-card-option.selected { border-color: var(--wsb-brand); background: #fff; box-shadow: 0 0 0 5px var(--wsb-ring); }
+.wsb-category-badge { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); color: var(--wsb-brand); padding: 6px 14px; border-radius: 30px; font-size: 11px; font-weight: 800; text-transform: uppercase; z-index: 5; border: 1px solid var(--wsb-border); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+.wsb-service-image { width: 100%; height: 220px; background-size: cover; background-position: center; border-bottom: 1px solid var(--wsb-border); transition: transform 0.6s ease; }
+.wsb-card-option:hover .wsb-service-image { transform: scale(1.08); }
+.wsb-service-content { padding: 32px; position: relative; z-index: 2; }
+.wsb-service-content h4 { margin: 0 0 10px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.wsb-price-tag { color: var(--wsb-brand); font-weight: 900; font-size: 20px; display: block; margin-top: 15px; }
 
-/* Design Variant Overrides */
-.wsb-layout-modern_grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+/* 1. Signature Grid - Clean & Elite */
+.wsb-layout-modern_grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.wsb-layout-modern_grid .wsb-card-option { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); }
+
+.wsb-layout-classic_list { grid-template-columns: 1fr; }
+.wsb-layout-classic_list .wsb-card-option { display: flex; align-items: center; }
+.wsb-layout-classic_list .wsb-service-image { width: 180px; height: 150px; border-bottom: none; border-right: 1px solid var(--wsb-border); flex-shrink: 0; }
+
+.wsb-layout-glass_cards { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.wsb-layout-glass_cards .wsb-card-option { background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.6); }
+
+.wsb-layout-minimal { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.wsb-layout-minimal .wsb-card-option { border: none; background: transparent; border-bottom: 1px solid var(--wsb-border); border-radius: 0; padding: 15px 0; }
+.wsb-layout-minimal .wsb-service-content { padding: 0; }
+
+.wsb-layout-carousel { display: flex; overflow-x: auto; gap: 20px; padding-bottom: 15px; }
+.wsb-layout-carousel .wsb-card-option { flex: 0 0 300px; }
+
 .wsb-layout-elegant_wide .wsb-card-option { display: grid; grid-template-columns: 320px 1fr; }
 .wsb-layout-elegant_wide .wsb-service-image { height: 100%; border-bottom: none; border-right: 1px solid var(--wsb-border); }
-.wsb-layout-metro_grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
-.wsb-layout-metro_grid .wsb-service-image { position: absolute; inset: 0; height: 100%; z-index: 1; filter: brightness(0.65); }
-.wsb-layout-metro_grid .wsb-service-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; color: white; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
-.wsb-layout-metro_grid h4, .wsb-layout-metro_grid .wsb-text-muted { color: white; }
+
+/* 2. Cyber Dark - High Tech & Vibrant */
+.wsb-layout-neon_night { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); background: #020617; padding: 40px; border-radius: 32px; border: 1px solid #1e293b; box-shadow: inset 0 0 100px rgba(99, 102, 241, 0.05); }
+.wsb-layout-neon_night .wsb-card-option { background: #0f172a; border: 1px solid #1e293b; }
+.wsb-layout-neon_night .wsb-category-badge { background: rgba(99, 102, 241, 0.2); color: #818cf8; border-color: #312e81; }
+.wsb-layout-neon_night h4 { color: #f8fafc; }
+.wsb-layout-neon_night .wsb-service-meta { color: #94a3b8; }
+.wsb-layout-neon_night .wsb-card-option:hover { border-color: #6366f1; box-shadow: 0 0 25px rgba(99, 102, 241, 0.3); }
+.wsb-layout-neon_night .wsb-price-tag { color: #818cf8; text-shadow: 0 0 10px rgba(129, 140, 248, 0.3); }
+
+/* 3. Immersive Metro - Visual First */
+.wsb-layout-metro_grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.wsb-layout-metro_grid .wsb-card-option { height: 400px; border: none; }
+.wsb-layout-metro_grid .wsb-service-image { position: absolute; inset: 0; height: 100%; z-index: 1; filter: brightness(0.7); }
+.wsb-layout-metro_grid .wsb-service-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; color: white; background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 50%, transparent 100%); transition: all 0.4s ease; }
+.wsb-layout-metro_grid .wsb-card-option:hover .wsb-service-content { padding-bottom: 45px; background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.5) 60%, transparent 100%); }
+.wsb-layout-metro_grid h4, .wsb-layout-metro_grid .wsb-price-tag { color: white; }
+.wsb-layout-metro_grid .wsb-service-meta { color: rgba(255,255,255,0.8); }
+
+/* 4. Glass Elite - Sophisticated Blur */
+.wsb-layout-glass_cards_v2 { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); padding: 20px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%); border-radius: 32px; }
+.wsb-layout-glass_cards_v2 .wsb-card-option { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); }
+.wsb-layout-glass_cards_v2 .wsb-card-option:hover { background: rgba(255, 255, 255, 0.25); border-color: rgba(255, 255, 255, 0.6); }
+.wsb-layout-glass_cards_v2 .wsb-service-image { opacity: 0.9; }
 
 /* --- Staff Profiles --- */
 .wsb-staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
@@ -69,7 +110,8 @@
 .wsb-staff-rating { color: #f59e0b; font-size: 12px; letter-spacing: 2px; }
 .wsb-selection-indicator { position: absolute; right: 25px; top: 50%; transform: translateY(-50%) scale(0); width: 26px; height: 26px; background: var(--wsb-gradient); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .wsb-selection-indicator::after { content: '✓'; color: white; font-size: 12px; font-weight: 900; }
-.wsb-staff-card.selected .wsb-selection-indicator { transform: translateY(-50%) scale(1); }
+.wsb-staff-card.selected .wsb-selection-indicator,
+.wsb-card-option.selected .wsb-selection-indicator { transform: translateY(-50%) scale(1); }
 
 /* --- Form System --- */
 .wsb-form-container { display: flex; flex-direction: column; gap: 24px; margin-bottom: 40px; }
@@ -80,15 +122,38 @@
 #wsb-booking-wizard-container input:not([type="radio"]):not([type="checkbox"]),
 #wsb-booking-wizard-container textarea,
 #wsb-booking-wizard-container select {
-    width: 100%; padding: 15px 20px; border: 1.5px solid var(--wsb-border); border-radius: 14px; font-size: 16px; transition: 0.3s; color: var(--wsb-text-main); background: #fff;
+    width: 100%; padding: 18px 24px; border: 1.5px solid var(--wsb-border); border-radius: 16px; font-size: 16px; font-weight: 500; transition: all 0.3s ease; color: var(--wsb-text-main); background: rgba(255,255,255,0.8); backdrop-filter: blur(5px); box-shadow: var(--wsb-shadow-sm);
 }
-#wsb-booking-wizard-container input:focus { border-color: var(--wsb-brand); outline: none; box-shadow: 0 0 0 5px var(--wsb-ring); background: #fbfbff; }
+#wsb-booking-wizard-container input:focus,
+#wsb-booking-wizard-container textarea:focus,
+#wsb-booking-wizard-container select:focus { border-color: var(--wsb-brand); outline: none; box-shadow: 0 0 0 5px var(--wsb-ring), 0 10px 20px rgba(0,0,0,0.05); background: #ffffff; transform: translateY(-2px); }
 #wsb-booking-wizard-container textarea { min-height: 120px; resize: vertical; }
 
 /* --- Interactive Elements --- */
-.wsb-time-slots { display: flex; flex-wrap: wrap; gap: 12px; margin: 30px 0; }
-.wsb-slot-btn { padding: 14px 24px; border-radius: 12px; border: 1.5px solid var(--wsb-border); background: #fff; font-weight: 700; cursor: pointer; transition: 0.2s; }
-.wsb-slot-btn.selected { background: var(--wsb-gradient); color: white; border-color: var(--wsb-brand); box-shadow: 0 8px 15px var(--wsb-ring); }
+/* --- Date & Time Redesign --- */
+.wsb-datetime-layout-stacked { width: 100%; margin-top: 25px; margin-bottom: 25px; display: flex; flex-direction: column; align-items: center; }
+.wsb-datetime-label { font-size: 15px; font-weight: 700; color: var(--wsb-text-main); display: block; margin-bottom: 15px; letter-spacing: -0.01em; text-align: center; width: 100%; }
+.wsb-time-picker-section { width: 100%; max-width: 600px; margin: 0 auto; }
+.wsb-time-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin: 0 !important; width: 100%; }
+.wsb-slot-btn { padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--wsb-border); background: #fff; font-weight: 700; color: var(--wsb-text-main); cursor: pointer; transition: all 0.2s ease; text-align: center; box-shadow: var(--wsb-shadow-sm); }
+.wsb-slot-btn:hover { border-color: var(--wsb-brand); background: #fbfbff; transform: translateY(-1px); }
+.wsb-slot-btn.selected { background: var(--wsb-gradient) !important; color: white !important; border-color: var(--wsb-brand) !important; box-shadow: 0 8px 15px var(--wsb-ring) !important; }
+
+.wsb-modern-calendar-full { background: #fff; border: 1.5px solid var(--wsb-border); border-radius: 20px; padding: 30px; box-shadow: var(--wsb-shadow-sm); width: 100%; max-width: 600px; margin: 0 auto; }
+.wsb-calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.wsb-cal-month-title { font-size: 16px; font-weight: 700; color: var(--wsb-text-main); }
+.wsb-cal-nav { background: none; border: none; font-size: 16px; color: var(--wsb-text-muted); cursor: pointer; padding: 5px 10px; border-radius: 8px; transition: 0.2s; }
+.wsb-cal-nav:hover { background: var(--wsb-ring); color: var(--wsb-brand); }
+.wsb-calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 600; font-size: 13px; color: var(--wsb-text-muted); margin-bottom: 10px; }
+.wsb-calendar-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.wsb-cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 600; font-size: 14px; color: var(--wsb-text-main); cursor: pointer; transition: 0.2s; }
+.wsb-cal-day:hover:not(.disabled):not(.selected) { background: var(--wsb-ring); color: var(--wsb-brand); }
+.wsb-cal-day.disabled { color: #cbd5e1; cursor: not-allowed; }
+.wsb-cal-day.selected { background: var(--wsb-gradient) !important; color: white !important; box-shadow: 0 4px 10px var(--wsb-ring); }
+
+@media (max-width: 768px) {
+    .wsb-datetime-layout { grid-template-columns: 1fr; gap: 25px; }
+}
 
 .wsb-summary-card { background: var(--wsb-panel); padding: 40px; border-radius: 20px; border: 1px solid var(--wsb-border); margin-bottom: 35px; box-shadow: var(--wsb-shadow-sm); }
 .wsb-payment-method { display: block; margin-top: 15px; padding: 20px 25px; border: 1.5px solid var(--wsb-border); border-radius: 14px; background: #fff; cursor: pointer; transition: 0.2s; }
@@ -108,8 +173,24 @@
 
 /* Mobile Optimization */
 @media (max-width: 768px) {
-    #wsb-booking-wizard-container { padding: 30px; margin: 0; border-radius: 0; border: none; }
-    .wsb-form-grid { grid-template-columns: 1fr; }
+    #wsb-booking-wizard-container { padding: 25px 20px; margin: 10px; border-radius: 15px; }
+    #wsb-booking-wizard-container h3 { font-size: 24px; margin-bottom: 20px; }
+    .wsb-form-grid { grid-template-columns: 1fr; gap: 15px; }
     .wsb-layout-elegant_wide .wsb-card-option { grid-template-columns: 1fr; }
-    .wsb-staff-card { padding: 18px; }
+    .wsb-staff-card { padding: 15px; gap: 15px; }
+    .wsb-staff-avatar { width: 60px; height: 60px; }
+    .wsb-summary-card { padding: 25px; }
+    .wsb-btn { width: 100%; text-align: center; }
+    .wsb-actions { flex-direction: column-reverse; gap: 10px; }
+    .wsb-payment-method { padding: 15px; }
 }
+
+.wsb-input-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.15) !important;
+}
+
+.wsb-form-card { background: #fff; border: 1.5px solid var(--wsb-border); border-radius: 20px; padding: 35px; box-shadow: var(--wsb-shadow-sm); max-width: 650px; margin: 0 auto; }
+.wsb-phone-input-group { display: flex; gap: 10px; width: 100%; }
+.wsb-phone-code-select { flex: 0 0 120px; padding: 18px 12px !important; font-weight: 500; border-radius: 16px !important; border: 1.5px solid var(--wsb-border) !important; background: rgba(255,255,255,0.8) !important; cursor: pointer; }
+.wsb-error-msg { color: #ef4444; font-size: 13px; font-weight: 600; margin-top: 6px; padding-left: 5px; display: none; }

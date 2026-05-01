@@ -21,6 +21,19 @@ define( 'WSB_VERSION', '1.0.0' );
 define( 'WSB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WSB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
+function wsb_get_currency_symbol($currency = 'USD') {
+    $symbols = array(
+        'USD' => '$',
+        'EUR' => '€',
+        'GBP' => '£',
+        'JPY' => '¥',
+        'AUD' => 'A$',
+        'CAD' => 'C$',
+        'INR' => '₹'
+    );
+    return isset($symbols[$currency]) ? $symbols[$currency] : $currency;
+}
+
 /**
  * The code that runs during plugin activation.
  * This action is documented in includes/class-wsb-activator.php
