@@ -142,11 +142,13 @@ class Wsb_Ajax {
 
         if ($booking_id && $status === 'confirmed') {
             $payment_table = $wpdb->prefix . 'wsb_payments';
+            $transaction_id = isset($data['transaction_id']) ? sanitize_text_field($data['transaction_id']) : null;
             $wpdb->insert($payment_table, array(
                 'booking_id' => $booking_id,
                 'amount' => $price,
                 'gateway' => $payment_method,
-                'status' => ($payment_method === 'stripe') ? 'completed' : 'pending'
+                'status' => ($payment_method === 'stripe' || $payment_method === 'paypal') ? 'completed' : 'pending',
+                'transaction_id' => $transaction_id
             ));
 
             // Mail notification (only for confirmed)
@@ -405,8 +407,51 @@ class Wsb_Ajax {
     }
 
     public function create_stripe_intent() {
-        // Deprecated in favor of Checkout Sessions
-        $this->create_checkout_session();
+        check_ajax_referer('wsb_nonce', 'nonce');
+        global $wpdb;
+
+        $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+        $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_services WHERE id = %d", $service_id));
+        
+        if (!$service) {
+            wp_send_json_error(array('message' => 'Service not found.'));
+        }
+
+        $stripe_sk = get_option('wsb_stripe_secret_key', '');
+        if (empty($stripe_sk)) {
+            wp_send_json_error(array('message' => 'Stripe is not configured.'));
+        }
+
+        $amount_in_cents = intval($service->price * 100);
+        $currency = strtolower(get_option('wsb_currency', 'usd'));
+
+        $response = wp_remote_post('https://api.stripe.com/v1/payment_intents', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $stripe_sk,
+                'Content-Type'  => 'application/x-www-form-urlencoded',
+            ),
+            'body' => http_build_query(array(
+                'amount'   => $amount_in_cents,
+                'currency' => $currency,
+                'payment_method_types' => array('card'),
+                'metadata' => array(
+                    'service_id' => $service_id
+                )
+            ))
+        ));
+
+        if (is_wp_error($response)) {
+            wp_send_json_error(array('message' => 'Stripe Error: ' . $response->get_error_message()));
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        if (isset($data['error'])) {
+            wp_send_json_error(array('message' => $data['error']['message']));
+        }
+
+        wp_send_json_success(array('client_secret' => $data['client_secret']));
     }
     
     public function test_stripe_connection() {

@@ -85,46 +85,11 @@ jQuery(document).ready(function($) {
 
         console.log('WSB: Navigating to:', nextStep);
 
-        if (nextStep === 'wsb-step-payment') {
-            const btn = $(this);
-            console.log('WSB: Initializing Stripe Checkout redirect...');
-            const originalText = btn.text();
-            btn.prop('disabled', true).text('Opening Secure Checkout...');
-
-            $.ajax({
-                url: wsb_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'wsb_create_checkout_session',
-                    nonce: wsb_ajax.nonce,
-                    service_id: $('.wsb-card-option.selected').data('service-id'),
-                    staff_id: $('.wsb-staff-card.selected').data('staff-id'),
-                    booking_date: $('#wsb-booking-date').val(),
-                    start_time: $('.wsb-slot-btn.selected').text(),
-                    first_name: $('#wsb-first-name').val(),
-                    last_name: $('#wsb-last-name').val(),
-                    email: $('#wsb-email').val(),
-                    phone: $('#wsb-phone').val()
-                },
-                success: function(response) {
-                    if (response.success && response.data.url) {
-                        window.location.href = response.data.url;
-                    } else {
-                        alert(response.data.message || 'Could not initialize checkout.');
-                        btn.prop('disabled', false).text(originalText);
-                    }
-                },
-                error: function() {
-                    alert('Network error. Please try again.');
-                    btn.prop('disabled', false).text(originalText);
-                }
-            });
-            return; // Stop standard transition
-        }
-        
+        // Transition to next step
         currentStep.css({opacity: 1}).animate({opacity: 0, marginTop: '-20px'}, 200, function() {
             currentStep.hide();
-            $('#' + nextStep).css({opacity: 0, marginTop: '20px'}).show().animate({opacity: 1, marginTop: '0'}, 300);
+            const $next = $('#' + nextStep);
+            $next.css({opacity: 0, marginTop: '20px'}).show().animate({opacity: 1, marginTop: '0'}, 300);
         });
     });
 
@@ -346,19 +311,34 @@ jQuery(document).ready(function($) {
             });
         }
 
-        if (paymentMethod && paymentMethod.startsWith('stripe_') && stripeInstance && stripeElements) {
-            stripeInstance.confirmPayment({
-                elements: stripeElements,
-                confirmParams: {
-                    return_url: wsb_ajax.dashboard_url + '?stripe_payment=true'
+        if (paymentMethod === 'stripe_card') {
+            console.log('WSB: Initializing Stripe Checkout redirect...');
+            $.ajax({
+                url: wsb_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'wsb_create_checkout_session',
+                    nonce: wsb_ajax.nonce,
+                    service_id: serviceId,
+                    staff_id: staffId,
+                    booking_date: bookingDate,
+                    start_time: bookingTime,
+                    first_name: $('#wsb-first-name').val(),
+                    last_name: $('#wsb-last-name').val(),
+                    email: $('#wsb-email').val(),
+                    phone: $('#wsb-phone').val()
                 },
-                redirect: 'if_required'
-            }).then(function(result) {
-                if (result.error) {
-                    $('#wsb-stripe-error').text(result.error.message);
+                success: function(response) {
+                    if (response.success && response.data.url) {
+                        window.location.href = response.data.url;
+                    } else {
+                        alert(response.data.message || 'Could not initialize checkout.');
+                        btn.text('Confirm Booking').prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    alert('Network error. Please try again.');
                     btn.text('Confirm Booking').prop('disabled', false);
-                } else {
-                    processStandardBooking();
                 }
             });
         } else {
