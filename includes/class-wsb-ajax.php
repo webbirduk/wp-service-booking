@@ -8,6 +8,21 @@ class Wsb_Ajax {
         $date     = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : date('Y-m-d');
         $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
 
+        // Holiday Check
+        if ($staff_id !== 'any') {
+            $staff = $wpdb->get_row($wpdb->prepare("SELECT holidays FROM {$wpdb->prefix}wsb_staff WHERE id = %d", intval($staff_id)));
+            if ($staff && !empty($staff->holidays)) {
+                $holidays = array_map('trim', explode("\n", $staff->holidays));
+                // Remove empty lines and sanitize
+                $holidays = array_filter($holidays);
+                
+                if (in_array($date, $holidays)) {
+                    wp_send_json_success(array('slots' => array(), 'message' => 'Staff is currently on holiday/time-off.'));
+                    return;
+                }
+            }
+        }
+
         // 1. Define all possible slots (e.g., 09:00 to 17:00 every 30 mins)
         // In a real app, these might come from staff working hours.
         $all_slots = array(

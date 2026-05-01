@@ -1878,6 +1878,12 @@ class Wsb_Admin
                             <script>
                                 (function() {
                                     var initStaffCalendar = function() {
+                                        if (typeof FullCalendar === 'undefined') {
+                                            console.warn('FullCalendar not loaded yet, retrying...');
+                                            setTimeout(initStaffCalendar, 200);
+                                            return;
+                                        }
+
                                         var calendarEl = document.getElementById('wsb-staff-calendar');
                                         if (!calendarEl || calendarEl.classList.contains('fc')) return;
 
@@ -1914,15 +1920,23 @@ class Wsb_Admin
                                             slotMinTime: '07:00:00',
                                             slotMaxTime: '21:00:00',
                                             allDaySlot: false,
-                                            height: 'auto',
-                                            themeSystem: 'standard'
+                                            height: 'auto'
                                         });
-                                        calendar.render();
+                                        
+                                        setTimeout(function() {
+                                            calendar.render();
+                                            calendar.updateSize();
+                                        }, 100);
                                     };
 
-                                    initStaffCalendar();
-                                    jQuery(document).on('wsb-tab-loaded', function(e, tab) {
-                                        if (tab === 'staff') initStaffCalendar();
+                                    // Initial load
+                                    setTimeout(initStaffCalendar, 150);
+
+                                    // Re-init on AJAX navigation
+                                    jQuery(document).off('wsb-tab-loaded.staff_cal').on('wsb-tab-loaded.staff_cal', function(e, tab) {
+                                        if (tab === 'staff') {
+                                            setTimeout(initStaffCalendar, 150);
+                                        }
                                     });
                                 })();
                             </script>
