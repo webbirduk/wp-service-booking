@@ -325,7 +325,9 @@ class Wsb_Admin_Bookings {
           {$where_clause}
           ORDER BY b.booking_date DESC, b.start_time DESC";
 
+        $query = apply_filters('wsb_admin_bookings_query', $query);
         $bookings = $wpdb->get_results($query);
+        $bookings = apply_filters('wsb_admin_bookings_results', $bookings);
         
         $all_staff = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_staff ORDER BY name ASC");
         $all_services = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_services ORDER BY name ASC");

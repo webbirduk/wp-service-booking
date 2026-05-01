@@ -779,4 +779,12 @@ class Wsb_Public {
             exit;
         }
     }
+
+    /**
+     * Redirect to home on logout
+     */
+    public function wsb_logout_redirect($redirect_to, $requested_redirect_to, $user) {
+        // If logging out from the dashboard specifically, or generally for subscribers
+        return home_url();
+    }
 }

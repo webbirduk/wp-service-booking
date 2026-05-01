@@ -7,6 +7,21 @@
  * Author:            Antigravity
  * Text Domain:       wp-service-booking
  * Domain Path:       /languages
+ * 
+ * --- DEVELOPER SCALABILITY ENGINE ---
+ * This plugin is designed to be fully extensible via WordPress Actions & Filters.
+ * 
+ * CORE FILTERS:
+ * - wsb_admin_tabs: Add or override administrative modules.
+ * - wsb_admin_nav_items: Customize the sidebar navigation menu.
+ * - wsb_admin_bookings_query: Modify the booking list database query.
+ * - wsb_admin_bookings_results: Post-process booking data objects.
+ * 
+ * CORE ACTIONS:
+ * - wsb_admin_tab_render_{tab}: Render custom tab content.
+ * - wsb_admin_settings_payment_gateways: Inject custom payment gateway settings.
+ * - wsb_before_save_settings: Hook into the start of the settings save cycle.
+ * - wsb_after_save_settings: Hook into the completion of the settings save cycle.
  */
 
 // If this file is called directly, abort.

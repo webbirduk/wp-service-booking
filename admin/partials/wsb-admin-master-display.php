@@ -152,7 +152,7 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
         
         <nav class="wsb-sidebar-nav">
             <?php
-            $nav_items = [
+            $nav_items = apply_filters('wsb_admin_nav_items', [
                 'dashboard' => ['icon' => 'dashicons-chart-bar', 'label' => 'Overview'],
                 'bookings'  => ['icon' => 'dashicons-calendar-alt', 'label' => 'Bookings'],
                 'finance'   => ['icon' => 'dashicons-money-alt', 'label' => 'Finance'],
@@ -161,7 +161,7 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
                 'customers' => ['icon' => 'dashicons-admin-users', 'label' => 'Clients'],
                 'design'    => ['icon' => 'dashicons-art', 'label' => 'Designer Choice'],
                 'settings'  => ['icon' => 'dashicons-admin-settings', 'label' => 'System Settings'],
-            ];
+            ]);
             foreach ($nav_items as $key => $item):
                 $active = ($tab === $key) ? 'active' : '';
             ?>

@@ -36,6 +36,7 @@ class Wp_Service_Booking {
         add_action( 'template_redirect', array( $plugin_public, 'virtual_booking_route' ) );
         add_action( 'init', array( $plugin_public, 'handle_stripe_return' ) );
         add_filter( 'login_redirect', array( $plugin_public, 'wsb_login_redirect' ), 10, 3 );
+        add_filter( 'logout_redirect', array( $plugin_public, 'wsb_logout_redirect' ), 10, 3 );
         add_action( 'admin_init', array( $plugin_public, 'wsb_restrict_admin_access' ) );
 	}
 

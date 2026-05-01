@@ -43,41 +43,34 @@ class Wsb_Admin
             $_REQUEST = array_merge($_REQUEST, $extra_params);
         }
 
+        // --- DEVELOPER SCALABILITY ENGINE ---
+        // Allow developers to register custom modules or override existing ones
+        $allowed_tabs = apply_filters('wsb_admin_tabs', array(
+            'dashboard' => array('class' => 'Wsb_Admin_Dashboard'),
+            'bookings'  => array('class' => 'Wsb_Admin_Bookings'),
+            'finance'   => array('class' => 'Wsb_Admin_Finance'),
+            'services'  => array('class' => 'Wsb_Admin_Services'),
+            'staff'     => array('class' => 'Wsb_Admin_Staff'),
+            'customers' => array('class' => 'Wsb_Admin_Customers'),
+            'design'    => array('class' => 'Wsb_Admin_Design'),
+            'settings'  => array('class' => 'Wsb_Admin_Settings')
+        ));
+
         ob_start();
-        switch ($tab) {
-            case 'bookings':
-                $module = new Wsb_Admin_Bookings($this);
+        if (isset($allowed_tabs[$tab])) {
+            $class = $allowed_tabs[$tab]['class'];
+            if (class_exists($class)) {
+                $module = new $class($this);
                 $module->display();
-                break;
-            case 'finance':
-                $module = new Wsb_Admin_Finance($this);
-                $module->display();
-                break;
-            case 'services':
-                $module = new Wsb_Admin_Services($this);
-                $module->display();
-                break;
-            case 'staff':
-                $module = new Wsb_Admin_Staff($this);
-                $module->display();
-                break;
-            case 'customers':
-                $module = new Wsb_Admin_Customers($this);
-                $module->display();
-                break;
-            case 'design':
-                $module = new Wsb_Admin_Design($this);
-                $module->display();
-                break;
-            case 'settings':
-                $module = new Wsb_Admin_Settings($this);
-                $module->display();
-                break;
-            default:
-                $module = new Wsb_Admin_Dashboard($this);
-                $module->display();
-                break;
+            } else {
+                do_action('wsb_admin_tab_render_' . $tab, $this);
+            }
+        } else {
+            // Default Fallback
+            $module = new Wsb_Admin_Dashboard($this);
+            $module->display();
         }
+        
         $content = ob_get_clean();
         wp_send_json_success(array('content' => $content));
     }

@@ -11,12 +11,14 @@ class Wsb_Admin_Settings {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['wsb_settings_nonce']) && wp_verify_nonce($_POST['wsb_settings_nonce'], 'wsb_save_settings')) {
+                do_action('wsb_before_save_settings', $_POST);
                 update_option('wsb_currency', sanitize_text_field($_POST['wsb_currency']));
 
                 // Payment Integrations
                 update_option('wsb_stripe_publishable_key', sanitize_text_field($_POST['wsb_stripe_publishable_key']));
                 update_option('wsb_stripe_secret_key', sanitize_text_field($_POST['wsb_stripe_secret_key']));
 
+                do_action('wsb_after_save_settings', $_POST);
                 echo '<div class="notice notice-success is-dismissible"><p>System Integration Settings securely saved!</p></div>';
             }
 
@@ -74,6 +76,8 @@ class Wsb_Admin_Settings {
                                         </div>
                                     </div>
                                 </div>
+
+                                <?php do_action('wsb_admin_settings_payment_gateways', $this); ?>
                             </div>
                         </div>
 
