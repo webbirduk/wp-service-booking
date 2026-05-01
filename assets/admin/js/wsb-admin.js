@@ -38,6 +38,7 @@ jQuery(document).ready(function($) {
                     } catch (e) {
                         console.error('WSB Render Error:', e);
                     }
+                    handleWSBNotices(); // Ensure notices are handled after AJAX load
                 } else {
                     console.error('WSB AJAX Error: Success was false.', response);
                 }
@@ -154,6 +155,8 @@ jQuery(document).ready(function($) {
                     var queryString = form.serialize();
                     var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?' + queryString;
                     window.history.pushState({path: newUrl}, '', newUrl);
+
+                    handleWSBNotices(); // Handle notices after form submission
                 }
                 $('.wsb-loader').fadeOut('fast');
             },
@@ -233,6 +236,43 @@ jQuery(document).ready(function($) {
         }
     });
 
+    // 5. Notice Handler (Close Icon + Auto-disappear)
+    function handleWSBNotices() {
+        $('.wsb-master-wrapper .notice').each(function() {
+            var notice = $(this);
+            
+            // Add close icon if not already present
+            if (notice.find('.wsb-notice-close').length === 0) {
+                notice.append('<span class="wsb-notice-close"><span class="dashicons dashicons-dismiss"></span></span>');
+            }
+
+            // Automatic disappearance after 2 seconds (2000ms)
+            if (!notice.hasClass('wsb-sticky-notice')) {
+                setTimeout(function() {
+                    if (notice.length && notice.parent().length) {
+                        notice.fadeOut(400, function() {
+                            $(this).remove();
+                        });
+                    }
+                }, 2000);
+            }
+        });
+    }
+
+    $(document).on('click', '.wsb-notice-close', function() {
+        $(this).closest('.notice').fadeOut(200, function() {
+            $(this).remove();
+        });
+    });
+
+    // Initial check
+    handleWSBNotices();
+
+    // Re-check after tab loads or forms submit (handled via triggers or callbacks)
+    $(document).on('wsb-tab-loaded', function() {
+        handleWSBNotices();
+    });
+
     // Handle History (Back/Forward)
     window.onpopstate = function(event) {
         var params = new URLSearchParams(window.location.search);
@@ -240,5 +280,6 @@ jQuery(document).ready(function($) {
         $('.wsb-nav-item').removeClass('active');
         $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
         loadTab(tab);
+        handleWSBNotices();
     };
 });

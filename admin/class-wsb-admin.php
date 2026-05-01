@@ -62,13 +62,13 @@ class Wsb_Admin
 
     public function enqueue_styles()
     {
-        wp_enqueue_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/wsb-admin.css', array(), $this->version, 'all');
+        wp_enqueue_style($this->plugin_name, plugin_dir_url(dirname(__FILE__)) . 'assets/admin/css/wsb-admin.css', array(), $this->version, 'all');
     }
 
     public function enqueue_scripts()
     {
         wp_enqueue_media();
-        wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/wsb-admin.js', array('jquery'), $this->version, false);
+        wp_enqueue_script($this->plugin_name, plugin_dir_url(dirname(__FILE__)) . 'assets/admin/js/wsb-admin.js', array('jquery'), $this->version, false);
         wp_localize_script($this->plugin_name, 'wsb_admin_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wsb_admin_nonce')
@@ -503,6 +503,7 @@ class Wsb_Admin
                 LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
                 WHERE b.id = %d
             ", $booking_id));
+            $payment = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_payments WHERE booking_id = %d", $booking_id));
 
             if ($booking) {
                 ?>
@@ -636,10 +637,30 @@ class Wsb_Admin
                                     </div>
                                     
                                     <div style="background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:8px; border:1px solid rgba(16, 185, 129, 0.1);">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                                             <span style="font-size:13px; color:var(--wsb-text-muted);">Payment Strategy</span>
                                             <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--wsb-success);">Secured</span>
                                         </div>
+                                        <?php if ($payment): ?>
+                                            <div style="border-top:1px solid rgba(16, 185, 129, 0.1); padding-top:10px; margin-top:5px;">
+                                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                                    <span style="font-size:12px; color:var(--wsb-text-muted);">Gateway</span>
+                                                    <span style="font-size:12px; color:#fff; font-weight:600;"><?php echo strtoupper(esc_html($payment->gateway)); ?></span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                                    <span style="font-size:12px; color:var(--wsb-text-muted);">Transaction ID</span>
+                                                    <span style="font-size:12px; color:#fff; font-family:monospace;"><?php echo esc_html($payment->transaction_id ?: 'N/A'); ?></span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between;">
+                                                    <span style="font-size:12px; color:var(--wsb-text-muted);">Payment Status</span>
+                                                    <span style="font-size:11px; padding:2px 6px; border-radius:4px; background:<?php echo $payment->status === 'completed' ? 'var(--wsb-success)' : '#f59e0b'; ?>; color:#fff; font-weight:bold;"><?php echo strtoupper(esc_html($payment->status)); ?></span>
+                                                </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <div style="border-top:1px solid rgba(16, 185, 129, 0.1); padding-top:10px; margin-top:5px; text-align:center; color:var(--wsb-text-muted); font-size:11px; font-style:italic;">
+                                                No payment transaction linked to this booking yet.
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
@@ -1334,7 +1355,7 @@ class Wsb_Admin
             ?>
             <div class="wrap wsb-admin-wrap">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h1 style="margin:0;"><?php echo $action === 'edit' ? 'Edit Service' : 'Add New Service'; ?></h1>
+                    <h1 style="margin:0;"><?php echo $action === 'edit' ? 'Manage Service' : 'Add New Service'; ?></h1>
                     <a href="?page=wsb_main&tab=services" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
                         Services</a>
                 </div>
@@ -1349,7 +1370,7 @@ class Wsb_Admin
                             style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); border-top: 4px solid var(--wsb-primary);">
                             <h3
                                 style="margin-top:0; color:var(--wsb-primary); font-size:18px; display:flex; align-items:center; gap:8px;">
-                                📝 Basic Information</h3>
+                                <span class="dashicons dashicons-edit"></span> Basic Information</h3>
                             <div style="margin-bottom: 15px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Service Name</label>
                                 <input name="service_name" type="text"
@@ -1407,7 +1428,7 @@ class Wsb_Admin
                                 style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-bottom: 20px; border-top: 4px solid var(--wsb-success);">
                                 <h3
                                     style="margin-top:0; color:var(--wsb-success); font-size:18px; display:flex; align-items:center; gap:8px;">
-                                    💰 Pricing & Duration</h3>
+                                    <span class="dashicons dashicons-money-alt"></span> Pricing & Duration</h3>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 15px;">
                                     <div>
                                         <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Price
@@ -1449,7 +1470,7 @@ class Wsb_Admin
                                 style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); border-top: 4px solid var(--wsb-warning);">
                                 <h3
                                     style="margin-top:0; color:var(--wsb-warning); font-size:18px; display:flex; align-items:center; gap:8px;">
-                                    👥 Assign Staff</h3>
+                                    <span class="dashicons dashicons-groups"></span> Assign Staff</h3>
                                 <?php if (!empty($staff_members)): ?>
                                     <div style="max-height:150px; overflow-y:auto; padding-right:10px;">
                                         <?php foreach ($staff_members as $staff): ?>
@@ -2628,9 +2649,6 @@ class Wsb_Admin
                 update_option('wsb_stripe_publishable_key', sanitize_text_field($_POST['wsb_stripe_publishable_key']));
                 update_option('wsb_stripe_secret_key', sanitize_text_field($_POST['wsb_stripe_secret_key']));
 
-                update_option('wsb_paypal_client_id', sanitize_text_field($_POST['wsb_paypal_client_id']));
-                update_option('wsb_paypal_secret', sanitize_text_field($_POST['wsb_paypal_secret']));
-
                 echo '<div class="notice notice-success is-dismissible"><p>System Integration Settings securely saved!</p></div>';
             }
 
@@ -2643,221 +2661,138 @@ class Wsb_Admin
         $currency = get_option('wsb_currency', 'USD');
         $stripe_pk = get_option('wsb_stripe_publishable_key', '');
         $stripe_sk = get_option('wsb_stripe_secret_key', '');
-        $paypal_cid = get_option('wsb_paypal_client_id', '');
-        $paypal_sec = get_option('wsb_paypal_secret', '');
         ?>
         <div class="wrap wsb-admin-wrap">
-            <h1 style="margin-bottom:20px;">System Settings & Integrations</h1>
-
-            <style>
-                .wsb-accordion {
-                    background: var(--wsb-panel-dark);
-                    border: 1px solid var(--wsb-border);
-                    border-radius: 8px;
-                    margin-bottom: 15px;
-                    overflow: hidden;
-                }
-
-                .wsb-accordion summary {
-                    background: rgba(255, 255, 255, 0.02);
-                    padding: 15px 20px;
-                    font-size: 16px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    user-select: none;
-                    border-bottom: 1px solid transparent;
-                }
-
-                .wsb-accordion details[open] summary {
-                    border-bottom: 1px solid var(--wsb-border);
-                }
-
-                .wsb-accordion .content {
-                    padding: 20px;
-                }
-
-                .wsb-accordion input[type="text"],
-                .wsb-accordion input[type="password"],
-                .wsb-accordion select {
-                    background: #0f172a;
-                    color: white;
-                    border: 1px solid var(--wsb-border);
-                    padding: 10px;
-                    border-radius: 6px;
-                    width: 100%;
-                    max-width: 400px;
-                    margin-top: 5px;
-                }
-
-                .wsb-layout-selector {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 15px;
-                    margin-top: 15px;
-                }
-
-                .wsb-layout-option {
-                    position: relative;
-                    cursor: pointer;
-                }
-
-                .wsb-layout-option input {
-                    position: absolute;
-                    opacity: 0;
-                }
-
-                .wsb-layout-preview {
-                    aspect-ratio: 4/3;
-                    background: #0f172a;
-                    border: 2px solid var(--wsb-border);
-                    border-radius: 10px;
-                    transition: all 0.2s;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                    padding: 10px;
-                    overflow: hidden;
-                    position: relative;
-                }
-
-                .wsb-layout-option input:checked+.wsb-layout-preview {
-                    border-color: var(--wsb-primary);
-                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-                }
-
-                .wsb-layout-preview::after {
-                    content: '✓';
-                    position: absolute;
-                    top: 5px;
-                    right: 5px;
-                    background: var(--wsb-primary);
-                    color: white;
-                    width: 18px;
-                    height: 18px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 10px;
-                    opacity: 0;
-                    transform: scale(0);
-                    transition: all 0.2s;
-                }
-
-                .wsb-layout-option input:checked+.wsb-layout-preview::after {
-                    opacity: 1;
-                    transform: scale(1);
-                }
-
-                .wsb-layout-name {
-                    display: block;
-                    text-align: center;
-                    margin-top: 8px;
-                    font-size: 13px;
-                    color: var(--wsb-text-muted);
-                    font-weight: 500;
-                }
-
-                .wsb-layout-option:hover .wsb-layout-preview {
-                    border-color: rgba(255, 255, 255, 0.2);
-                }
-            </style>
+            <div style="margin-bottom:30px;">
+                <h1 style="margin:0; font-size:28px; font-weight:800; color:#fff;">System Settings & Integrations</h1>
+                <p style="color:var(--wsb-text-muted); margin-top:5px; font-size:15px;">Configure your global booking architecture, payment gateways, and design language.</p>
+            </div>
 
             <form method="post">
                 <?php wp_nonce_field('wsb_save_settings', 'wsb_settings_nonce'); ?>
-
-                <!-- General Settings -->
-                <details class="wsb-accordion" open>
-                    <summary>🌍 General Configuration</summary>
-                    <div class="content">
-                        <label style="color:var(--wsb-text-muted); display:block; margin-bottom:15px;">
-                            <strong style="color:white; display:block; margin-bottom:5px;">System Currency</strong>
-                            <select name="wsb_currency">
-                                <option value="USD" <?php selected($currency, 'USD'); ?>>USD - United States Dollar ($)</option>
-                                <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR - Euro (€)</option>
-                                <option value="GBP" <?php selected($currency, 'GBP'); ?>>GBP - British Pound (£)</option>
-                                <option value="CAD" <?php selected($currency, 'CAD'); ?>>CAD - Canadian Dollar (C$)</option>
-                                <option value="AUD" <?php selected($currency, 'AUD'); ?>>AUD - Australian Dollar (A$)</option>
-                                <option value="JPY" <?php selected($currency, 'JPY'); ?>>JPY - Japanese Yen (¥)</option>
-                                <option value="INR" <?php selected($currency, 'INR'); ?>>INR - Indian Rupee (₹)</option>
-                            </select>
-                        </label>
-                    </div>
-                </details>
-
-
-
-                <!-- Stripe Settings -->
-                <details class="wsb-accordion">
-                    <summary>💳 Stripe Integration</summary>
-                    <div class="content">
-                        <label style="color:var(--wsb-text-muted); display:block; margin-bottom:15px;">
-                            <strong style="color:white; display:block; margin-bottom:5px;">Publishable Key</strong>
-                            <input name="wsb_stripe_publishable_key" type="text" value="<?php echo esc_attr($stripe_pk); ?>">
-                        </label>
-                        <label style="color:var(--wsb-text-muted); display:block; margin-bottom:15px;">
-                            <strong style="color:white; display:block; margin-bottom:5px;">Secret Key</strong>
-                            <input name="wsb_stripe_secret_key" id="wsb_stripe_secret_key" type="password" value="<?php echo esc_attr($stripe_sk); ?>">
-                        </label>
+                
+                <div style="display:grid; grid-template-columns: 2fr 1.2fr; gap:30px; align-items: start;">
+                    
+                    <!-- Left Column: Core Configuration -->
+                    <div style="display:flex; flex-direction:column; gap:30px;">
                         
-                        <button type="button" id="wsb-test-stripe-btn" class="button" style="background: var(--wsb-primary); color: white; border: none; padding: 8px 15px; font-weight:600; border-radius: 6px; cursor:pointer;">Test Stripe Connection</button>
-                        <span id="wsb-stripe-test-spinner" style="display:none; color:var(--wsb-text-muted); margin-left:15px;">Testing credentials...</span>
+                        <!-- Payment Ecosystem Card -->
+                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-primary);">
+                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border); display:flex; align-items:center; justify-content:space-between;">
+                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
+                                    <span class="dashicons dashicons-money-alt" style="color:var(--wsb-primary);"></span> Payment Gateway Ecosystem
+                                </h3>
+                                <span style="background:rgba(99, 102, 241, 0.1); color:var(--wsb-primary); padding:4px 12px; border-radius:20px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Stripe Integration</span>
+                            </div>
+                            
+                            <div style="padding:25px; display:flex; flex-direction:column; gap:30px;">
+                                
+                                <!-- Stripe Section -->
+                                <div>
+                                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+                                        <div style="width:32px; height:32px; background:#635bff; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:18px;">S</div>
+                                        <h4 style="margin:0; color:#fff; font-size:16px;">Stripe Professional</h4>
+                                    </div>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                                        <div>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Publishable API Key</label>
+                                            <input name="wsb_stripe_publishable_key" type="text" value="<?php echo esc_attr($stripe_pk); ?>" placeholder="pk_test_..."
+                                                style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;">
+                                        </div>
+                                        <div>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Secret API Key</label>
+                                            <input name="wsb_stripe_secret_key" id="wsb_stripe_secret_key" type="password" value="<?php echo esc_attr($stripe_sk); ?>" placeholder="sk_test_..."
+                                                style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;">
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:15px; display:flex; align-items:center; gap:15px;">
+                                        <button type="button" id="wsb-test-stripe-btn" class="wsb-btn-primary" style="padding:8px 18px; font-size:13px; background:rgba(255,255,255,0.05); border:1px solid var(--wsb-border); color:#fff;">Verify Stripe API</button>
+                                        <span id="wsb-stripe-test-spinner" style="display:none; color:var(--wsb-text-muted); font-size:12px;">Connecting to Stripe...</span>
+                                        <div id="wsb-stripe-test-result" style="font-weight:600; font-size:13px; display:none;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- General & Regional Configuration -->
+                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden;">
+                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border);">
+                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
+                                    <span class="dashicons dashicons-admin-settings" style="color:var(--wsb-warning);"></span> Regional & Locale Settings
+                                </h3>
+                            </div>
+                            <div style="padding:25px;">
+                                <div style="max-width:400px;">
+                                    <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">System Default Currency</label>
+                                    <select name="wsb_currency" style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600;">
+                                        <option value="USD" <?php selected($currency, 'USD'); ?>>USD - United States Dollar ($)</option>
+                                        <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR - Euro (€)</option>
+                                        <option value="GBP" <?php selected($currency, 'GBP'); ?>>GBP - British Pound (£)</option>
+                                        <option value="CAD" <?php selected($currency, 'CAD'); ?>>CAD - Canadian Dollar (C$)</option>
+                                        <option value="AUD" <?php selected($currency, 'AUD'); ?>>AUD - Australian Dollar (A$)</option>
+                                        <option value="JPY" <?php selected($currency, 'JPY'); ?>>JPY - Japanese Yen (¥)</option>
+                                        <option value="INR" <?php selected($currency, 'INR'); ?>>INR - Indian Rupee (₹)</option>
+                                    </select>
+                                    <p style="margin-top:10px; font-size:12px; color:var(--wsb-text-muted);">This currency will be applied across all service pricing and invoice generation.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Integration & Tools -->
+                    <div style="display:flex; flex-direction:column; gap:30px;">
                         
-                        <div id="wsb-stripe-test-result" style="margin-top: 15px; font-weight:600; font-size:14px; display:none;"></div>
-                    </div>
-                </details>
+                        <!-- Shortcode Generator Card -->
+                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-success);">
+                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border);">
+                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
+                                    <span class="dashicons dashicons-shortcode" style="color:var(--wsb-success);"></span> Frontend Deployment
+                                </h3>
+                            </div>
+                            <div style="padding:25px;">
+                                <p style="color:var(--wsb-text-muted); margin-bottom:20px; font-size:13px; line-height:1.6;">Paste this shortcode anywhere on your site to render the premium booking widget.</p>
+                                <div style="background:rgba(16, 185, 129, 0.05); border:1px dashed var(--wsb-success); padding:15px; border-radius:10px; text-align:center; margin-bottom:20px;">
+                                    <code style="font-size:20px; color:var(--wsb-success); font-weight:900; letter-spacing:1px;">[wsb_booking_widget]</code>
+                                </div>
+                                
+                                <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Direct System Link</label>
+                                <div style="position:relative;">
+                                    <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();"
+                                        style="width:100%; background:#0f172a; color:var(--wsb-primary); border:1px solid var(--wsb-border); padding:10px 12px; border-radius:8px; font-size:12px; cursor:pointer;">
+                                    <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--wsb-text-muted);">Click to Copy</span>
+                                </div>
+                            </div>
+                        </div>
 
-                <!-- PayPal Settings -->
-                <details class="wsb-accordion">
-                    <summary>🅿️ PayPal Integration</summary>
-                    <div class="content">
-                        <label style="color:var(--wsb-text-muted); display:block; margin-bottom:15px;">
-                            <strong style="color:white; display:block; margin-bottom:5px;">Client ID</strong>
-                            <input name="wsb_paypal_client_id" type="text" value="<?php echo esc_attr($paypal_cid); ?>">
-                        </label>
-                        <label style="color:var(--wsb-text-muted); display:block; margin-bottom:15px;">
-                            <strong style="color:white; display:block; margin-bottom:5px;">Secret Key</strong>
-                            <input name="wsb_paypal_secret" type="password" value="<?php echo esc_attr($paypal_sec); ?>">
-                        </label>
-                    </div>
-                </details>
+                        <!-- Save Actions -->
+                        <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:16px; border:1px solid var(--wsb-border); display:flex; flex-direction:column; gap:15px;">
+                            <button type="submit" class="wsb-btn-primary" style="width:100%; padding:15px; font-size:16px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);">Save Global Architecture</button>
+                            <p style="text-align:center; margin:0; font-size:12px; color:var(--wsb-text-muted);">Last saved: <?php echo date('M d, H:i'); ?></p>
+                        </div>
 
-                <!-- Booking Widget Code -->
-                <details class="wsb-accordion" open>
-                    <summary>🔗 Frontend Integration</summary>
-                    <div class="content">
-                        <p style="color:var(--wsb-text-muted);">Embed the scheduling widget onto any page or post utilizing this
-                            exact shortcode:</p>
-                        <code
-                            style="background: rgba(59, 130, 246, 0.1); color: var(--wsb-primary); padding: 15px; border-radius: 8px; display: block; font-size: 18px; border: 1px dashed var(--wsb-primary); text-align: center;">[wsb_booking_widget]</code>
-                        <p style="color:var(--wsb-text-muted); margin-top:15px;">Or directly copy your Booking System static
-                            route link:</p>
-                        <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();"
-                            style="width:100%; max-width:100% !important; background:rgba(0,0,0,0.2) !important; color:var(--wsb-success) !important; cursor:pointer;">
-                    </div>
-                </details>
+                        <!-- Maintenance / Danger Zone -->
+                        <div style="background:rgba(239, 68, 68, 0.02); border-radius:16px; border:1px solid rgba(239, 68, 68, 0.2); overflow:hidden;">
+                            <div style="padding:20px; border-bottom:1px solid rgba(239, 68, 68, 0.1); background:rgba(239, 68, 68, 0.05);">
+                                <h4 style="margin:0; color:#ef4444; display:flex; align-items:center; gap:8px; font-size:14px; text-transform:uppercase; letter-spacing:0.05em;">
+                                    <span class="dashicons dashicons-warning"></span> Advanced Maintenance
+                                </h4>
+                            </div>
+                            <div style="padding:20px;">
+                                <p style="color:rgba(239, 68, 68, 0.7); font-size:12px; margin-bottom:15px; line-height:1.5;">Force inject comprehensive dummy data for testing purposes. This will duplicate records if run multiple times.</p>
+                                <form method="post">
+                                    <?php wp_nonce_field('wsb_generate_dummy', 'wsb_dummy_nonce'); ?>
+                                    <button type="submit" name="generate_dummy" class="wsb-btn-primary" 
+                                        style="width:100%; background:transparent; border:1px solid rgba(239, 68, 68, 0.3); color:#ef4444; padding:10px;"
+                                        onclick="return confirm('CRITICAL: This will inject dummy data into your live database. Proceed?');">
+                                        Inject Dummy Ecosystem
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
 
-                <div style="margin-bottom:40px;">
-                    <button type="submit" class="wsb-btn-primary" style="padding:12px 30px; font-size:16px;">Save System
-                        Architecture</button>
+                    </div>
                 </div>
             </form>
-
-            <div
-                style="background: rgba(239, 68, 68, 0.05); padding: 20px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
-                <h3 style="margin-top:0; color: #ef4444;">Developer Tools</h3>
-                <p style="color: var(--wsb-text-muted);">Use this to populate the custom database tables with dummy realistic
-                    data to test the system visually.</p>
-                <form method="post">
-                    <?php wp_nonce_field('wsb_generate_dummy', 'wsb_dummy_nonce'); ?>
-                    <input type="submit" name="generate_dummy" value="Force Global Dummy Injection" class="wsb-btn-primary"
-                        style="background:#ef4444; border:none; padding:10px 15px;"
-                        onclick="return confirm('WARNING: Generating data will duplicate records. Proceed?');" />
-                </form>
-            </div>
         </div>
         <?php
     }
@@ -3143,7 +3078,9 @@ class Wsb_Admin
                 <?php wp_nonce_field('wsb_save_design', 'wsb_design_nonce'); ?>
 
                 <div class="wsb-design-section">
-                    <h2 style="color:white; margin-bottom:25px; font-weight: 700; letter-spacing: -0.02em;">🎨 Brand Identity & Gradients</h2>
+                    <h2 style="color:white; margin-bottom:25px; font-weight: 700; letter-spacing: -0.02em; display:flex; align-items:center; gap:10px;">
+                        <span class="dashicons dashicons-art"></span> Brand Identity & Gradients
+                    </h2>
                     <div class="wsb-color-row">
                         <label class="wsb-color-card">
                             <strong style="color:white; font-size: 14px; font-weight: 600; display:block;">Primary Color (Start)</strong>
@@ -3182,7 +3119,9 @@ class Wsb_Admin
                         </label>
                     </div>
 
-                    <h2 style="color:white; margin-bottom:10px;">📐 Layout & Aesthetic Style</h2>
+                    <h2 style="color:white; margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+                        <span class="dashicons dashicons-layout"></span> Layout & Aesthetic Style
+                    </h2>
                     <p style="color:var(--wsb-text-muted); font-size:13px; margin-bottom:25px;">Choose from 18 professionally
                         crafted design languages for your service display.</p>
 

@@ -9,7 +9,7 @@ class Wsb_Public {
     }
 
     public function enqueue_styles() {
-        wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wsb-public.css', array(), time(), 'all' );
+        wp_enqueue_style( $this->plugin_name, plugin_dir_url( dirname(__FILE__) ) . 'assets/public/css/wsb-public.css', array(), time(), 'all' );
     }
 
     public function handle_stripe_return() {
@@ -76,7 +76,7 @@ class Wsb_Public {
 
     public function enqueue_scripts() {
         wp_enqueue_script('stripe-js', 'https://js.stripe.com/v3/', array(), null, false);
-        wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wsb-public.js', array( 'jquery', 'stripe-js' ), time(), true );
+        wp_enqueue_script( $this->plugin_name, plugin_dir_url( dirname(__FILE__) ) . 'assets/public/js/wsb-public.js', array( 'jquery', 'stripe-js' ), time(), true );
         wp_localize_script( $this->plugin_name, 'wsb_ajax', array(
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'wsb_nonce' ),
