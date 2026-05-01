@@ -936,3 +936,187 @@ html.wp-toolbar { padding-top: 0 !important; }
     transform: translateY(-3px);
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
+
+/* --- Professional Separation: Customer & Design Module Styles --- */
+
+.customer-filter-card {
+    border-left: 4px solid transparent;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    border: 1px solid var(--wsb-border);
+    border-radius: 12px;
+    background: var(--wsb-panel-dark);
+    padding: 20px;
+    transition: transform 0.2s;
+}
+
+.customer-filter-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.card-active {
+    background: rgba(59, 130, 246, 0.1) !important;
+    border-left: 4px solid var(--wsb-primary) !important;
+    border-color: var(--wsb-primary) !important;
+}
+
+.wsb-design-section {
+    background: var(--wsb-panel-dark);
+    border: 1px solid var(--wsb-border);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 25px;
+}
+
+.wsb-color-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid var(--wsb-border);
+}
+
+.wsb-layout-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.wsb-layout-option {
+    position: relative;
+    cursor: pointer;
+}
+
+.wsb-layout-option input {
+    position: absolute;
+    opacity: 0;
+}
+
+.wsb-layout-preview {
+    aspect-ratio: 4/3;
+    background: #0f172a;
+    border: 2px solid var(--wsb-border);
+    border-radius: 10px;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.wsb-layout-option input:checked+.wsb-layout-preview {
+    border-color: var(--wsb-primary);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+.wsb-layout-preview::after {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--wsb-primary);
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.wsb-layout-option input:checked+.wsb-layout-preview::after {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.wsb-layout-name {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--wsb-text-muted);
+    font-weight: 600;
+}
+
+.wsb-layout-option:hover .wsb-layout-preview {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.wsb-color-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.wsb-color-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+.wsb-color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #090d16;
+    border: 1px solid var(--wsb-border);
+    border-radius: 10px;
+    padding: 10px 15px;
+}
+.wsb-color-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+}
+.wsb-color-hex {
+    font-family: monospace;
+    font-size: 14px;
+    color: #e2e8f0;
+}
+.wsb-hidden-color-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+@media (max-width: 1200px) {
+    .wsb-layout-selector {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .wsb-color-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .wsb-layout-selector {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .wsb-color-row {
+        grid-template-columns: 1fr;
+    }
+}

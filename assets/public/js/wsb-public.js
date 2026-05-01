@@ -707,3 +707,27 @@ jQuery(document).ready(function($) {
         });
     }
 });
+
+/**
+ * Professional Separation: Booking Success Feedback
+ */
+function wsbCloseSuccess() {
+    const overlay = document.getElementById('wsb-success-overlay');
+    if (!overlay) return;
+    overlay.style.transition = 'all 0.5s ease-in';
+    overlay.style.opacity = '0';
+    overlay.style.transform = 'translateY(-20px)';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        const url = new URL(window.location);
+        url.searchParams.delete('wsb_payment_confirmed');
+        window.history.replaceState({}, '', url);
+    }, 500);
+}
+
+// Auto-close success message if present
+jQuery(document).ready(function() {
+    if (document.getElementById('wsb-success-overlay')) {
+        setTimeout(wsbCloseSuccess, 2000);
+    }
+});

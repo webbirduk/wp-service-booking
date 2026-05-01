@@ -283,3 +283,78 @@ jQuery(document).ready(function($) {
         handleWSBNotices();
     };
 });
+
+/**
+ * Professional Separation: Financial Analysis Module
+ */
+function initWSBRevenueChart() {
+    const canvas = document.getElementById('wsbRevenueChart');
+    if (!canvas) return;
+
+    const dataAttr = canvas.getAttribute('data-chart');
+    if (!dataAttr) return;
+
+    const rawData = JSON.parse(dataAttr);
+    const ctx = canvas.getContext('2d');
+    const labels = rawData.map(item => item.label);
+    const values = rawData.map(item => parseFloat(item.val));
+
+    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.length ? labels : ['No Data'],
+            datasets: [{
+                label: 'Revenue',
+                data: values.length ? values : [0],
+                borderColor: '#6366f1',
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointBackgroundColor: '#6366f1',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#fff',
+                    padding: 12,
+                    borderColor: '#334155',
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    ticks: { color: '#94a3b8', font: { size: 11 } } 
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { color: '#94a3b8', font: { size: 11 } } 
+                }
+            }
+        }
+    });
+}
+
+// Hook into tab loading
+jQuery(document).on('wsb-tab-loaded', function() {
+    initWSBRevenueChart();
+});
+
+// Initial load check
+jQuery(document).ready(function() {
+    initWSBRevenueChart();
+});

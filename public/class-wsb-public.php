@@ -136,7 +136,6 @@ class Wsb_Public {
                 --wsb-gradient: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
                 --wsb-ring: <?php echo esc_attr($brand_color); ?>33;
             }
-            @keyframes wsb-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         </style>
         <div id="wsb-booking-wizard-container" class="wsb-wrapper">
             <div class="wsb-wizard-step" id="wsb-step-service">
@@ -467,28 +466,6 @@ class Wsb_Public {
                 --wsb-gradient: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
                 --wsb-ring: <?php echo esc_attr($brand_color); ?>33;
             }
-            @media (max-width: 768px) {
-                .wsb-client-dash { padding: 20px !important; }
-                .wsb-dash-tabs { flex-direction: column; gap: 5px; }
-                .wsb-dash-tab { text-align: left; border-bottom: none !important; border-left: 3px solid transparent; }
-                .wsb-dash-tab.active { border-left: 3px solid var(--wsb-brand); }
-                
-                #wsb-dash-bookings table, 
-                #wsb-dash-bookings thead, 
-                #wsb-dash-bookings tbody, 
-                #wsb-dash-bookings th, 
-                #wsb-dash-bookings td, 
-                #wsb-dash-bookings tr { 
-                    display: block; 
-                }
-                #wsb-dash-bookings thead { display: none; }
-                #wsb-dash-bookings tr { border-bottom: 1.5px solid var(--wsb-border); padding: 15px 0; position: relative; }
-                #wsb-dash-bookings td { padding: 8px 0 !important; text-align: right; position: relative; font-size: 14px; }
-                #wsb-dash-bookings td::before { content: attr(data-label); float: left; font-weight: 700; color: var(--wsb-text-muted); }
-                #wsb-dash-bookings td:last-child { text-align: left; padding-top: 12px !important; }
-                #wsb-dash-bookings td:last-child::before { display: none; }
-                #wsb-dash-bookings td:last-child div { justify-content: flex-start !important; }
-            }
         </style>
         
 
@@ -496,7 +473,7 @@ class Wsb_Public {
         <div class="wsb-client-dash" style="max-width: 900px; margin: 40px auto; padding: 35px; background:#fff; border-radius:20px; border:1.5px solid var(--wsb-border); box-shadow:var(--wsb-shadow-md);">
             
             <?php if(isset($_GET['wsb_payment_confirmed'])): ?>
-            <div id="wsb-success-overlay" style="animation: wsbFadeIn 0.5s ease-out; background: #ffffff; border: 1.5px solid #10b981; padding: 40px; border-radius: 24px; margin-bottom: 40px; text-align: center; box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.15); position: relative; overflow: hidden;">
+            <div id="wsb-success-overlay" style="background: #ffffff; border: 1.5px solid #10b981; padding: 40px; border-radius: 24px; margin-bottom: 40px; text-align: center; box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.15); position: relative; overflow: hidden;">
                 <button onclick="wsbCloseSuccess()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #10b981; font-size: 24px; cursor: pointer; opacity: 0.5; font-weight: 800;">&times;</button>
                 <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(16, 185, 129, 0.05); border-radius: 50%;"></div>
                 
@@ -509,35 +486,6 @@ class Wsb_Public {
                     <button onclick="wsbCloseSuccess()" class="wsb-btn" style="background: #10b981; border: none; color: #fff; padding: 12px 30px; border-radius: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">Manage My Bookings</button>
                 </div>
             </div>
-            
-            <script>
-                function wsbCloseSuccess() {
-                    const overlay = document.getElementById('wsb-success-overlay');
-                    if (!overlay) return;
-                    overlay.style.transition = 'all 0.5s ease-in';
-                    overlay.style.opacity = '0';
-                    overlay.style.transform = 'translateY(-20px)';
-                    setTimeout(() => {
-                        overlay.style.display = 'none';
-                        const url = new URL(window.location);
-                        url.searchParams.delete('wsb_payment_confirmed');
-                        window.history.replaceState({}, '', url);
-                    }, 500);
-                }
-                setTimeout(wsbCloseSuccess, 2000);
-            </script>
-            
-            <style>
-                @keyframes wsbFadeIn {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                @keyframes wsbPop {
-                    0% { transform: scale(0.5); opacity: 0; }
-                    80% { transform: scale(1.1); }
-                    100% { transform: scale(1); opacity: 1; }
-                }
-            </style>
             <?php endif; ?>
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 35px; padding-bottom: 20px; border-bottom: 1px solid var(--wsb-border);">

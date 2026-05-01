@@ -2308,30 +2308,6 @@ class Wsb_Admin
             </div>
 
             <!-- Dashboard Interactive Filters -->
-            <style>
-                .customer-filter-card {
-                    border-left: 4px solid transparent;
-                    text-decoration: none;
-                    color: inherit;
-                    display: block;
-                    border: 1px solid var(--wsb-border);
-                    border-radius: 12px;
-                    background: var(--wsb-panel-dark);
-                    padding: 20px;
-                    transition: transform 0.2s;
-                }
-
-                .customer-filter-card:hover {
-                    transform: translateY(-3px);
-                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-                }
-
-                .card-active {
-                    background: rgba(59, 130, 246, 0.1) !important;
-                    border-left: 4px solid var(--wsb-primary) !important;
-                    border-color: var(--wsb-primary) !important;
-                }
-            </style>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
                 <a href="<?php echo $page_url; ?>&filter_status=all"
                     class="customer-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
@@ -2513,70 +2489,9 @@ class Wsb_Admin
                 style="background:var(--wsb-panel-dark); padding:20px; border-radius:12px; border:1px solid var(--wsb-border); margin-bottom:30px;">
                 <h3 style="margin:0 0 20px 0; color: #fff;">Revenue Performance Analysis</h3>
                 <div style="position:relative; height:300px; width:100%;">
-                    <canvas id="wsbRevenueChart"></canvas>
+                    <canvas id="wsbRevenueChart" data-chart='<?php echo $chart_json; ?>'></canvas>
                 </div>
             </div>
-
-            <script>
-                (function () {
-                    const rawData = <?php echo $chart_json; ?>;
-                    const canvas = document.getElementById('wsbRevenueChart');
-                    if (!canvas) return;
-
-                    const ctx = canvas.getContext('2d');
-                    const labels = rawData.map(item => item.label);
-                    const values = rawData.map(item => parseFloat(item.val));
-
-                    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
-                    gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
-
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels.length ? labels : ['No Data'],
-                            datasets: [{
-                                label: 'Revenue',
-                                data: values.length ? values : [0],
-                                borderColor: '#6366f1',
-                                backgroundColor: gradient,
-                                fill: true,
-                                tension: 0.4,
-                                borderWidth: 3,
-                                pointBackgroundColor: '#6366f1',
-                                pointRadius: 4,
-                                pointHoverRadius: 6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    backgroundColor: '#1e293b',
-                                    titleColor: '#94a3b8',
-                                    bodyColor: '#fff',
-                                    padding: 12,
-                                    borderColor: '#334155',
-                                    borderWidth: 1
-                                }
-                            },
-                            scales: {
-                                y: { 
-                                    beginAtZero: true, 
-                                    grid: { color: 'rgba(255,255,255,0.05)' }, 
-                                    ticks: { color: '#94a3b8', font: { size: 11 } } 
-                                },
-                                x: { 
-                                    grid: { display: false }, 
-                                    ticks: { color: '#94a3b8', font: { size: 11 } } 
-                                }
-                            }
-                        }
-                    });
-                })();
-            </script>
 
             <!-- Ledger Data Table -->
             <div
@@ -2914,166 +2829,6 @@ class Wsb_Admin
             <p style="color:var(--wsb-text-muted); margin-bottom:30px;">Customize how your booking widget looks and feels to
                 your customers.</p>
 
-            <style>
-                .wsb-design-section {
-                    background: var(--wsb-panel-dark);
-                    border: 1px solid var(--wsb-border);
-                    border-radius: 12px;
-                    padding: 30px;
-                    margin-bottom: 25px;
-                }
-
-                .wsb-color-row {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 20px;
-                    margin-bottom: 40px;
-                    padding-bottom: 30px;
-                    border-bottom: 1px solid var(--wsb-border);
-                }
-
-                .wsb-layout-selector {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 15px;
-                    margin-top: 20px;
-                }
-
-                .wsb-layout-option {
-                    position: relative;
-                    cursor: pointer;
-                }
-
-                .wsb-layout-option input {
-                    position: absolute;
-                    opacity: 0;
-                }
-
-                .wsb-layout-preview {
-                    aspect-ratio: 4/3;
-                    background: #0f172a;
-                    border: 2px solid var(--wsb-border);
-                    border-radius: 10px;
-                    transition: all 0.2s;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    overflow: hidden;
-                    position: relative;
-                }
-
-                .wsb-layout-option input:checked+.wsb-layout-preview {
-                    border-color: var(--wsb-primary);
-                    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
-                }
-
-                .wsb-layout-preview::after {
-                    content: '✓';
-                    position: absolute;
-                    top: 8px;
-                    right: 8px;
-                    background: var(--wsb-primary);
-                    color: white;
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 12px;
-                    opacity: 0;
-                    transform: scale(0);
-                    transition: all 0.2s;
-                    z-index: 10;
-                }
-
-                .wsb-layout-option input:checked+.wsb-layout-preview::after {
-                    opacity: 1;
-                    transform: scale(1);
-                }
-
-                .wsb-layout-name {
-                    display: block;
-                    text-align: center;
-                    margin-top: 10px;
-                    font-size: 13px;
-                    color: var(--wsb-text-muted);
-                    font-weight: 600;
-                }
-
-                .wsb-layout-option:hover .wsb-layout-preview {
-                    border-color: rgba(255, 255, 255, 0.2);
-                }
-
-                @media (max-width: 1200px) {
-                    .wsb-layout-selector {
-                        grid-template-columns: repeat(3, 1fr);
-                    }
-                }
-
-                @media (max-width: 900px) {
-                    .wsb-color-row {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-
-                    .wsb-layout-selector {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-                }
-
-                .wsb-color-card {
-                    background: rgba(255, 255, 255, 0.03);
-                    border: 1px solid rgba(255, 255, 255, 0.05);
-                    border-radius: 16px;
-                    padding: 20px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 15px;
-                    transition: all 0.3s ease;
-                    cursor: pointer;
-                }
-                .wsb-color-card:hover {
-                    background: rgba(255, 255, 255, 0.06);
-                    border-color: rgba(255, 255, 255, 0.1);
-                    transform: translateY(-2px);
-                }
-                .wsb-color-picker-wrapper {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    background: #090d16;
-                    border: 1px solid var(--wsb-border);
-                    border-radius: 10px;
-                    padding: 10px 15px;
-                }
-                .wsb-color-swatch {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    border: 2px solid rgba(255,255,255,0.2);
-                    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-                    flex-shrink: 0;
-                }
-                .wsb-color-hex {
-                    font-family: monospace;
-                    font-size: 14px;
-                    color: #e2e8f0;
-                }
-                .wsb-hidden-color-input {
-                    position: absolute;
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                    overflow: hidden;
-                    pointer-events: none;
-                }
-                @media (max-width: 768px) {
-                    .wsb-color-row {
-                        grid-template-columns: 1fr;
-                    }
-                }
-            </style>
-
             <form method="post">
                 <?php wp_nonce_field('wsb_save_design', 'wsb_design_nonce'); ?>
 
@@ -3172,16 +2927,6 @@ class Wsb_Admin
                         style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: #fff; border: none; padding: 14px 35px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;">
                         <span>✨</span> Apply Premium Design
                     </button>
-                    <style>
-                        .wsb-btn-premium:hover {
-                            transform: translateY(-2px);
-                            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
-                            filter: brightness(1.1);
-                        }
-                        .wsb-btn-premium:active {
-                            transform: translateY(0);
-                        }
-                    </style>
                 </div>
             </form>
         </div>

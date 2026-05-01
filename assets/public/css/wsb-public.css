@@ -194,3 +194,40 @@
 .wsb-phone-input-group { display: flex; gap: 10px; width: 100%; }
 .wsb-phone-code-select { flex: 0 0 120px; padding: 18px 12px !important; font-weight: 500; border-radius: 16px !important; border: 1.5px solid var(--wsb-border) !important; background: rgba(255,255,255,0.8) !important; cursor: pointer; }
 .wsb-error-msg { color: #ef4444; font-size: 13px; font-weight: 600; margin-top: 6px; padding-left: 5px; display: none; }
+
+/* --- Professional Separation: Dashboard & Animation Engine --- */
+
+@keyframes wsb-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+@media (max-width: 768px) {
+    .wsb-client-dash { padding: 20px !important; }
+    .wsb-dash-tabs { flex-direction: column; gap: 5px; }
+    .wsb-dash-tab { text-align: left; border-bottom: none !important; border-left: 3px solid transparent; }
+    .wsb-dash-tab.active { border-left: 3px solid var(--wsb-brand); }
+    
+    #wsb-dash-bookings table, 
+    #wsb-dash-bookings thead, 
+    #wsb-dash-bookings tbody, 
+    #wsb-dash-bookings th, 
+    #wsb-dash-bookings td, 
+    #wsb-dash-bookings tr { 
+        display: block; 
+    }
+    #wsb-dash-bookings thead { display: none; }
+    #wsb-dash-bookings tr { border-bottom: 1.5px solid var(--wsb-border); padding: 15px 0; position: relative; }
+    #wsb-dash-bookings td { padding: 8px 0 !important; text-align: right; position: relative; font-size: 14px; }
+    #wsb-dash-bookings td::before { content: attr(data-label); float: left; font-weight: 700; color: var(--wsb-text-muted); }
+    #wsb-dash-bookings td:last-child { text-align: left; padding-top: 12px !important; }
+    #wsb-dash-bookings td:last-child::before { display: none; }
+    #wsb-dash-bookings td:last-child div { justify-content: flex-start !important; }
+}
+
+@keyframes wsbFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes wsbPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
