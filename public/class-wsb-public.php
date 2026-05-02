@@ -360,29 +360,42 @@ class Wsb_Public
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-payment"
-                style="display:none; gap: 30px; align-items: flex-start; padding-top: 10px; flex-wrap: wrap;">
+                style="display:none; padding-top: 10px; justify-content: center;">
 
-                <!-- LEFT COLUMN: Payment Details -->
+                <!-- Payment Selection Panel -->
                 <div
-                    style="flex: 1 1 600px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 30px; border-radius: 12px;">
-                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h3 style="margin:0; font-size: 20px; font-weight: 700; color: #0f172a;">Payment Details</h3>
+                    style="width: 100%; max-width: 700px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 40px; border-radius: 24px; box-shadow: var(--wsb-shadow-sm);">
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <h3 style="margin:0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">Select Payment Method</h3>
                         <span
-                            style="color: #10b981; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 5px;">
-                            🛡️ Secure encrypted
+                            style="background: #ecfdf5; color: #10b981; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; border: 1px solid #d1fae5;">
+                            <span style="font-size: 14px;">🛡️</span> Secure & Encrypted
                         </span>
                     </div>
 
-                    <!-- Invisible Radios For Compatibility (Only if no other gateways are active) -->
-                    <div id="wsb-default-payment-selector" style="display:none;">
-                        <input type="radio" name="payment_method" value="stripe_card" checked>
-                    </div>
+                    <!-- Payment Method Selector -->
+                    <div id="wsb-payment-methods-wrapper" style="margin-bottom: 35px;">
+                        <div class="wsb-payment-methods-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px;">
+                            
+                            <!-- Default Stripe Option -->
+                            <?php if (!has_action('wsb_public_payment_methods')): ?>
+                            <div class="wsb-payment-method-card active" data-method="stripe_card" 
+                                style="border: 2px solid var(--wsb-brand); padding: 25px; border-radius: 20px; cursor: pointer; text-align: center; background: #fff; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1);">
+                                <div style="width: 50px; height: 50px; background: #f1f5f9; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 15px; transition: all 0.3s;">💳</div>
+                                <div style="font-weight: 800; color: #0f172a; font-size: 16px; margin-bottom: 4px;">Credit Card</div>
+                                <div style="font-size: 12px; color: #64748b; font-weight: 500;">Secure via Stripe</div>
+                                <input type="radio" name="payment_method" value="stripe_card" checked style="display:none;">
+                                <div class="wsb-method-check" style="position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; background: var(--wsb-brand); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900;">✓</div>
+                            </div>
+                            <?php endif; ?>
 
-                    <?php do_action('wsb_public_payment_methods'); ?>
+                            <?php do_action('wsb_public_payment_methods'); ?>
+                        </div>
+                    </div>
 
                     <!-- Buyer Protection Box -->
                     <div
-                        style="margin-top: 30px; background: #eff6ff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 15px;">
+                        style="margin-top: 30px; background: #eff6ff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 30px;">
                         <span style="font-size: 24px;">🛡️</span>
                         <div>
                             <strong style="color: #1e3a8a; font-size: 14px; display: block;">Buyer Protection</strong>
@@ -390,47 +403,79 @@ class Wsb_Public
                                 fraud monitoring.</span>
                         </div>
                     </div>
-                </div>
 
-                <!-- RIGHT COLUMN: Order Summary -->
-                <div
-                    style="flex: 0 0 350px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 30px; border-radius: 12px;">
-                    <h3 style="margin-top: 0; font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 25px;">Order
-                        Summary</h3>
-
-                    <div
-                        style="display: flex; justify-content: space-between; margin-bottom: 15px; color: #64748b; font-size: 15px;">
-                        <span id="wsb-summary-service-name">Premium Service</span>
-                        <span id="wsb-summary-service-price">$0.00</span>
-                    </div>
-
-                    <div
-                        style="display: flex; justify-content: space-between; margin-bottom: 15px; color: #64748b; font-size: 15px;">
-                        <span>Platform Fee</span>
-                        <span>$0.00</span>
-                    </div>
-
-                    <div
-                        style="display: flex; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9; margin-bottom: 20px; color: #64748b; font-size: 15px;">
-                        <span>Tax (0%)</span>
-                        <span>$0.00</span>
-                    </div>
-
-                    <div
-                        style="display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: 700; font-size: 18px; color: #0f172a;">
-                        <span>Total</span>
-                        <span id="wsb-summary-total-price">$0.00</span>
-                    </div>
-
-                    <button id="wsb-complete-checkout-btn" class="wsb-btn"
-                        style="width: 100%; background: #1e3a8a; color: #ffffff; padding: 15px; font-size: 16px; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; border: none;">
-                        🔒 Complete Purchase
+                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-checkout"
+                        style="width: 100%; background: var(--wsb-gradient); color: #ffffff; padding: 20px; font-size: 18px; font-weight: 800; border-radius: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 12px; border: none; box-shadow: 0 10px 15px -3px var(--wsb-ring); transition: all 0.3s;">
+                        <span>🔒</span> Continue to Secure Payment
                     </button>
 
                     <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #94a3b8;">
-                        By completing this purchase, you agree to our <a href="#"
+                        By continuing, you agree to our <a href="#"
                             style="color: #64748b; text-decoration: underline;">Terms of Service</a>.
                     </div>
+                </div>
+            </div>
+
+            <!-- NEW FINAL CHECKOUT STEP -->
+            <div class="wsb-wizard-step" id="wsb-step-checkout" style="display:none; gap: 30px; align-items: flex-start; padding-top: 10px; flex-wrap: wrap;">
+                <!-- LEFT COLUMN: Final Payment Execution -->
+                <div style="flex: 1 1 600px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 30px; border-radius: 12px;">
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <h3 style="margin:0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">Complete Your Payment</h3>
+                        <span style="background: #ecfdf5; color: #10b981; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; border: 1px solid #d1fae5;">
+                            <span style="font-size: 14px;">🛡️</span> 256-bit SSL Secure
+                        </span>
+                    </div>
+
+                    <!-- Stripe Payment Element Container -->
+                    <div id="wsb-stripe-payment-container" style="margin-top: 10px; display: none;">
+                        <div id="wsb-payment-element" style="margin-bottom: 25px;">
+                            <!-- Stripe.js injects the Payment Element here -->
+                        </div>
+                        <div id="wsb-payment-loading" style="text-align: center; padding: 30px; color: #64748b; font-size: 14px; background: #f8fafc; border-radius: 12px; border: 1px dashed var(--wsb-border);">
+                            <div class="wsb-spinner" style="display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-top-color: var(--wsb-brand); border-radius: 50%; animation: wsb-spin 0.8s linear infinite; margin-right: 12px; vertical-align: middle;"></div>
+                            Preparing your secure payment session...
+                        </div>
+                        <div id="wsb-stripe-error" style="color: #ef4444; font-size: 13px; margin-top: 10px; display: none; padding: 12px; background: #fef2f2; border-radius: 8px; border: 1px solid #fee2e2;"></div>
+                        
+                        <button id="wsb-complete-checkout-btn" class="wsb-btn"
+                            style="width: 100%; background: var(--wsb-gradient); color: #ffffff; padding: 18px; font-size: 17px; font-weight: 800; border-radius: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 12px; border: none; box-shadow: 0 10px 15px -3px var(--wsb-ring); transition: all 0.3s; margin-top: 20px;">
+                            <span>✅</span> Pay & Confirm Booking
+                        </button>
+                    </div>
+
+                    <!-- PayPal Button Container -->
+                    <div id="wsb-paypal-checkout-container" style="display: none; margin-top: 10px; text-align: center; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px dashed var(--wsb-border);">
+                        <p style="margin-bottom: 20px; font-weight: 600; color: #475569;">Click the button below to pay with PayPal</p>
+                        <div id="wsb-paypal-button-container">
+                            <!-- PayPal button will be rendered here -->
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 30px; display: flex; align-items: center; gap: 10px; padding: 15px; background: #f1f5f9; border-radius: 10px;">
+                        <span style="font-size: 18px;">💡</span>
+                        <p style="margin: 0; font-size: 13px; color: #475569;">You are one step away! Your professional is reserved once the payment is confirmed.</p>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: Summary (Static) -->
+                <div style="flex: 0 0 350px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 30px; border-radius: 12px;">
+                    <h3 style="margin-top: 0; font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 25px;">Order Summary</h3>
+                    
+                    <div style="padding: 15px; background: #f8fafc; border-radius: 12px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600;">
+                            <span id="wsb-checkout-summary-service">Service</span>
+                            <span id="wsb-checkout-summary-price">$0.00</span>
+                        </div>
+                        <div id="wsb-checkout-summary-datetime" style="font-size: 13px; color: #64748b;">Loading details...</div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: 800; font-size: 20px; color: var(--wsb-brand);">
+                        <span>Total</span>
+                        <span id="wsb-checkout-summary-total">$0.00</span>
+                    </div>
+
+                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-payment" style="width: 100%; padding: 14px;">Back to Methods</button>
                 </div>
             </div>
 

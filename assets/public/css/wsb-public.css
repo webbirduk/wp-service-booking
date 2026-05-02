@@ -156,9 +156,12 @@
 }
 
 .wsb-summary-card { background: var(--wsb-panel); padding: 40px; border-radius: 20px; border: 1px solid var(--wsb-border); margin-bottom: 35px; box-shadow: var(--wsb-shadow-sm); }
-.wsb-payment-method { display: block; margin-top: 15px; padding: 20px 25px; border: 1.5px solid var(--wsb-border); border-radius: 14px; background: #fff; cursor: pointer; transition: 0.2s; }
-.wsb-payment-method:hover { border-color: var(--wsb-brand); background: #fbfbff; }
-.wsb-payment-method input:checked + span { color: var(--wsb-brand); font-weight: 800; }
+.wsb-payment-method-card, .wsb-payment-tab { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative; overflow: hidden; }
+.wsb-payment-method-card:hover, .wsb-payment-tab:hover { transform: translateY(-4px); border-color: var(--wsb-brand) !important; box-shadow: 0 12px 20px -5px rgba(99, 102, 241, 0.15); }
+.wsb-payment-method-card.active, .wsb-payment-tab.active { border-color: var(--wsb-brand) !important; background: #fff !important; box-shadow: 0 0 0 4px var(--wsb-ring) !important; }
+
+#wsb-complete-checkout-btn:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px var(--wsb-ring); filter: brightness(1.1); }
+#wsb-complete-checkout-btn:active { transform: translateY(0); }
 
 .wsb-actions { display: flex; justify-content: space-between; margin-top: 45px; padding-top: 35px; border-top: 1.5px solid var(--wsb-border); }
 .wsb-btn { padding: 16px 32px; border-radius: 14px; font-weight: 800; cursor: pointer; border: none; font-size: 16px; transition: 0.3s; }

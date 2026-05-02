@@ -85,11 +85,87 @@ jQuery(document).ready(function($) {
 
         console.log('WSB: Navigating to:', nextStep);
 
+        // If we are moving from selection to checkout, handle Stripe redirect
+        if (nextStep === 'wsb-step-checkout') {
+            const method = $('input[name="payment_method"]:checked').val();
+            if (method === 'stripe_card') {
+                const $btn = $(this);
+                const originalHtml = $btn.html();
+                $btn.html('<span>⌛</span> Redirecting to Secure Checkout...').prop('disabled', true);
+                
+                $.ajax({
+                    url: wsb_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'wsb_create_checkout_session',
+                        nonce: wsb_ajax.nonce,
+                        service_id: $('.wsb-card-option.selected').data('service-id'),
+                        staff_id: $('.wsb-staff-card.selected').data('staff-id'),
+                        booking_date: $('#wsb-booking-date').val(),
+                        start_time: $('.wsb-slot-btn.selected').text(),
+                        first_name: $('#wsb-first-name').val(),
+                        last_name: $('#wsb-last-name').val(),
+                        email: $('#wsb-email').val(),
+                        phone: $('#wsb-phone').val()
+                    },
+                    success: function(response) {
+                        if (response.success && response.data.url) {
+                            window.location.href = response.data.url;
+                        } else {
+                            alert(response.data.message || 'Could not initialize Stripe checkout.');
+                            $btn.html(originalHtml).prop('disabled', false);
+                        }
+                    },
+                    error: function() {
+                        alert('Network error. Please try again.');
+                        $btn.html(originalHtml).prop('disabled', false);
+                    }
+                });
+                return; // Stop here, don't transition
+            }
+        }
+
         // Transition to next step
         currentStep.css({opacity: 1}).animate({opacity: 0, marginTop: '-20px'}, 200, function() {
             currentStep.hide();
             const $next = $('#' + nextStep);
             $next.css({opacity: 0, marginTop: '20px'}).show().animate({opacity: 1, marginTop: '0'}, 300);
+            
+            // If we just reached the selection step, ensure we clean up the final step
+            if (nextStep === 'wsb-step-payment') {
+                $('#wsb-stripe-payment-container, #wsb-paypal-checkout-container').hide();
+            }
+
+            // If we just reached the final checkout step (for non-Stripe methods)
+            if (nextStep === 'wsb-step-checkout') {
+                const method = $('input[name="payment_method"]:checked').val();
+                console.log('WSB: Final checkout for method:', method);
+                
+                // Populate final summary from selected service card
+                const $selectedService = $('.wsb-card-option.selected');
+                const serviceName = $selectedService.find('h4').text();
+                const servicePrice = $selectedService.find('.wsb-price-tag').text();
+                
+                $('#wsb-checkout-summary-service').text(serviceName);
+                $('#wsb-checkout-summary-price, #wsb-checkout-summary-total').text(servicePrice);
+                $('#wsb-checkout-summary-datetime').html(
+                    '📅 ' + $('#wsb-booking-date').val() + '<br>' +
+                    '🕒 ' + $('.wsb-slot-btn.selected').text()
+                );
+
+                if (method === 'paypal') {
+                    $('#wsb-stripe-payment-container').hide();
+                    $('#wsb-paypal-checkout-container').show();
+                    // Move PayPal button container to the final step if it exists
+                    if ($('#wsb-paypal-button-container').length) {
+                        $('#wsb-paypal-checkout-container').append($('#wsb-paypal-button-container'));
+                        $('#wsb-paypal-button-container').show();
+                    }
+                    if (typeof initPaypal === 'function') {
+                        initPaypal();
+                    }
+                }
+            }
         });
     });
 
@@ -595,9 +671,29 @@ jQuery(document).ready(function($) {
     let paymentElement = null;
     let isStripeLoading = false;
 
+    // Payment Method Selection Handling
+    $(document).on('click', '.wsb-payment-method-card', function() {
+        const $card = $(this);
+        const method = $card.data('method');
+        
+        // UI Feedback
+        $('.wsb-payment-method-card').css({
+            'border': '1.5px solid var(--wsb-border)',
+            'background': '#ffffff'
+        }).removeClass('active').find('.wsb-method-check').hide();
+        
+        $card.css({
+            'border': '2px solid var(--wsb-brand)',
+            'background': '#fff'
+        }).addClass('active').find('.wsb-method-check').show();
+        
+        // Update hidden radio
+        $card.find('input[name="payment_method"]').prop('checked', true).trigger('change');
+    });
+
     $(document).on('click', '.wsb-payment-tab', function() {
         $('.wsb-payment-tab').css({'border': '1px solid #e2e8f0', 'background': '#ffffff'});
-        $(this).css({'border': '2px solid #2563eb', 'background': '#f8fafc'});
+        $(this).css({'border': '2px solid var(--wsb-brand)', 'background': '#fff'});
         
         const method = $(this).data('method');
         $(`input[name="payment_method"][value="${method}"]`).prop('checked', true).trigger('change');
