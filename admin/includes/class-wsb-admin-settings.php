@@ -126,7 +126,7 @@ class Wsb_Admin_Settings {
 
                         <!-- Save Actions -->
                         <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:16px; border:1px solid var(--wsb-border); display:flex; flex-direction:column; gap:15px;">
-                            <button type="submit" class="wsb-btn-primary" style="width:100%; padding:15px; font-size:16px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);">Save Global Architecture</button>
+                            <button type="submit" class="wsb-btn-primary" style="width:100%; padding:15px; font-size:16px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);">Save Settings</button>
                         </div>
 
                         <!-- Maintenance / Danger Zone -->

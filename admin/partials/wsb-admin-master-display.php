@@ -159,7 +159,7 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
                 'services'  => ['icon' => 'dashicons-admin-tools', 'label' => 'Services'],
                 'staff'     => ['icon' => 'dashicons-groups', 'label' => 'Professional Team'],
                 'customers' => ['icon' => 'dashicons-admin-users', 'label' => 'Clients'],
-                'design'    => ['icon' => 'dashicons-art', 'label' => 'Designer Choice'],
+                'design'    => ['icon' => 'dashicons-art', 'label' => 'Customization'],
                 'integrations' => ['icon' => 'dashicons-networking', 'label' => 'Integrations'],
                 'settings'  => ['icon' => 'dashicons-admin-settings', 'label' => 'System Settings'],
             ]);

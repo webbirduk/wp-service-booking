@@ -136,29 +136,64 @@ class Wsb_Public
             $user_first_name = isset($name_parts[0]) ? $name_parts[0] : '';
             $user_last_name = isset($name_parts[1]) ? implode(' ', array_slice($name_parts, 1)) : '';
         }
+
+        // Customization Options
+        $font_family = get_option('wsb_font_family', 'Inter');
+        $border_radius = get_option('wsb_border_radius', 16);
+        $shadow_intensity = get_option('wsb_shadow_intensity', 'medium');
+        
+        $shadow_map = [
+            'none' => 'none',
+            'low' => '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            'medium' => '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            'high' => '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+        ];
+        $shadow_value = isset($shadow_map[$shadow_intensity]) ? $shadow_map[$shadow_intensity] : $shadow_map['medium'];
+
+        $l_step1 = get_option('wsb_label_step1', '1. Select a Service');
+        $l_step2 = get_option('wsb_label_step2', '2. Choose a Professional');
+        $l_step3 = get_option('wsb_label_step3', '3. Select Date & Time');
+        $l_step4 = get_option('wsb_label_step4', '4. Your Details');
+        $l_next = get_option('wsb_label_next_btn', 'Next Step');
+        $l_prev = get_option('wsb_label_prev_btn', 'Back');
+
+        // Detailed Styling
+        $card_bg = get_option('wsb_card_bg_color', '#ffffff');
+        $heading_color = get_option('wsb_heading_text_color', '#0f172a');
+        $body_color = get_option('wsb_body_text_color', '#64748b');
+        $input_bg = get_option('wsb_input_bg_color', '#ffffff');
+        $input_border = get_option('wsb_input_border_color', '#e2e8f0');
         ?>
         <style>
+            @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;600;700;800&family=Jost:wght@400;600;700&family=Lora:wght@400;600;700&family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600;700&family=Outfit:wght@400;600;700;800&family=Playfair+Display:wght@400;600;700;900&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700;900&family=Space+Grotesk:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap");
+            
             :root {
-                --wsb-brand:
-                    <?php echo esc_attr($brand_color); ?>
-                ;
-                --wsb-brand-alt:
-                    <?php echo esc_attr($accent_color); ?>
-                ;
-                --wsb-gradient: linear-gradient(135deg,
-                        <?php echo esc_attr($brand_color); ?>
-                        0%,
-                        <?php echo esc_attr($brand_color_end); ?>
-                        100%);
-                --wsb-ring:
-                    <?php echo esc_attr($brand_color); ?>
-                    33;
+                --wsb-brand: <?php echo esc_attr($brand_color); ?>;
+                --wsb-brand-alt: <?php echo esc_attr($accent_color); ?>;
+                --wsb-gradient: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
+                --wsb-ring: <?php echo esc_attr($brand_color); ?>33;
+                --wsb-font: "<?php echo esc_attr($font_family); ?>", sans-serif;
+                --wsb-radius: <?php echo esc_attr($border_radius); ?>px;
+                --wsb-shadow-custom: <?php echo esc_attr($shadow_value); ?>;
+                
+                /* Detailed Styling Variables */
+                --wsb-card-bg: <?php echo esc_attr($card_bg); ?>;
+                --wsb-heading: <?php echo esc_attr($heading_color); ?>;
+                --wsb-body: <?php echo esc_attr($body_color); ?>;
+                --wsb-input-bg: <?php echo esc_attr($input_bg); ?>;
+                --wsb-input-border: <?php echo esc_attr($input_border); ?>;
             }
+            #wsb-booking-wizard-container { font-family: var(--wsb-font) !important; color: var(--wsb-body); }
+            #wsb-booking-wizard-container h1, #wsb-booking-wizard-container h2, #wsb-booking-wizard-container h3, #wsb-booking-wizard-container h4 { color: var(--wsb-heading); }
+            .wsb-card-option, .wsb-staff-card, .wsb-form-card { background-color: var(--wsb-card-bg) !important; }
+            .wsb-card-option, .wsb-staff-card, .wsb-btn, .wsb-form-card, .wsb-field-wrap input, .wsb-field-wrap select, .wsb-field-wrap textarea, .wsb-phone-input-group { border-radius: var(--wsb-radius) !important; }
+            .wsb-card-option, .wsb-staff-card, .wsb-form-card { box-shadow: var(--wsb-shadow-custom) !important; }
+            .wsb-field-wrap input, .wsb-field-wrap select, .wsb-field-wrap textarea { background-color: var(--wsb-input-bg) !important; border-color: var(--wsb-input-border) !important; color: var(--wsb-body); }
         </style>
         <div id="wsb-booking-wizard-container" class="wsb-wrapper">
             <div class="wsb-wizard-step" id="wsb-step-service">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
-                    <h3 style="margin:0;">1. Select a Service</h3>
+                    <h3 style="margin:0;"><?php echo esc_html($l_step1); ?></h3>
                     <a href="<?php echo esc_url(home_url('/booking-dashboard')); ?>" class="wsb-btn"
                         style="background:#fff; border:1.5px solid var(--wsb-border); color:var(--wsb-text-muted); text-decoration:none; font-size: 14px; padding: 10px 20px; border-radius: 12px; font-weight: 700;">Manage
                         My Bookings</a>
@@ -209,12 +244,12 @@ class Wsb_Public
                 </div>
                 <div class="wsb-actions">
                     <div></div>
-                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-staff" disabled>Next Step</button>
+                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-staff" disabled><?php echo esc_html($l_next); ?></button>
                 </div>
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-staff" style="display:none;">
-                <h3>2. Choose a Professional</h3>
+                <h3><?php echo esc_html($l_step2); ?></h3>
                 <div class="wsb-staff-grid">
                     <div class="wsb-staff-card" data-staff-id="any">
                         <div class="wsb-staff-avatar wsb-any-avatar">
@@ -247,13 +282,13 @@ class Wsb_Public
                     <?php endforeach; ?>
                 </div>
                 <div class="wsb-actions">
-                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-service">Back</button>
-                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-time" disabled>Next Step</button>
+                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-service"><?php echo esc_html($l_prev); ?></button>
+                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-time" disabled><?php echo esc_html($l_next); ?></button>
                 </div>
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-time" style="display:none;">
-                <h3>3. Select Date & Time</h3>
+                <h3><?php echo esc_html($l_step3); ?></h3>
                 <div class="wsb-datetime-layout-stacked">
                     <label class="wsb-datetime-label">📅 Choose Your Date</label>
 
@@ -283,13 +318,13 @@ class Wsb_Public
                     </div>
                 </div>
                 <div class="wsb-actions">
-                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-staff">Back</button>
-                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-details" disabled>Next Step</button>
+                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-staff"><?php echo esc_html($l_prev); ?></button>
+                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-details" disabled><?php echo esc_html($l_next); ?></button>
                 </div>
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-details" style="display:none;">
-                <h3>4. Your Details</h3>
+                <h3><?php echo esc_html($l_step4); ?></h3>
                 <div class="wsb-form-card">
                     <div class="wsb-form-container">
                         <div class="wsb-form-grid">
@@ -356,7 +391,7 @@ class Wsb_Public
                 </div>
 
                 <div class="wsb-actions">
-                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-time">Back</button>
+                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-time"><?php echo esc_html($l_prev); ?></button>
                     <?php $skip_pay = get_option('wsb_skip_payment_step', 'no'); ?>
                     <button class="wsb-next-btn wsb-btn" data-next="wsb-step-payment">
                         <?php echo ($skip_pay === 'yes') ? 'Confirm Booking' : 'Next Step'; ?>
@@ -410,7 +445,7 @@ class Wsb_Public
                     </div>
 
                     <div style="display:flex; gap:15px; align-items:center;">
-                        <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-details" style="background:#fff; border:1.5px solid var(--wsb-border); color:var(--wsb-text-muted); padding:20px; border-radius:16px;">Back</button>
+                        <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-details" style="background:#fff; border:1.5px solid var(--wsb-border); color:var(--wsb-text-muted); padding:20px; border-radius:var(--wsb-radius);"><?php echo esc_html($l_prev); ?></button>
                         <button class="wsb-next-btn wsb-btn" data-next="wsb-step-checkout"
                             style="flex:1; background: var(--wsb-gradient); color: #ffffff; padding: 20px; font-size: 18px; font-weight: 800; border-radius: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 12px; border: none; box-shadow: 0 10px 15px -3px var(--wsb-ring); transition: all 0.3s;">
                             <span>🔒</span> Continue to Secure Payment
@@ -483,7 +518,7 @@ class Wsb_Public
                         <span id="wsb-checkout-summary-total">$0.00</span>
                     </div>
 
-                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-payment" style="width: 100%; padding: 14px;">Back to Methods</button>
+                    <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-payment" style="width: 100%; padding: 14px;"><?php echo esc_html($l_prev); ?> to Methods</button>
                 </div>
             </div>
 
