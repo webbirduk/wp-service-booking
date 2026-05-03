@@ -294,7 +294,7 @@ class Wsb_Admin_Design {
                         <!-- Section 4: Aesthetic Style Selection -->
                         <div class="wsb-design-section" style="margin:0; border-top: 4px solid var(--wsb-primary);">
                             <h2 style="color:white; margin-bottom:15px; display:flex; align-items:center; gap:10px; font-size:16px;">
-                                <span class="dashicons dashicons-layout"></span> Aesthetic Style Architecture
+                                <span class="dashicons dashicons-layout"></span> Service Booking Page Style
                             </h2>
                             <p style="color:var(--wsb-text-muted); font-size:12px; margin-bottom:20px; line-height:1.5;">Select the core design language for your frontend booking experience.</p>
                             
@@ -330,9 +330,9 @@ class Wsb_Admin_Design {
                                 foreach ($layouts as $val => $data): 
                                     $is_active = ($service_layout === $val);
                                 ?>
-                                    <label style="display:block; cursor:pointer; position:relative;">
-                                        <input type="radio" name="wsb_service_layout" value="<?php echo $val; ?>" <?php checked($service_layout, $val); ?> style="display:none;">
-                                        <div style="display:flex; align-items:center; gap:15px; padding:15px; background:<?php echo $is_active ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)'; ?>; border:1.5px solid <?php echo $is_active ? 'var(--wsb-primary)' : 'rgba(255,255,255,0.05)'; ?>; border-radius:12px; transition:all 0.3s ease;">
+                                    <label style="display:block; cursor:pointer; position:relative;" class="wsb-layout-card-label">
+                                        <input type="radio" name="wsb_service_layout" value="<?php echo $val; ?>" <?php checked($service_layout, $val); ?> style="display:none;" onchange="updateWsbLayoutSelection(this)">
+                                        <div class="wsb-layout-visual-card" style="display:flex; align-items:center; gap:15px; padding:15px; background:<?php echo $is_active ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)'; ?>; border:1.5px solid <?php echo $is_active ? 'var(--wsb-primary)' : 'rgba(255,255,255,0.05)'; ?>; border-radius:12px; transition:all 0.3s ease;">
                                             <div style="width:45px; height:45px; border-radius:10px; background:<?php echo $data['gradient']; ?>; display:flex; align-items:center; justify-content:center; color:white;">
                                                 <span class="dashicons <?php echo $data['icon']; ?>"></span>
                                             </div>
@@ -340,14 +340,29 @@ class Wsb_Admin_Design {
                                                 <div style="color:white; font-weight:700; font-size:14px; margin-bottom:2px;"><?php echo $data['name']; ?></div>
                                                 <div style="color:rgba(255,255,255,0.4); font-size:11px;"><?php echo $data['desc']; ?></div>
                                             </div>
-                                            <?php if ($is_active): ?>
-                                                <div style="width:20px; height:20px; background:var(--wsb-primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px;">✓</div>
-                                            <?php endif; ?>
+                                            <div class="wsb-layout-check" style="width:20px; height:20px; background:var(--wsb-primary); color:white; border-radius:50%; display:<?php echo $is_active ? 'flex' : 'none'; ?>; align-items:center; justify-content:center; font-size:10px;">✓</div>
                                         </div>
                                     </label>
                                 <?php endforeach; ?>
                             </div>
                         </div>
+
+                        <script>
+                        function updateWsbLayoutSelection(input) {
+                            // Reset all cards
+                            document.querySelectorAll('.wsb-layout-visual-card').forEach(card => {
+                                card.style.background = 'rgba(255,255,255,0.02)';
+                                card.style.borderColor = 'rgba(255,255,255,0.05)';
+                                card.querySelector('.wsb-layout-check').style.display = 'none';
+                            });
+                            
+                            // Highlight selected card
+                            const selectedCard = input.nextElementSibling;
+                            selectedCard.style.background = 'rgba(99,102,241,0.1)';
+                            selectedCard.style.borderColor = 'var(--wsb-primary)';
+                            selectedCard.querySelector('.wsb-layout-check').style.display = 'flex';
+                        }
+                        </script>
 
                         <!-- Section 5: Deployment -->
                         <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-success);">
