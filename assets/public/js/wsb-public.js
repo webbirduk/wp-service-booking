@@ -40,6 +40,20 @@ jQuery(document).ready(function($) {
         var nextStep = $(this).data('next');
         var currentStep = $(this).closest('.wsb-wizard-step');
         
+        // Handle Skip Professional Step
+        if (nextStep === 'wsb-step-staff' && wsb_ajax.skip_professional === 'yes') {
+            nextStep = 'wsb-step-time';
+        }
+
+        // Handle Skip Payment Step
+        if (nextStep === 'wsb-step-payment' && wsb_ajax.skip_payment === 'yes') {
+            // If payment is skipped, we go to a final internal confirmation or just trigger the booking
+            // For now, let's trigger the booking immediately if they click "Complete" on the details step
+            // But usually, we want a final "Confirm" button.
+            // Let's assume we change the button text to "Confirm Booking" on the details step if payment is skipped.
+            nextStep = 'wsb-step-confirm-manual'; // We'll create a simple confirmation step or handle it below
+        }
+
         if (currentStep.attr('id') === 'wsb-step-details') {
             let hasError = false;
             $('.wsb-error-msg').hide().text('');
@@ -79,6 +93,12 @@ jQuery(document).ready(function($) {
             }
 
             if (hasError) {
+                return;
+            }
+
+            // If payment is skipped, trigger booking directly instead of moving to next step
+            if (wsb_ajax.skip_payment === 'yes') {
+                processManualBooking($(this));
                 return;
             }
         }
@@ -168,17 +188,65 @@ jQuery(document).ready(function($) {
             }
         });
     });
-
     $('.wsb-prev-btn').on('click', function(e) {
         e.preventDefault();
         var prevStep = $(this).data('prev');
         var currentStep = $(this).closest('.wsb-wizard-step');
+
+        // Handle Back Navigation when skipping
+        if (prevStep === 'wsb-step-staff' && wsb_ajax.skip_professional === 'yes') {
+            prevStep = 'wsb-step-service';
+        }
         
         currentStep.css({opacity: 1}).animate({opacity: 0, marginTop: '20px'}, 200, function() {
             currentStep.hide();
             $('#' + prevStep).css({opacity: 0, marginTop: '-20px'}).show().animate({opacity: 1, marginTop: '0'}, 300);
         });
     });
+
+    function processManualBooking($btn) {
+        const originalText = $btn.text();
+        $btn.text('Processing...').prop('disabled', true);
+
+        $.ajax({
+            url: wsb_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'wsb_create_booking',
+                nonce: wsb_ajax.nonce,
+                first_name: $('#wsb-first-name').val(),
+                last_name: $('#wsb-last-name').val(),
+                email: $('#wsb-email').val(),
+                phone: $('#wsb-phone').val(),
+                notes: $('#wsb-notes').val(),
+                service_id: $('.wsb-card-option.selected').data('service-id'),
+                staff_id: $('.wsb-staff-card.selected').data('staff-id') || 'any',
+                booking_date: $('#wsb-booking-date').val(),
+                start_time: $('.wsb-slot-btn.selected').text(),
+                payment_method: 'manual'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success state
+                    $('#wsb-booking-wizard-container').html(
+                        '<div style="text-align:center; padding:60px 40px; background:#fff; border-radius:32px; border:1px solid var(--wsb-border); box-shadow:var(--wsb-shadow-lg);">' +
+                        '<div style="width:100px; height:100px; background:#10b981; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:50px; margin:0 auto 30px; animation:wsbPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);">✓</div>' +
+                        '<h2 style="font-size:32px; font-weight:800; color:#0f172a; margin-bottom:15px;">Appointment Requested!</h2>' +
+                        '<p style="color:#64748b; font-size:18px; line-height:1.6; margin-bottom:40px;">' + response.data.message + '</p>' +
+                        '<button onclick="location.reload()" class="wsb-btn wsb-next-btn" style="padding:15px 40px;">Book Another Service</button>' +
+                        '</div>'
+                    );
+                } else {
+                    alert(response.data.message || 'Booking failed.');
+                    $btn.text(originalText).prop('disabled', false);
+                }
+            },
+            error: function() {
+                alert('Connection error.');
+                $btn.text(originalText).prop('disabled', false);
+            }
+        });
+    }
 
     // Custom Interactive Calendar Generator
     let currentDate = new Date();

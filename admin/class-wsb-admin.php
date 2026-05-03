@@ -25,6 +25,7 @@ class Wsb_Admin
         require_once $dir . 'class-wsb-admin-finance.php';
         require_once $dir . 'class-wsb-admin-settings.php';
         require_once $dir . 'class-wsb-admin-design.php';
+        require_once $dir . 'class-wsb-admin-integrations.php';
         require_once $dir . 'class-wsb-admin-dashboard.php';
     }
 
@@ -53,7 +54,8 @@ class Wsb_Admin
             'staff'     => array('class' => 'Wsb_Admin_Staff'),
             'customers' => array('class' => 'Wsb_Admin_Customers'),
             'design'    => array('class' => 'Wsb_Admin_Design'),
-            'settings'  => array('class' => 'Wsb_Admin_Settings')
+            'settings'  => array('class' => 'Wsb_Admin_Settings'),
+            'integrations' => array('class' => 'Wsb_Admin_Integrations')
         ));
 
         ob_start();

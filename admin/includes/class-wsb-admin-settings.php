@@ -14,9 +14,9 @@ class Wsb_Admin_Settings {
                 do_action('wsb_before_save_settings', $_POST);
                 update_option('wsb_currency', sanitize_text_field($_POST['wsb_currency']));
 
-                // Payment Integrations
-                update_option('wsb_stripe_publishable_key', sanitize_text_field($_POST['wsb_stripe_publishable_key']));
-                update_option('wsb_stripe_secret_key', sanitize_text_field($_POST['wsb_stripe_secret_key']));
+                // Flow Control
+                update_option('wsb_skip_professional_step', isset($_POST['wsb_skip_professional_step']) ? 'yes' : 'no');
+                update_option('wsb_skip_payment_step', isset($_POST['wsb_skip_payment_step']) ? 'yes' : 'no');
 
                 do_action('wsb_after_save_settings', $_POST);
                 echo '<div class="notice notice-success is-dismissible"><p>System Integration Settings securely saved!</p></div>';
@@ -31,6 +31,9 @@ class Wsb_Admin_Settings {
         $currency = get_option('wsb_currency', 'USD');
         $stripe_pk = get_option('wsb_stripe_publishable_key', '');
         $stripe_sk = get_option('wsb_stripe_secret_key', '');
+        
+        $skip_prof = get_option('wsb_skip_professional_step', 'no');
+        $skip_pay = get_option('wsb_skip_payment_step', 'no');
         ?>
         <div class="wrap wsb-admin-wrap">
             <div style="margin-bottom:30px;">
@@ -46,88 +49,80 @@ class Wsb_Admin_Settings {
                     <!-- Left Column: Core Configuration -->
                     <div style="display:flex; flex-direction:column; gap:30px;">
                         
-                        <!-- Payment Ecosystem Card -->
-                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-primary);">
-                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border); display:flex; align-items:center; justify-content:space-between;">
+                        <!-- General Settings Card -->
+                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid #6366f1;">
+                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border);">
                                 <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
-                                    <span class="dashicons dashicons-money-alt" style="color:var(--wsb-primary);"></span> Payment Gateway Ecosystem
+                                    <span class="dashicons dashicons-admin-settings" style="color:#6366f1;"></span> General Settings
                                 </h3>
-                                <span style="background:rgba(99, 102, 241, 0.1); color:var(--wsb-primary); padding:4px 12px; border-radius:20px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Stripe Integration</span>
                             </div>
-                            
                             <div style="padding:25px; display:flex; flex-direction:column; gap:30px;">
                                 
-                                <!-- Stripe Section -->
+                                <style>
+                                    .wsb-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+                                    .wsb-switch input { opacity: 0; width: 0; height: 0; }
+                                    .wsb-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #1e293b; transition: .4s; border-radius: 34px; border: 1px solid #334155; }
+                                    .wsb-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 3px; background-color: #94a3b8; transition: .4s; border-radius: 50%; }
+                                    input:checked + .wsb-slider { background-color: var(--wsb-primary); border-color: var(--wsb-primary); }
+                                    input:checked + .wsb-slider:before { transform: translateX(24px); background-color: #fff; }
+                                </style>
+
+                                <!-- Integrated Settings Section -->
                                 <div>
-                                <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-                                    <img src="<?php echo WSB_PLUGIN_URL . 'assets/images/stripe.png'; ?>" style="height:32px; width:auto; display:block;" alt="Stripe Logo">
-                                    <h4 style="margin:0; color:#fff; font-size:16px;">Stripe Professional</h4>
-                                </div>
-                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                                        <div>
-                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Publishable API Key</label>
-                                            <input name="wsb_stripe_publishable_key" type="text" value="<?php echo esc_attr($stripe_pk); ?>" placeholder="pk_test_..."
-                                                style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;">
+                                    <div style="display:flex; flex-direction:column; gap:15px;">
+                                        <!-- System Default Currency (Integrated) -->
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">System Default Currency</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px; line-height:1.4; display:block; max-width:400px;">Select the primary currency for all bookings and financial reports.</span>
+                                            </div>
+                                            <div style="width:200px;">
+                                                <select name="wsb_currency" style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:10px; border-radius:8px; font-weight:600; font-size:13px;">
+                                                    <option value="USD" <?php selected($currency, 'USD'); ?>>USD ($)</option>
+                                                    <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR (€)</option>
+                                                    <option value="GBP" <?php selected($currency, 'GBP'); ?>>GBP (£)</option>
+                                                    <option value="CAD" <?php selected($currency, 'CAD'); ?>>CAD (C$)</option>
+                                                    <option value="AUD" <?php selected($currency, 'AUD'); ?>>AUD (A$)</option>
+                                                    <option value="JPY" <?php selected($currency, 'JPY'); ?>>JPY (¥)</option>
+                                                    <option value="INR" <?php selected($currency, 'INR'); ?>>INR (₹)</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Secret API Key</label>
-                                            <input name="wsb_stripe_secret_key" id="wsb_stripe_secret_key" type="password" value="<?php echo esc_attr($stripe_sk); ?>" placeholder="sk_test_..."
-                                                style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;">
+
+                                        <!-- Toggle 1: Skip Professional -->
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">Skip Professional Selection</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px; line-height:1.4; display:block; max-width:400px;">Automatically bypass the professional team step. Recommended if you only have one provider.</span>
+                                            </div>
+                                            <label class="wsb-switch">
+                                                <input type="checkbox" name="wsb_skip_professional_step" value="yes" <?php checked($skip_prof, 'yes'); ?>>
+                                                <span class="wsb-slider"></span>
+                                            </label>
+                                        </div>
+
+                                        <!-- Toggle 2: Disable Payment -->
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">Disable Online Payments</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px; line-height:1.4; display:block; max-width:400px;">Bypass all payment selection and checkout screens. Bookings will be confirmed instantly.</span>
+                                            </div>
+                                            <label class="wsb-switch">
+                                                <input type="checkbox" name="wsb_skip_payment_step" value="yes" <?php checked($skip_pay, 'yes'); ?>>
+                                                <span class="wsb-slider"></span>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
-
-                                <?php do_action('wsb_admin_settings_payment_gateways', $this); ?>
                             </div>
                         </div>
 
-                        <!-- General & Regional Configuration -->
-                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden;">
-                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border);">
-                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
-                                    <span class="dashicons dashicons-admin-settings" style="color:var(--wsb-warning);"></span> Regional & Locale Settings
-                                </h3>
-                            </div>
-                            <div style="padding:25px;">
-                                <div style="max-width:400px;">
-                                    <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">System Default Currency</label>
-                                    <select name="wsb_currency" style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600;">
-                                        <option value="USD" <?php selected($currency, 'USD'); ?>>USD - United States Dollar ($)</option>
-                                        <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR - Euro (€)</option>
-                                        <option value="GBP" <?php selected($currency, 'GBP'); ?>>GBP - British Pound (£)</option>
-                                        <option value="CAD" <?php selected($currency, 'CAD'); ?>>CAD - Canadian Dollar (C$)</option>
-                                        <option value="AUD" <?php selected($currency, 'AUD'); ?>>AUD - Australian Dollar (A$)</option>
-                                        <option value="JPY" <?php selected($currency, 'JPY'); ?>>JPY - Japanese Yen (¥)</option>
-                                        <option value="INR" <?php selected($currency, 'INR'); ?>>INR - Indian Rupee (₹)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Right Column: Integration & Tools -->
                     <div style="display:flex; flex-direction:column; gap:30px;">
                         
-                        <!-- Shortcode Generator Card -->
-                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-success);">
-                            <div style="padding:25px; border-bottom:1px solid var(--wsb-border);">
-                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
-                                    <span class="dashicons dashicons-shortcode" style="color:var(--wsb-success);"></span> Frontend Deployment
-                                </h3>
-                            </div>
-                            <div style="padding:25px;">
-                                <p style="color:var(--wsb-text-muted); margin-bottom:20px; font-size:13px; line-height:1.6;">Paste this shortcode anywhere on your site to render the premium booking widget.</p>
-                                <div style="background:rgba(16, 185, 129, 0.05); border:1px dashed var(--wsb-success); padding:15px; border-radius:10px; text-align:center; margin-bottom:20px;">
-                                    <code style="font-size:20px; color:var(--wsb-success); font-weight:900; letter-spacing:1px;">[wsb_booking_widget]</code>
-                                </div>
-                                
-                                <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Direct System Link</label>
-                                <div style="position:relative;">
-                                    <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();"
-                                        style="width:100%; background:#0f172a; color:var(--wsb-primary); border:1px solid var(--wsb-border); padding:10px 12px; border-radius:8px; font-size:12px; cursor:pointer;">
-                                </div>
-                            </div>
-                        </div>
+
 
                         <!-- Save Actions -->
                         <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:16px; border:1px solid var(--wsb-border); display:flex; flex-direction:column; gap:15px;">

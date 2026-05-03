@@ -114,7 +114,27 @@ class Wsb_Admin_Design {
                     </div>
                 </div>
 
-                <div style="margin-top:20px;">
+                <div style="margin-top:40px; background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-success);">
+                    <div style="padding:25px; border-bottom:1px solid var(--wsb-border);">
+                        <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
+                            <span class="dashicons dashicons-shortcode" style="color:var(--wsb-success);"></span> Frontend Deployment
+                        </h3>
+                    </div>
+                    <div style="padding:25px;">
+                        <p style="color:var(--wsb-text-muted); margin-bottom:20px; font-size:13px; line-height:1.6;">Paste this shortcode anywhere on your site to render the premium booking widget.</p>
+                        <div style="background:rgba(16, 185, 129, 0.05); border:1px dashed var(--wsb-success); padding:15px; border-radius:10px; text-align:center; margin-bottom:20px;">
+                            <code style="font-size:20px; color:var(--wsb-success); font-weight:900; letter-spacing:1px;">[wsb_booking_widget]</code>
+                        </div>
+                        
+                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted); font-size:13px;">Direct System Link</label>
+                        <div style="position:relative;">
+                            <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();"
+                                style="width:100%; background:#0f172a; color:var(--wsb-primary); border:1px solid var(--wsb-border); padding:10px 12px; border-radius:8px; font-size:12px; cursor:pointer;">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:30px;">
                     <button type="submit" class="wsb-btn-premium"
                         style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: #fff; border: none; padding: 14px 35px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;">
                         <span>✨</span> Apply Premium Design

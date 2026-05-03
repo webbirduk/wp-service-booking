@@ -87,7 +87,9 @@ class Wsb_Public
             'nonce' => wp_create_nonce('wsb_nonce'),
             'login_url' => wp_login_url(),
             'dashboard_url' => home_url('/booking-dashboard'),
-            'stripe_pk' => get_option('wsb_stripe_publishable_key', '')
+            'stripe_pk' => get_option('wsb_stripe_publishable_key', ''),
+            'skip_professional' => get_option('wsb_skip_professional_step', 'no'),
+            'skip_payment' => get_option('wsb_skip_payment_step', 'no')
         ));
     }
 
@@ -355,7 +357,10 @@ class Wsb_Public
 
                 <div class="wsb-actions">
                     <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-time">Back</button>
-                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-payment">Next Step</button>
+                    <?php $skip_pay = get_option('wsb_skip_payment_step', 'no'); ?>
+                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-payment">
+                        <?php echo ($skip_pay === 'yes') ? 'Confirm Booking' : 'Next Step'; ?>
+                    </button>
                 </div>
             </div>
 
@@ -404,10 +409,13 @@ class Wsb_Public
                         </div>
                     </div>
 
-                    <button class="wsb-next-btn wsb-btn" data-next="wsb-step-checkout"
-                        style="width: 100%; background: var(--wsb-gradient); color: #ffffff; padding: 20px; font-size: 18px; font-weight: 800; border-radius: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 12px; border: none; box-shadow: 0 10px 15px -3px var(--wsb-ring); transition: all 0.3s;">
-                        <span>🔒</span> Continue to Secure Payment
-                    </button>
+                    <div style="display:flex; gap:15px; align-items:center;">
+                        <button class="wsb-prev-btn wsb-btn" data-prev="wsb-step-details" style="background:#fff; border:1.5px solid var(--wsb-border); color:var(--wsb-text-muted); padding:20px; border-radius:16px;">Back</button>
+                        <button class="wsb-next-btn wsb-btn" data-next="wsb-step-checkout"
+                            style="flex:1; background: var(--wsb-gradient); color: #ffffff; padding: 20px; font-size: 18px; font-weight: 800; border-radius: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 12px; border: none; box-shadow: 0 10px 15px -3px var(--wsb-ring); transition: all 0.3s;">
+                            <span>🔒</span> Continue to Secure Payment
+                        </button>
+                    </div>
 
                     <div style="text-align: center; margin-top: 15px; font-size: 12px; color: #94a3b8;">
                         By continuing, you agree to our <a href="#"

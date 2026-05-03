@@ -160,6 +160,7 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
                 'staff'     => ['icon' => 'dashicons-groups', 'label' => 'Professional Team'],
                 'customers' => ['icon' => 'dashicons-admin-users', 'label' => 'Clients'],
                 'design'    => ['icon' => 'dashicons-art', 'label' => 'Designer Choice'],
+                'integrations' => ['icon' => 'dashicons-networking', 'label' => 'Integrations'],
                 'settings'  => ['icon' => 'dashicons-admin-settings', 'label' => 'System Settings'],
             ]);
             foreach ($nav_items as $key => $item):
@@ -207,6 +208,9 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
                 break;
             case 'settings':
                 (new Wsb_Admin_Settings($this))->display();
+                break;
+            case 'integrations':
+                (new Wsb_Admin_Integrations($this))->display();
                 break;
             default:
                 (new Wsb_Admin_Dashboard($this))->display();
