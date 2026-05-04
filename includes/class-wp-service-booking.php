@@ -32,6 +32,7 @@ class Wp_Service_Booking {
 		add_action( 'wp_enqueue_scripts', array( $plugin_public, 'enqueue_styles' ) );
 		add_action( 'wp_enqueue_scripts', array( $plugin_public, 'enqueue_scripts' ) );
         add_shortcode( 'wsb_booking_widget', array( $plugin_public, 'render_booking_widget' ) );
+        add_shortcode( 'wsb_services', array( $plugin_public, 'render_services_widget' ) );
         add_shortcode( 'wsb_client_dashboard', array( $plugin_public, 'render_client_dashboard' ) );
         add_action( 'template_redirect', array( $plugin_public, 'virtual_booking_route' ) );
         add_action( 'init', array( $plugin_public, 'handle_stripe_return' ) );

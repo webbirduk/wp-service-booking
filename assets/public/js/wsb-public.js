@@ -20,16 +20,25 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Card Selection Logic for UI
-    $(document).on('click', '.wsb-card-option, .wsb-staff-card', function() {
-        $(this).closest('.wsb-wizard-step').find('.wsb-card-option, .wsb-staff-card').removeClass('selected');
+
+    // Card Selection Logic for UI (Updated for Multi-Service)
+    $(document).on('click', '.wsb-card-option', function() {
+        $(this).toggleClass('selected');
+        
+        const selectedCount = $('.wsb-card-option.selected').length;
+        // Enable the Next button if at least one service is selected
+        $(this).closest('.wsb-wizard-step').find('.wsb-next-btn').prop('disabled', selectedCount === 0);
+    });
+
+    $(document).on('click', '.wsb-staff-card', function() {
+        $(this).closest('.wsb-wizard-step').find('.wsb-staff-card').removeClass('selected');
         $(this).addClass('selected');
         
         // Enable the Next button in this step
         $(this).closest('.wsb-wizard-step').find('.wsb-next-btn').prop('disabled', false);
 
         // Refresh slots if staff is changed and date is already picked
-        if ($(this).hasClass('wsb-staff-card') && $('#wsb-booking-date').val()) {
+        if ($('#wsb-booking-date').val()) {
             $('#wsb-booking-date').trigger('change');
         }
     });
@@ -45,13 +54,14 @@ jQuery(document).ready(function($) {
             nextStep = 'wsb-step-time';
         }
 
+        // Apply Staff Filtering if enabled
+        if (nextStep === 'wsb-step-staff') {
+            applyStaffFilter();
+        }
+
         // Handle Skip Payment Step
         if (nextStep === 'wsb-step-payment' && wsb_ajax.skip_payment === 'yes') {
-            // If payment is skipped, we go to a final internal confirmation or just trigger the booking
-            // For now, let's trigger the booking immediately if they click "Complete" on the details step
-            // But usually, we want a final "Confirm" button.
-            // Let's assume we change the button text to "Confirm Booking" on the details step if payment is skipped.
-            nextStep = 'wsb-step-confirm-manual'; // We'll create a simple confirmation step or handle it below
+            nextStep = 'wsb-step-confirm-manual'; 
         }
 
         if (currentStep.attr('id') === 'wsb-step-details') {
@@ -113,13 +123,15 @@ jQuery(document).ready(function($) {
                 const originalHtml = $btn.html();
                 $btn.html('<span>⌛</span> Redirecting to Secure Checkout...').prop('disabled', true);
                 
+                const serviceIds = $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get();
+                
                 $.ajax({
                     url: wsb_ajax.ajax_url,
                     type: 'POST',
                     data: {
                         action: 'wsb_create_checkout_session',
                         nonce: wsb_ajax.nonce,
-                        service_id: $('.wsb-card-option.selected').data('service-id'),
+                        service_id: serviceIds.join(','),
                         staff_id: $('.wsb-staff-card.selected').data('staff-id'),
                         booking_date: $('#wsb-booking-date').val(),
                         start_time: $('.wsb-slot-btn.selected').text(),
@@ -161,13 +173,22 @@ jQuery(document).ready(function($) {
                 const method = $('input[name="payment_method"]:checked').val();
                 console.log('WSB: Final checkout for method:', method);
                 
-                // Populate final summary from selected service card
-                const $selectedService = $('.wsb-card-option.selected');
-                const serviceName = $selectedService.find('h4').text();
-                const servicePrice = $selectedService.find('.wsb-price-tag').text();
+                // Populate final summary from selected service cards
+                let serviceNames = [];
+                let totalPrice = 0;
+                let currencySymbol = '';
+
+                $('.wsb-card-option.selected').each(function() {
+                    serviceNames.push($(this).find('h4').text());
+                    const priceText = $(this).find('.wsb-price-tag').text();
+                    // Extract numeric value and symbol
+                    const numericPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+                    totalPrice += numericPrice;
+                    currencySymbol = priceText.replace(/[0-9.,]/g, '').trim();
+                });
                 
-                $('#wsb-checkout-summary-service').text(serviceName);
-                $('#wsb-checkout-summary-price, #wsb-checkout-summary-total').text(servicePrice);
+                $('#wsb-checkout-summary-service').html(serviceNames.join('<br>'));
+                $('#wsb-checkout-summary-price, #wsb-checkout-summary-total').text(currencySymbol + totalPrice.toFixed(2));
                 $('#wsb-checkout-summary-datetime').html(
                     '📅 ' + $('#wsb-booking-date').val() + '<br>' +
                     '🕒 ' + $('.wsb-slot-btn.selected').text()
@@ -188,6 +209,50 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    function applyStaffFilter() {
+        if (wsb_ajax.filter_staff_by_service !== 'yes') return;
+
+        const selectedServiceIds = $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get();
+        
+        if (selectedServiceIds.length > 0) {
+            let eligibleStaffIds = null;
+            
+            selectedServiceIds.forEach(serviceId => {
+                const staffForService = wsb_ajax.staff_service_mapping[serviceId] || [];
+                if (eligibleStaffIds === null) {
+                    eligibleStaffIds = [...staffForService];
+                } else {
+                    eligibleStaffIds = eligibleStaffIds.filter(id => staffForService.includes(id));
+                }
+            });
+            
+            // Show/Hide staff cards
+            $('.wsb-staff-card').hide();
+            // Always show "Any" staff card if it exists
+            $('.wsb-staff-card[data-staff-id="any"]').show();
+
+            if (eligibleStaffIds && eligibleStaffIds.length > 0) {
+                eligibleStaffIds.forEach(staffId => {
+                    $(`.wsb-staff-card[data-staff-id="${staffId}"]`).show();
+                });
+                $('.wsb-no-staff-msg').hide();
+                
+                // Deselect if hidden
+                const $selectedStaff = $('.wsb-staff-card.selected');
+                if ($selectedStaff.length && $selectedStaff.is(':hidden')) {
+                    $selectedStaff.removeClass('selected');
+                    $('#wsb-step-staff .wsb-next-btn').prop('disabled', true);
+                }
+            } else {
+                if ($('.wsb-no-staff-msg').length === 0) {
+                    $('#wsb-step-staff .wsb-card-grid').after('<p class="wsb-no-staff-msg" style="text-align:center; color:#ef4444; padding:20px; font-weight:700;">No professionals are available for the selected service combination.</p>');
+                }
+                $('.wsb-no-staff-msg').show();
+                $('#wsb-step-staff .wsb-next-btn').prop('disabled', true);
+            }
+        }
+    }
+
     $('.wsb-prev-btn').on('click', function(e) {
         e.preventDefault();
         var prevStep = $(this).data('prev');
@@ -219,7 +284,7 @@ jQuery(document).ready(function($) {
                 email: $('#wsb-email').val(),
                 phone: $('#wsb-phone').val(),
                 notes: $('#wsb-notes').val(),
-                service_id: $('.wsb-card-option.selected').data('service-id'),
+                service_id: $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get().join(','),
                 staff_id: $('.wsb-staff-card.selected').data('staff-id') || 'any',
                 booking_date: $('#wsb-booking-date').val(),
                 start_time: $('.wsb-slot-btn.selected').text(),
@@ -335,6 +400,7 @@ jQuery(document).ready(function($) {
                 action: 'wsb_get_slots',
                 nonce: wsb_ajax.nonce,
                 date: dateVal,
+                service_id: $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get().join(','),
                 staff_id: $('.wsb-staff-card.selected').data('staff-id') || 'any'
             },
             success: function(response) {
@@ -407,7 +473,7 @@ jQuery(document).ready(function($) {
         btn.text('Processing...').prop('disabled', true);
         
         const paymentMethod = $('input[name="payment_method"]:checked').val();
-        const serviceId = $('.wsb-card-option.selected').data('service-id');
+        const serviceIds = $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get().join(',');
         const staffId = $('.wsb-staff-card.selected').data('staff-id');
         const bookingDate = $('#wsb-booking-date').val();
         const bookingTime = $('.wsb-slot-btn.selected').text();
@@ -424,7 +490,7 @@ jQuery(document).ready(function($) {
                     email: $('#wsb-email').val(),
                     phone: $('#wsb-phone-code').val() + $('#wsb-phone').val(),
                     notes: $('#wsb-notes').val(),
-                    service_id: serviceId,
+                    service_id: serviceIds,
                     staff_id: staffId,
                     booking_date: bookingDate,
                     start_time: bookingTime,
@@ -463,7 +529,7 @@ jQuery(document).ready(function($) {
                 data: {
                     action: 'wsb_create_checkout_session',
                     nonce: wsb_ajax.nonce,
-                    service_id: serviceId,
+                    service_id: serviceIds,
                     staff_id: staffId,
                     booking_date: bookingDate,
                     start_time: bookingTime,
@@ -850,6 +916,50 @@ jQuery(document).ready(function($) {
             }
         });
     }
+
+    // Auto-select service from URL parameter (Advanced Initialization)
+    function handleServiceDeepLink() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const serviceId = urlParams.get('service_id');
+        if (serviceId) {
+            const $target = $(`.wsb-card-option[data-service-id="${serviceId}"]`);
+            if ($target.length) {
+                // Pre-select the service
+                $('.wsb-card-option').removeClass('selected');
+                $target.addClass('selected');
+                
+                // Hide all steps immediately
+                $('.wsb-wizard-step').hide();
+                
+                // Determine target step (Time selection)
+                const targetStep = $('#wsb-step-time');
+                
+                // Remove step numbers from headings for a cleaner "direct" look
+                $('.wsb-wizard-step h3').each(function() {
+                    let text = $(this).text();
+                    $(this).text(text.replace(/^\d+\.\s*/, ''));
+                });
+
+                // Show target step instantly
+                targetStep.show();
+                
+                // IMPORTANT: Manually trigger calendar render since we bypassed normal navigation
+                if (typeof renderCalendar === 'function') {
+                    renderCalendar();
+                }
+
+                // Trigger any necessary logic for the target step
+                if (targetStep.attr('id') === 'wsb-step-staff') {
+                    applyStaffFilter();
+                }
+
+                if ($('#wsb-booking-date').val()) {
+                    $('#wsb-booking-date').trigger('change');
+                }
+            }
+        }
+    }
+    handleServiceDeepLink();
 });
 
 /**

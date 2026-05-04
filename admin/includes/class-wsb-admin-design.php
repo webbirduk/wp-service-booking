@@ -62,15 +62,15 @@ class Wsb_Admin_Design {
         }
 
         $service_layout = get_option('wsb_service_layout', 'modern_grid');
-        $brand_color = get_option('wsb_brand_color', '#baa7dd');
-        $brand_color_end = get_option('wsb_brand_color_end', '#70ffbc');
-        $accent_color = get_option('wsb_accent_color', '#d2b2ad');
+        $brand_color = get_option('wsb_brand_color', '#6366f1');
+        $brand_color_end = get_option('wsb_brand_color_end', '#a855f7');
+        $accent_color = get_option('wsb_accent_color', '#4f46e5');
         $virtual_bg_color = get_option('wsb_virtual_bg_color', '#f8fafc');
 
         // Detailed Styling Defaults
         $card_bg = get_option('wsb_card_bg_color', '#ffffff');
-        $heading_color = get_option('wsb_heading_text_color', '#ff0000');
-        $body_color = get_option('wsb_body_text_color', '#1572f4');
+        $heading_color = get_option('wsb_heading_text_color', '#0f172a');
+        $body_color = get_option('wsb_body_text_color', '#64748b');
         $input_bg = get_option('wsb_input_bg_color', '#ffffff');
         $input_border = get_option('wsb_input_border_color', '#e2e8f0');
 
@@ -102,7 +102,7 @@ class Wsb_Admin_Design {
                         <!-- Section 1: Brand Identity & Palette -->
                         <div class="wsb-design-section" style="margin:0; border-left: 4px solid var(--wsb-primary);">
                             <h2 style="color:white; margin-bottom:20px; font-weight: 700; letter-spacing: -0.02em; display:flex; align-items:center; gap:10px;">
-                                <span class="dashicons dashicons-art"></span> Brand Identity & Aesthetic Palette
+                                <span class="dashicons dashicons-art"></span> 01. Brand Identity & Aesthetic Palette
                             </h2>
                             <p style="color:var(--wsb-text-muted); font-size:12px; margin-bottom:25px; line-height:1.6;">Fine-tune your visual identity. These colors define the primary mood, interactions, and granular elements of your booking system.</p>
                             
@@ -189,7 +189,7 @@ class Wsb_Admin_Design {
                         <!-- Section 2: UI Components & Effects -->
                         <div class="wsb-design-section" style="margin:0;">
                             <h2 style="color:white; margin-bottom:25px; font-weight: 700; letter-spacing: -0.02em; display:flex; align-items:center; gap:10px;">
-                                <span class="dashicons dashicons-admin-appearance"></span> Component Styling & Effects
+                                <span class="dashicons dashicons-admin-appearance"></span> 02. Component Styling & Effects
                             </h2>
                             
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
@@ -241,10 +241,10 @@ class Wsb_Admin_Design {
                             </div>
                         </div>
 
-                        <!-- Section 4: Content & Labeling -->
+                        <!-- Section 3: Content & Labeling -->
                         <div class="wsb-design-section" style="margin:0;">
                             <h2 style="color:white; margin-bottom:25px; font-weight: 700; letter-spacing: -0.02em; display:flex; align-items:center; gap:10px;">
-                                <span class="dashicons dashicons-editor-textcolor"></span> Content & Dynamic Labeling
+                                <span class="dashicons dashicons-editor-textcolor"></span> 03. Content & Dynamic Labeling
                             </h2>
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                                 <div class="wsb-input-wrap">
@@ -294,13 +294,13 @@ class Wsb_Admin_Design {
                         <!-- Section 4: Aesthetic Style Selection -->
                         <div class="wsb-design-section" style="margin:0; border-top: 4px solid var(--wsb-primary);">
                             <h2 style="color:white; margin-bottom:15px; display:flex; align-items:center; gap:10px; font-size:16px;">
-                                <span class="dashicons dashicons-layout"></span> Service Booking Page Style
+                                <span class="dashicons dashicons-layout"></span> 04. Service Booking Page Style
                             </h2>
                             <p style="color:var(--wsb-text-muted); font-size:12px; margin-bottom:20px; line-height:1.5;">Select the core design language for your frontend booking experience.</p>
                             
                             <div style="display:grid; grid-template-columns: 1fr; gap:15px;">
                                 <?php
-                                $layouts = [
+                                $base_layouts = [
                                     'modern_grid' => [
                                         'name' => 'Signature Grid',
                                         'desc' => 'Clean, balanced, and high-performance.',
@@ -326,6 +326,21 @@ class Wsb_Admin_Design {
                                         'gradient' => 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)'
                                     ]
                                 ];
+
+                                // Allow external plugins (like Aura Luxe) to add layouts
+                                $extra_layout_names = apply_filters('wsb_admin_design_layouts', []);
+                                
+                                $layouts = $base_layouts;
+                                foreach ($extra_layout_names as $extra_val => $extra_name) {
+                                    if (!isset($layouts[$extra_val])) {
+                                        $layouts[$extra_val] = [
+                                            'name' => $extra_name,
+                                            'desc' => 'Premium layout extension.',
+                                            'icon' => 'dashicons-star-filled',
+                                            'gradient' => 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)'
+                                        ];
+                                    }
+                                }
                                 
                                 foreach ($layouts as $val => $data): 
                                     $is_active = ($service_layout === $val);
@@ -368,7 +383,7 @@ class Wsb_Admin_Design {
                         <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid var(--wsb-success);">
                             <div style="padding:20px; border-bottom:1px solid var(--wsb-border);">
                                 <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px; font-size:15px;">
-                                    <span class="dashicons dashicons-shortcode" style="color:var(--wsb-success);"></span> Frontend Deployment
+                                    <span class="dashicons dashicons-shortcode" style="color:var(--wsb-success);"></span> 05. Frontend Deployment
                                 </h3>
                             </div>
                             <div style="padding:20px;">
@@ -377,6 +392,42 @@ class Wsb_Admin_Design {
                                 </div>
                                 <input type="text" readonly value="<?php echo site_url('/booking'); ?>" onclick="this.select();"
                                     style="width:100%; background:#0f172a; color:var(--wsb-primary); border:1px solid var(--wsb-border); padding:8px; border-radius:8px; font-size:11px;">
+                            </div>
+                        </div>
+
+                        <!-- Section 6: Service Showcase Architecture -->
+                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid #6366f1; margin-top:30px;">
+                            <div style="padding:20px; border-bottom:1px solid var(--wsb-border);">
+                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px; font-size:15px;">
+                                    <span class="dashicons dashicons-products" style="color:#6366f1;"></span> 06. Service Display Showcase
+                                </h3>
+                            </div>
+                            <div style="padding:20px;">
+                                <p style="color:var(--wsb-text-muted); font-size:12px; margin-bottom:20px; line-height:1.6;">Embed your services anywhere on your site using these advanced shortcodes. Clients can view service details and jump directly into the booking flow.</p>
+                                
+                                <div style="display:flex; flex-direction:column; gap:12px;">
+                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">01. Show All Services</label>
+                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services]</code>
+                                    </div>
+                                    
+                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">02. Filter by Category</label>
+                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services category="Hair"]</code>
+                                    </div>
+
+                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">03. Specific Service IDs</label>
+                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services ids="1,5,8"]</code>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top:20px; padding:15px; background:rgba(99, 102, 241, 0.05); border-radius:12px; border:1px solid rgba(99, 102, 241, 0.1);">
+                                    <div style="display:flex; align-items:center; gap:8px; color:var(--wsb-primary); font-weight:700; font-size:12px; margin-bottom:5px;">
+                                        <span class="dashicons dashicons-info" style="font-size:16px; width:16px; height:16px;"></span> Pro Tip
+                                    </div>
+                                    <p style="color:var(--wsb-text-muted); font-size:11px; margin:0; line-height:1.5;">This widget uses your global branding and "Service Booking Page Style" selected above for a perfectly consistent experience.</p>
+                                </div>
                             </div>
                         </div>
 

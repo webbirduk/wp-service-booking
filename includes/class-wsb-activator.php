@@ -79,7 +79,7 @@ class Wsb_Activator {
 		$sql_bookings = "CREATE TABLE IF NOT EXISTS $table_bookings (
 			id bigint(20) NOT NULL AUTO_INCREMENT,
 			customer_id bigint(20) NOT NULL,
-			service_id bigint(20) NOT NULL,
+			service_id varchar(255) NOT NULL,
 			staff_id bigint(20) NOT NULL,
 			booking_date date NOT NULL,
 			start_time time NOT NULL,

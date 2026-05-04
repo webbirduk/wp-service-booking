@@ -6,7 +6,26 @@ class Wsb_Ajax {
 
         $staff_id = isset($_POST['staff_id']) ? sanitize_text_field($_POST['staff_id']) : 'any';
         $date     = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : date('Y-m-d');
-        $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+        $service_ids = isset($_POST['service_id']) ? sanitize_text_field($_POST['service_id']) : '';
+        $booking_id  = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
+
+        if (empty($service_ids) && $booking_id) {
+            $service_ids = $wpdb->get_var($wpdb->prepare("SELECT service_id FROM {$wpdb->prefix}wsb_bookings WHERE id = %d", $booking_id));
+        }
+
+        // Calculate total duration for slot filtering
+        $total_duration = 30; // Default
+        if (!empty($service_ids)) {
+            $ids = array_map('intval', explode(',', $service_ids));
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $services = $wpdb->get_results($wpdb->prepare("SELECT duration FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+            if ($services) {
+                $total_duration = 0;
+                foreach ($services as $s) {
+                    $total_duration += intval($s->duration);
+                }
+            }
+        }
 
         // Holiday Check
         if ($staff_id !== 'any') {
@@ -39,16 +58,50 @@ class Wsb_Ajax {
         if ($staff_id !== 'any') {
             $query .= " AND staff_id = %d";
             $params[] = intval($staff_id);
+        } else if (get_option('wsb_filter_staff_by_service', 'no') === 'yes' && !empty($service_ids)) {
+            // If "Any" is selected and filtering is enabled, we should ideally check against ANY eligible staff
+            // But for conflict checking, we only care about staff who are actually eligible.
+            $ids = array_map('intval', explode(',', $service_ids));
+            $count = count($ids);
+            $placeholders = implode(',', array_fill(0, $count, '%d'));
+            
+            $eligible_staff = $wpdb->get_col($wpdb->prepare(
+                "SELECT staff_id FROM {$wpdb->prefix}wsb_staff_services WHERE service_id IN ($placeholders) GROUP BY staff_id HAVING COUNT(*) = %d",
+                array_merge($ids, array($count))
+            ));
+            
+            if (!empty($eligible_staff)) {
+                $query .= " AND staff_id IN (" . implode(',', array_map('intval', $eligible_staff)) . ")";
+            }
         }
 
         $booked_slots = $wpdb->get_col($wpdb->prepare($query, ...$params));
 
-        // 3. Filter out booked slots
+        // 3. Filter out booked slots (Account for total duration)
         $available_slots = array();
+        $duration_seconds = $total_duration * 60;
+
         foreach ($all_slots as $slot) {
-            if (!in_array($slot, $booked_slots)) {
-                // Format for display (HH:MM)
-                $available_slots[] = date('H:i', strtotime($slot));
+            $slot_start = strtotime($date . ' ' . $slot);
+            $slot_end = $slot_start + $duration_seconds;
+            
+            $is_booked = false;
+            foreach ($booked_slots as $booked_start) {
+                $b_start = strtotime($date . ' ' . $booked_start);
+                // Simple check: if slot overlaps with any booking
+                // For a more robust app, we'd check against actual booking end_times.
+                // Assuming 30-min increments for now.
+                if ($slot_start == $b_start) {
+                    $is_booked = true;
+                    break;
+                }
+            }
+
+            if (!$is_booked) {
+                // Check if it fits in working hours (simplified)
+                if (date('H:i', $slot_end) <= '18:00') {
+                    $available_slots[] = date('H:i', $slot_start);
+                }
             }
         }
 
@@ -109,34 +162,54 @@ class Wsb_Ajax {
 
         // Create booking
         $booking_table = $wpdb->prefix . 'wsb_bookings';
-        $service_id     = isset($data['service_id']) ? intval($data['service_id']) : 0;
+        $service_ids    = isset($data['service_id']) ? sanitize_text_field($data['service_id']) : '';
         $staff_id       = isset($data['staff_id']) ? sanitize_text_field($data['staff_id']) : 'any';
         $booking_date   = isset($data['booking_date']) ? sanitize_text_field($data['booking_date']) : date('Y-m-d');
         $start_time     = isset($data['start_time']) ? sanitize_text_field($data['start_time']) : '09:00';
         $payment_method = isset($data['payment_method']) ? sanitize_text_field($data['payment_method']) : 'manual';
         $status         = isset($data['status']) ? sanitize_text_field($data['status']) : 'confirmed';
 
-        $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_services WHERE id = %d", $service_id));
-        $price = $service ? floatval($service->price) : 0.00;
+        $total_price = 0.00;
+        $total_duration = 0;
+        if (!empty($service_ids)) {
+            $ids = array_map('intval', explode(',', $service_ids));
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $services = $wpdb->get_results($wpdb->prepare("SELECT price, duration FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+            foreach ($services as $s) {
+                $total_price += floatval($s->price);
+                $total_duration += intval($s->duration);
+            }
+        }
 
         if ($staff_id === 'any') {
-            $any_staff = $wpdb->get_var("SELECT id FROM {$wpdb->prefix}wsb_staff WHERE status = 'active' LIMIT 1");
-            $staff_id = $any_staff ? intval($any_staff) : 1;
+            if (get_option('wsb_filter_staff_by_service', 'no') === 'yes' && !empty($service_ids)) {
+                $ids = array_map('intval', explode(',', $service_ids));
+                $count = count($ids);
+                $placeholders = implode(',', array_fill(0, $count, '%d'));
+                $any_staff = $wpdb->get_var($wpdb->prepare(
+                    "SELECT staff_id FROM {$wpdb->prefix}wsb_staff_services WHERE service_id IN ($placeholders) GROUP BY staff_id HAVING COUNT(*) = %d LIMIT 1",
+                    array_merge($ids, array($count))
+                ));
+                $staff_id = $any_staff ? intval($any_staff) : $wpdb->get_var("SELECT id FROM {$wpdb->prefix}wsb_staff WHERE status = 'active' LIMIT 1");
+            } else {
+                $any_staff = $wpdb->get_var("SELECT id FROM {$wpdb->prefix}wsb_staff WHERE status = 'active' LIMIT 1");
+                $staff_id = $any_staff ? intval($any_staff) : 1;
+            }
         } else {
             $staff_id = intval($staff_id);
         }
 
-        $end_time = date('H:i:s', strtotime($start_time) + 1800);
+        $end_time = date('H:i:s', strtotime($start_time) + ($total_duration * 60));
 
         $wpdb->insert($booking_table, array(
             'customer_id' => $customer_id,
-            'service_id' => $service_id,
+            'service_id' => $service_ids,
             'staff_id' => $staff_id,
             'booking_date' => $booking_date,
             'start_time' => date('H:i:s', strtotime($start_time)),
             'end_time' => $end_time,
             'status' => $status,
-            'total_amount' => $price
+            'total_amount' => $total_price
         ));
         $booking_id = $wpdb->insert_id;
 
@@ -145,7 +218,7 @@ class Wsb_Ajax {
             $transaction_id = isset($data['transaction_id']) ? sanitize_text_field($data['transaction_id']) : null;
             $wpdb->insert($payment_table, array(
                 'booking_id' => $booking_id,
-                'amount' => $price,
+                'amount' => $total_price,
                 'gateway' => $payment_method,
                 'status' => ($payment_method === 'stripe' || $payment_method === 'paypal') ? 'completed' : 'pending',
                 'transaction_id' => $transaction_id
@@ -303,7 +376,7 @@ class Wsb_Ajax {
         check_ajax_referer('wsb_nonce', 'nonce');
         global $wpdb;
 
-        $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+        $service_ids_str = isset($_POST['service_id']) ? sanitize_text_field($_POST['service_id']) : '';
         $first_name = sanitize_text_field($_POST['first_name']);
         $last_name  = sanitize_text_field($_POST['last_name']);
         $email      = sanitize_email($_POST['email']);
@@ -312,13 +385,16 @@ class Wsb_Ajax {
         $date       = sanitize_text_field($_POST['booking_date']);
         $time       = sanitize_text_field($_POST['start_time']);
 
-        if (!$service_id || !$email) {
+        if (empty($service_ids_str) || !$email) {
             wp_send_json_error(array('message' => 'Missing required booking details.'));
         }
 
-        $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_services WHERE id = %d", $service_id));
-        if (!$service) {
-            wp_send_json_error(array('message' => 'Service not found.'));
+        $ids = array_map('intval', explode(',', $service_ids_str));
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $services = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+        
+        if (empty($services)) {
+            wp_send_json_error(array('message' => 'Services not found.'));
         }
 
         $stripe_sk = get_option('wsb_stripe_secret_key', '');
@@ -326,26 +402,40 @@ class Wsb_Ajax {
             wp_send_json_error(array('message' => 'Stripe is not configured.'));
         }
 
-        // Create Pending Booking (Reuse core logic but with 'pending' status)
+        // Create Pending Booking
         $booking_id = $this->internal_create_booking(array(
             'first_name'     => $first_name,
             'last_name'      => $last_name,
             'email'          => $email,
             'phone'          => $phone,
-            'service_id'     => $service_id,
+            'service_id'     => $service_ids_str,
             'staff_id'       => $staff_id,
             'booking_date'   => $date,
             'start_time'     => $time,
             'payment_method' => 'stripe',
-            'status'         => 'pending' // Important: pending until paid
+            'status'         => 'pending' 
         ));
 
         if (!$booking_id) {
             wp_send_json_error(array('message' => 'Failed to log pending booking.'));
         }
 
-        $amount_in_cents = intval($service->price * 100);
         $currency = strtolower(get_option('wsb_currency', 'gbp'));
+
+        $line_items = array();
+        foreach ($services as $s) {
+            $line_items[] = array(
+                'price_data' => array(
+                    'currency' => $currency,
+                    'product_data' => array(
+                        'name' => $s->name,
+                        'description' => 'Professional booking for ' . $date . ' at ' . $time,
+                    ),
+                    'unit_amount' => intval($s->price * 100),
+                ),
+                'quantity' => 1,
+            );
+        }
 
         $success_url = add_query_arg(array(
             'wsb_checkout' => 'success',
@@ -364,24 +454,12 @@ class Wsb_Ajax {
             ),
             'body' => http_build_query(array(
                 'mode' => 'payment',
-                'line_items' => array(
-                    array(
-                        'price_data' => array(
-                            'currency' => $currency,
-                            'product_data' => array(
-                                'name' => $service->name,
-                                'description' => 'Professional booking for ' . $date . ' at ' . $time,
-                            ),
-                            'unit_amount' => $amount_in_cents,
-                        ),
-                        'quantity' => 1,
-                    ),
-                ),
+                'line_items' => $line_items,
                 'customer_email' => $email,
                 'success_url' => $success_url,
                 'cancel_url' => $cancel_url,
                 'metadata' => array(
-                    'service_id'   => $service_id,
+                    'service_id'   => $service_ids_str,
                     'staff_id'     => $staff_id,
                     'booking_date' => $date,
                     'start_time'   => $time,
@@ -410,11 +488,17 @@ class Wsb_Ajax {
         check_ajax_referer('wsb_nonce', 'nonce');
         global $wpdb;
 
-        $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
-        $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_services WHERE id = %d", $service_id));
+        $service_ids_str = isset($_POST['service_id']) ? sanitize_text_field($_POST['service_id']) : '';
+        if (empty($service_ids_str)) {
+            wp_send_json_error(array('message' => 'Services not selected.'));
+        }
+
+        $ids = array_map('intval', explode(',', $service_ids_str));
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $services = $wpdb->get_results($wpdb->prepare("SELECT price FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
         
-        if (!$service) {
-            wp_send_json_error(array('message' => 'Service not found.'));
+        if (empty($services)) {
+            wp_send_json_error(array('message' => 'Services not found.'));
         }
 
         $stripe_sk = get_option('wsb_stripe_secret_key', '');
@@ -422,7 +506,12 @@ class Wsb_Ajax {
             wp_send_json_error(array('message' => 'Stripe is not configured.'));
         }
 
-        $amount_in_cents = intval($service->price * 100);
+        $total_amount = 0;
+        foreach ($services as $s) {
+            $total_amount += floatval($s->price);
+        }
+
+        $amount_in_cents = intval($total_amount * 100);
         $currency = strtolower(get_option('wsb_currency', 'usd'));
 
         $response = wp_remote_post('https://api.stripe.com/v1/payment_intents', array(
@@ -435,7 +524,7 @@ class Wsb_Ajax {
                 'currency' => $currency,
                 'payment_method_types' => array('card'),
                 'metadata' => array(
-                    'service_id' => $service_id
+                    'service_id' => $service_ids_str
                 )
             ))
         ));

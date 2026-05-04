@@ -83,13 +83,22 @@ class Wsb_Admin_Bookings {
 
         if ($action === 'edit' && $booking_id) {
             $booking = $wpdb->get_row($wpdb->prepare("
-                SELECT b.*, c.first_name, c.last_name, c.email as customer_email, c.phone as customer_phone, s.name as service_name, st.name as staff_name 
-                FROM {$table_bookings} b
                 LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
-                LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
                 LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
                 WHERE b.id = %d
             ", $booking_id));
+
+            // Fetch service names manually for multi-service support
+            $service_names = 'Unknown Service';
+            if (!empty($booking->service_id)) {
+                $ids = array_map('intval', explode(',', $booking->service_id));
+                $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+                if ($services) {
+                    $names = array_map(function($s) { return $s->name; }, $services);
+                    $service_names = implode(', ', $names);
+                }
+            }
             $payment = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_payments WHERE booking_id = %d", $booking_id));
 
             if ($booking) {
@@ -149,9 +158,10 @@ class Wsb_Admin_Bookings {
                                     </h3>
                                     
                                     <div style="margin-bottom:20px;">
-                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Selected Service</label>
-                                        <input type="text" value="<?php echo esc_attr($booking->service_name); ?>" readonly 
-                                            style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600; cursor:not-allowed; opacity:0.8;">
+                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Selected Services</label>
+                                        <div style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600; opacity:0.8; min-height:45px;">
+                                            <?php echo esc_html($service_names); ?>
+                                        </div>
                                     </div>
 
                                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
@@ -319,7 +329,6 @@ class Wsb_Admin_Bookings {
                  req_staff.name as requested_staff_name
           FROM {$wpdb->prefix}wsb_bookings b
           LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
-          LEFT JOIN {$wpdb->prefix}wsb_services s ON b.service_id = s.id
           LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
           LEFT JOIN {$wpdb->prefix}wsb_staff req_staff ON b.requested_staff_id = req_staff.id
           {$where_clause}
@@ -578,7 +587,23 @@ class Wsb_Admin_Bookings {
                                     </td>
                                     <td>
                                         <div class="wsb-customer-info">
-                                            <span class="wsb-customer-name"><?php echo esc_html($b->service_name); ?></span>
+                                            <span class="wsb-customer-name">
+                                                <?php 
+                                                    if (!empty($b->service_id)) {
+                                                        $ids = array_map('intval', explode(',', $b->service_id));
+                                                        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                                                        $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+                                                        if ($services) {
+                                                            $names = array_map(function($s) { return $s->name; }, $services);
+                                                            echo esc_html(implode(', ', $names));
+                                                        } else {
+                                                            echo 'Unknown Service';
+                                                        }
+                                                    } else {
+                                                        echo 'Unknown Service';
+                                                    }
+                                                ?>
+                                            </span>
                                             <span class="wsb-customer-meta">
                                                 <?php if ($b->request_type === 'reschedule' && !empty($b->requested_staff_id)): ?>
                                                     <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html($b->staff_name); ?></span> 

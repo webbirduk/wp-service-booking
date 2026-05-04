@@ -20,6 +20,7 @@ class Wsb_Admin_Settings
                 // Flow Control
                 update_option('wsb_skip_professional_step', isset($_POST['wsb_skip_professional_step']) ? 'yes' : 'no');
                 update_option('wsb_skip_payment_step', isset($_POST['wsb_skip_payment_step']) ? 'yes' : 'no');
+                update_option('wsb_filter_staff_by_service', isset($_POST['wsb_filter_staff_by_service']) ? 'yes' : 'no');
 
                 // Advanced Rules
                 update_option('wsb_booking_buffer', intval($_POST['wsb_booking_buffer']));
@@ -36,6 +37,7 @@ class Wsb_Admin_Settings
         $currency = get_option('wsb_currency', 'USD');
         $skip_prof = get_option('wsb_skip_professional_step', 'no');
         $skip_pay = get_option('wsb_skip_payment_step', 'no');
+        $filter_staff = get_option('wsb_filter_staff_by_service', 'no');
         $buffer = get_option('wsb_booking_buffer', '15');
         $min_notice = get_option('wsb_min_notice', '2');
         $instant_confirm = get_option('wsb_instant_confirm', 'yes');
@@ -116,54 +118,64 @@ class Wsb_Admin_Settings
 
                             <!-- 1. Core Architecture -->
                             <div style="background:rgba(255,255,255,0.02); padding:25px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
-                                <h4 style="color:var(--wsb-primary); margin:0 0 20px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; font-weight:800;">Core Architecture</h4>
+                                <h4 style="color:var(--wsb-primary); margin:0 0 20px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; font-weight:800;">01. Core Architecture</h4>
                                 <div style="display:flex; flex-direction:column; gap:20px;">
-                                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                                        <div>
-                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">System Default Currency</label>
-                                            <span style="color:var(--wsb-text-muted); font-size:12px;">Primary currency for all financial transactions.</span>
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">01. System Default Currency</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px;">Primary currency for all financial transactions.</span>
+                                            </div>
+                                            <select name="wsb_currency" style="width:180px; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:10px; border-radius:8px;">
+                                                <option value="USD" <?php selected($currency, 'USD'); ?>>USD ($)</option>
+                                                <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR (€)</option>
+                                                <option value="GBP" <?php selected($currency, 'GBP'); ?>>GBP (£)</option>
+                                                <option value="INR" <?php selected($currency, 'INR'); ?>>INR (₹)</option>
+                                            </select>
                                         </div>
-                                        <select name="wsb_currency" style="width:180px; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:10px; border-radius:8px;">
-                                            <option value="USD" <?php selected($currency, 'USD'); ?>>USD ($)</option>
-                                            <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR (€)</option>
-                                            <option value="GBP" <?php selected($currency, 'GBP'); ?>>GBP (£)</option>
-                                            <option value="INR" <?php selected($currency, 'INR'); ?>>INR (₹)</option>
-                                        </select>
-                                    </div>
-                                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                                        <div>
-                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">Skip Professional Selection</label>
-                                            <span style="color:var(--wsb-text-muted); font-size:12px;">Automatically bypass the team step if not required.</span>
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">02. Skip Professional Selection</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px;">Automatically bypass the team step if not required.</span>
+                                            </div>
+                                            <label class="wsb-switch">
+                                                <input type="checkbox" name="wsb_skip_professional_step" value="yes" <?php checked($skip_prof, 'yes'); ?>>
+                                                <span class="wsb-slider"></span>
+                                            </label>
                                         </div>
-                                        <label class="wsb-switch">
-                                            <input type="checkbox" name="wsb_skip_professional_step" value="yes" <?php checked($skip_prof, 'yes'); ?>>
-                                            <span class="wsb-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                                        <div>
-                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">Disable Online Payments</label>
-                                            <span style="color:var(--wsb-text-muted); font-size:12px;">Skip checkout and confirm bookings instantly.</span>
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">03. Disable Online Payments</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px;">Skip checkout and confirm bookings instantly.</span>
+                                            </div>
+                                            <label class="wsb-switch">
+                                                <input type="checkbox" name="wsb_skip_payment_step" value="yes" <?php checked($skip_pay, 'yes'); ?>>
+                                                <span class="wsb-slider"></span>
+                                            </label>
                                         </div>
-                                        <label class="wsb-switch">
-                                            <input type="checkbox" name="wsb_skip_payment_step" value="yes" <?php checked($skip_pay, 'yes'); ?>>
-                                            <span class="wsb-slider"></span>
-                                        </label>
-                                    </div>
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">04. Filter Staff by Service</label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px;">Only show professionals assigned to selected services.</span>
+                                            </div>
+                                            <label class="wsb-switch">
+                                                <input type="checkbox" name="wsb_filter_staff_by_service" value="yes" <?php checked($filter_staff, 'yes'); ?>>
+                                                <span class="wsb-slider"></span>
+                                            </label>
+                                        </div>
                                 </div>
                             </div>
 
                             <!-- 2. Scheduling Rules & Time Control -->
                             <div style="background:rgba(255,255,255,0.02); padding:25px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
-                                <h4 style="color:#10b981; margin:0 0 20px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; font-weight:800;">Scheduling & Time Control</h4>
+                                <h4 style="color:#10b981; margin:0 0 20px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; font-weight:800;">02. Scheduling & Time Control</h4>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
                                     <div>
-                                        <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:10px;">Booking Buffer (Min)</label>
+                                        <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:10px;">01. Booking Buffer (Min)</label>
                                         <input type="number" name="wsb_booking_buffer" value="<?php echo esc_attr($buffer); ?>" style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;">
                                         <span style="color:var(--wsb-text-muted); font-size:11px; margin-top:5px; display:block;">Time between slots for preparation.</span>
                                     </div>
                                     <div>
-                                        <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:10px;">Min. Notice Time (Hrs)</label>
+                                        <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:10px;">02. Min. Notice Time (Hrs)</label>
                                         <input type="number" name="wsb_min_notice" value="<?php echo esc_attr($min_notice); ?>" style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;">
                                         <span style="color:var(--wsb-text-muted); font-size:11px; margin-top:5px; display:block;">How far in advance clients must book.</span>
                                     </div>
@@ -172,11 +184,11 @@ class Wsb_Admin_Settings
 
                             <!-- 3. Operational Policies -->
                             <div style="background:rgba(255,255,255,0.02); padding:25px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
-                                <h4 style="color:#f59e0b; margin:0 0 20px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; font-weight:800;">Operational Policies</h4>
+                                <h4 style="color:#f59e0b; margin:0 0 20px 0; font-size:13px; text-transform:uppercase; letter-spacing:0.1em; font-weight:800;">03. Operational Policies</h4>
                                 <div style="display:flex; flex-direction:column; gap:20px; margin-bottom:25px;">
                                     <div style="display:flex; align-items:center; justify-content:space-between;">
                                         <div>
-                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">Instant Confirmation</label>
+                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">01. Instant Confirmation</label>
                                             <span style="color:var(--wsb-text-muted); font-size:12px;">Auto-confirm new bookings without manual review.</span>
                                         </div>
                                         <label class="wsb-switch">
@@ -186,7 +198,7 @@ class Wsb_Admin_Settings
                                     </div>
                                     <div style="display:flex; align-items:center; justify-content:space-between;">
                                         <div>
-                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">Email Notifications</label>
+                                            <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">02. Email Notifications</label>
                                             <span style="color:var(--wsb-text-muted); font-size:12px;">Send automated confirmation emails to customers.</span>
                                         </div>
                                         <label class="wsb-switch">
@@ -196,7 +208,7 @@ class Wsb_Admin_Settings
                                     </div>
                                 </div>
                                 <div>
-                                    <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:10px;">Cancellation Policy</label>
+                                    <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:10px;">03. Cancellation Policy</label>
                                     <textarea name="wsb_cancellation_policy" rows="3" style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:15px; border-radius:8px; line-height:1.5;"><?php echo esc_textarea($policy); ?></textarea>
                                 </div>
                             </div>

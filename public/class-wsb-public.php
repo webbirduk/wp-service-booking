@@ -82,6 +82,14 @@ class Wsb_Public
     {
         wp_enqueue_script('stripe-js', 'https://js.stripe.com/v3/', array(), null, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(dirname(__FILE__)) . 'assets/public/js/wsb-public.js', array('jquery', 'stripe-js'), time(), true);
+        // Fetch staff-service mapping
+        global $wpdb;
+        $staff_services_raw = $wpdb->get_results("SELECT staff_id, service_id FROM {$wpdb->prefix}wsb_staff_services");
+        $mapping = array();
+        foreach ($staff_services_raw as $row) {
+            $mapping[$row->service_id][] = intval($row->staff_id);
+        }
+
         wp_localize_script($this->plugin_name, 'wsb_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wsb_nonce'),
@@ -89,7 +97,9 @@ class Wsb_Public
             'dashboard_url' => home_url('/booking-dashboard'),
             'stripe_pk' => get_option('wsb_stripe_publishable_key', ''),
             'skip_professional' => get_option('wsb_skip_professional_step', 'no'),
-            'skip_payment' => get_option('wsb_skip_payment_step', 'no')
+            'skip_payment' => get_option('wsb_skip_payment_step', 'no'),
+            'filter_staff_by_service' => get_option('wsb_filter_staff_by_service', 'no'),
+            'staff_service_mapping' => $mapping
         ));
     }
 
@@ -157,6 +167,16 @@ class Wsb_Public
         $l_next = get_option('wsb_label_next_btn', 'Next Step');
         $l_prev = get_option('wsb_label_prev_btn', 'Back');
 
+        // Dynamic Numbering Engine
+        $step_idx = 1;
+        $skip_prof = get_option('wsb_skip_professional_step', 'no');
+        $skip_pay = get_option('wsb_skip_payment_step', 'no');
+        
+        // Helper to strip numbers from labels (e.g. "1. Select Service" -> "Select Service")
+        $clean_label = function($label) {
+            return preg_replace('/^\d+[\.\)\-\s]+/', '', $label);
+        };
+
         // Detailed Styling
         $card_bg = get_option('wsb_card_bg_color', '#ffffff');
         $heading_color = get_option('wsb_heading_text_color', '#0f172a');
@@ -189,14 +209,41 @@ class Wsb_Public
             .wsb-card-option, .wsb-staff-card, .wsb-btn, .wsb-form-card, .wsb-field-wrap input, .wsb-field-wrap select, .wsb-field-wrap textarea, .wsb-phone-input-group { border-radius: var(--wsb-radius) !important; }
             .wsb-card-option, .wsb-staff-card, .wsb-form-card { box-shadow: var(--wsb-shadow-custom) !important; }
             .wsb-field-wrap input, .wsb-field-wrap select, .wsb-field-wrap textarea { background-color: var(--wsb-input-bg) !important; border-color: var(--wsb-input-border) !important; color: var(--wsb-body); }
+            
+            /* Modern Header System - Centered */
+            .wsb-step-header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; margin-bottom: 40px; border-bottom: 1px solid var(--wsb-input-border); padding-bottom: 30px; }
+            .wsb-step-badge { 
+                background: var(--wsb-gradient); color: white; width: 50px; height: 50px; 
+                display: flex; align-items: center; justify-content: center; 
+                border-radius: 50%; font-weight: 800; font-size: 20px; flex-shrink: 0;
+                box-shadow: 0 10px 20px -5px var(--wsb-ring);
+                margin-bottom: 5px;
+            }
+            .wsb-step-details h3 { margin: 0 0 8px 0 !important; font-size: 28px !important; font-weight: 800 !important; letter-spacing: -0.03em !important; }
+            .wsb-step-details p { margin: 0; color: var(--wsb-body); opacity: 0.7; font-size: 16px; font-weight: 500; max-width: 500px; margin-left: auto; margin-right: auto; }
+            
+            @media (max-width: 768px) {
+                .wsb-step-header { gap: 10px; margin-bottom: 30px; }
+                .wsb-step-details h3 { font-size: 22px !important; }
+                .wsb-step-details p { font-size: 14px; }
+                .wsb-step-badge { width: 40px; height: 40px; font-size: 16px; }
+            }
         </style>
         <div id="wsb-booking-wizard-container" class="wsb-wrapper">
             <div class="wsb-wizard-step" id="wsb-step-service">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
-                    <h3 style="margin:0;"><?php echo esc_html($l_step1); ?></h3>
-                    <a href="<?php echo esc_url(home_url('/booking-dashboard')); ?>" class="wsb-btn"
-                        style="background:#fff; border:1.5px solid var(--wsb-border); color:var(--wsb-text-muted); text-decoration:none; font-size: 14px; padding: 10px 20px; border-radius: 12px; font-weight: 700;">Manage
-                        My Bookings</a>
+                <div class="wsb-step-header">
+                    <div class="wsb-step-badge"><?php echo str_pad($step_idx++, 2, '0', STR_PAD_LEFT); ?></div>
+                    <div class="wsb-step-details">
+                        <h3><?php echo esc_html($clean_label($l_step1)); ?></h3>
+                        <p>Select your desired service to begin your experience.</p>
+                        
+                        <div style="margin-top:20px;">
+                            <a href="<?php echo esc_url(home_url('/booking-dashboard')); ?>" class="wsb-btn"
+                                style="display:inline-flex; align-items:center; background:rgba(99, 102, 241, 0.05); border:1.5px solid var(--wsb-brand); color:var(--wsb-brand); text-decoration:none; font-size: 13px; padding: 10px 22px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:8px;">
+                                <span class="dashicons dashicons-admin-users" style="font-size:18px;"></span> Client Portal
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <?php if (!empty($categories)): ?>
@@ -249,7 +296,13 @@ class Wsb_Public
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-staff" style="display:none;">
-                <h3><?php echo esc_html($l_step2); ?></h3>
+                <div class="wsb-step-header">
+                    <div class="wsb-step-badge"><?php echo ($skip_prof === 'yes') ? '--' : str_pad($step_idx++, 2, '0', STR_PAD_LEFT); ?></div>
+                    <div class="wsb-step-details">
+                        <h3><?php echo esc_html($clean_label($l_step2)); ?></h3>
+                        <p>Our team of experts is ready to provide exceptional care.</p>
+                    </div>
+                </div>
                 <div class="wsb-staff-grid">
                     <div class="wsb-staff-card" data-staff-id="any">
                         <div class="wsb-staff-avatar wsb-any-avatar">
@@ -288,7 +341,13 @@ class Wsb_Public
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-time" style="display:none;">
-                <h3><?php echo esc_html($l_step3); ?></h3>
+                <div class="wsb-step-header">
+                    <div class="wsb-step-badge"><?php echo str_pad($step_idx++, 2, '0', STR_PAD_LEFT); ?></div>
+                    <div class="wsb-step-details">
+                        <h3><?php echo esc_html($clean_label($l_step3)); ?></h3>
+                        <p>Find a time that perfectly fits your schedule.</p>
+                    </div>
+                </div>
                 <div class="wsb-datetime-layout-stacked">
                     <label class="wsb-datetime-label">📅 Choose Your Date</label>
 
@@ -324,7 +383,13 @@ class Wsb_Public
             </div>
 
             <div class="wsb-wizard-step" id="wsb-step-details" style="display:none;">
-                <h3><?php echo esc_html($l_step4); ?></h3>
+                <div class="wsb-step-header">
+                    <div class="wsb-step-badge"><?php echo str_pad($step_idx++, 2, '0', STR_PAD_LEFT); ?></div>
+                    <div class="wsb-step-details">
+                        <h3><?php echo esc_html($clean_label($l_step4)); ?></h3>
+                        <p>Tell us a little about yourself to secure your spot.</p>
+                    </div>
+                </div>
                 <div class="wsb-form-card">
                     <div class="wsb-form-container">
                         <div class="wsb-form-grid">
@@ -405,12 +470,18 @@ class Wsb_Public
                 <!-- Payment Selection Panel -->
                 <div
                     style="width: 100%; max-width: 700px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 40px; border-radius: 24px; box-shadow: var(--wsb-shadow-sm);">
-                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <h3 style="margin:0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">Select Payment Method</h3>
-                        <span
-                            style="background: #ecfdf5; color: #10b981; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; border: 1px solid #d1fae5;">
-                            <span style="font-size: 14px;">🛡️</span> Secure & Encrypted
-                        </span>
+                    <div class="wsb-step-header">
+                        <div class="wsb-step-badge"><?php echo ($skip_pay === 'yes') ? '--' : str_pad($step_idx++, 2, '0', STR_PAD_LEFT); ?></div>
+                        <div class="wsb-step-details">
+                            <h3>Select Payment Method</h3>
+                            <p>Your transaction is secure and encrypted.</p>
+                            
+                            <div style="margin-top:15px;">
+                                <span style="background: #ecfdf5; color: #10b981; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #d1fae5;">
+                                    <span style="font-size: 14px;">🛡️</span> 256-bit SSL Secure
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Payment Method Selector -->
@@ -463,11 +534,18 @@ class Wsb_Public
             <div class="wsb-wizard-step" id="wsb-step-checkout" style="display:none; gap: 30px; align-items: flex-start; padding-top: 10px; flex-wrap: wrap;">
                 <!-- LEFT COLUMN: Final Payment Execution -->
                 <div style="flex: 1 1 600px; background: #ffffff; border: 1px solid var(--wsb-border); padding: 30px; border-radius: 12px;">
-                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <h3 style="margin:0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">Complete Your Payment</h3>
-                        <span style="background: #ecfdf5; color: #10b981; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; border: 1px solid #d1fae5;">
-                            <span style="font-size: 14px;">🛡️</span> 256-bit SSL Secure
-                        </span>
+                    <div class="wsb-step-header">
+                        <div class="wsb-step-badge"><?php echo ($skip_pay === 'yes') ? '--' : str_pad($step_idx++, 2, '0', STR_PAD_LEFT); ?></div>
+                        <div class="wsb-step-details">
+                            <h3>Complete Your Payment</h3>
+                            <p>Finalize your booking with our secure gateway.</p>
+                            
+                            <div style="margin-top:15px;">
+                                <span style="background: #ecfdf5; color: #10b981; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #d1fae5;">
+                                    <span style="font-size: 14px;">🛡️</span> Encrypted Transaction
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Stripe Payment Element Container -->
@@ -599,15 +677,29 @@ class Wsb_Public
         $all_staff = $wpdb->get_results("SELECT * FROM $staff_table ORDER BY name ASC");
 
         $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT b.*, s.name as service_name, st.name as staff_name 
+            "SELECT b.*, st.name as staff_name 
              FROM $booking_table b 
              JOIN $customer_table c ON b.customer_id = c.id
-             LEFT JOIN $services_table s ON b.service_id = s.id
              LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
              WHERE c.email = %s 
              ORDER BY b.booking_date DESC, b.start_time DESC",
             $email
         ));
+
+        // Enqueue service names for bookings
+        foreach ($bookings as &$b) {
+            $b->service_name = 'Unknown Service';
+            if (!empty($b->service_id)) {
+                $ids = array_map('intval', explode(',', $b->service_id));
+                $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM $services_table WHERE id IN ($placeholders)", $ids));
+                if ($services) {
+                    $names = array_map(function($s) { return $s->name; }, $services);
+                    $b->service_name = implode(', ', $names);
+                }
+            }
+        }
+        unset($b);
 
         ob_start();
         $brand_color = get_option('wsb_brand_color', '#6366f1');
@@ -1092,7 +1184,165 @@ class Wsb_Public
      */
     public function wsb_logout_redirect($redirect_to, $requested_redirect_to, $user)
     {
-        // If logging out from the dashboard specifically, or generally for subscribers
         return home_url();
+    }
+
+    /**
+     * Render standalone services showcase widget
+     */
+    public function render_services_widget($atts)
+    {
+        $atts = shortcode_atts(array(
+            'category' => '',
+            'ids'      => '',
+        ), $atts, 'wsb_services');
+
+        global $wpdb;
+        $query = "SELECT * FROM {$wpdb->prefix}wsb_services WHERE status = 'active'";
+        
+        if (!empty($atts['category'])) {
+            $query .= $wpdb->prepare(" AND category = %s", $atts['category']);
+        }
+        
+        if (!empty($atts['ids'])) {
+            $ids = explode(',', $atts['ids']);
+            $ids = array_map('intval', $ids);
+            $query .= " AND id IN (" . implode(',', $ids) . ")";
+        }
+
+        $services = $wpdb->get_results($query);
+
+        if (empty($services)) {
+            return '<p style="text-align:center; color:var(--wsb-text-muted);">No services found matching your criteria.</p>';
+        }
+
+        // Fetch styling preferences
+        $brand_color = get_option('wsb_brand_color', '#6366f1');
+        $brand_color_end = get_option('wsb_brand_color_end', '#a855f7');
+        $font_family = get_option('wsb_font_family', 'Inter');
+        $border_radius = get_option('wsb_border_radius', '16');
+        $layout = get_option('wsb_service_layout', 'modern_grid');
+        
+        $card_bg = get_option('wsb_card_bg_color', '#ffffff');
+        $heading_color = get_option('wsb_heading_text_color', '#0f172a');
+        $body_color = get_option('wsb_body_text_color', '#64748b');
+
+        ob_start();
+        ?>
+        <style>
+            .wsb-services-showcase {
+                font-family: "<?php echo esc_attr($font_family); ?>", sans-serif;
+                color: <?php echo esc_attr($body_color); ?>;
+            }
+            .wsb-showcase-container {
+                display: grid;
+                gap: 25px;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+            .wsb-showcase-card {
+                background: <?php echo esc_attr($card_bg); ?>;
+                border-radius: <?php echo esc_attr($border_radius); ?>px;
+                overflow: hidden;
+                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+                border: 1px solid rgba(0,0,0,0.05);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                display: flex;
+                flex-direction: column;
+            }
+            .wsb-showcase-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
+            }
+            .wsb-showcase-img {
+                height: 180px;
+                background: #f1f5f9;
+                background-position: center;
+                background-size: cover;
+                position: relative;
+            }
+            .wsb-showcase-badge {
+                position: absolute;
+                top: 15px;
+                left: 15px;
+                background: rgba(255,255,255,0.9);
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 11px;
+                font-weight: 800;
+                color: <?php echo esc_attr($brand_color); ?>;
+                text-transform: uppercase;
+                backdrop-filter: blur(4px);
+            }
+            .wsb-showcase-content {
+                padding: 20px;
+                flex: 1;
+            }
+            .wsb-showcase-title {
+                margin: 0 0 10px 0;
+                font-size: 18px;
+                font-weight: 800;
+                color: <?php echo esc_attr($heading_color); ?>;
+            }
+            .wsb-showcase-meta {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            .wsb-showcase-price {
+                color: <?php echo esc_attr($brand_color); ?>;
+                font-size: 16px;
+                font-weight: 800;
+            }
+            .wsb-showcase-desc {
+                font-size: 14px;
+                line-height: 1.6;
+                margin-bottom: 20px;
+                opacity: 0.8;
+            }
+            .wsb-showcase-btn {
+                display: block;
+                text-align: center;
+                background: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
+                color: white;
+                text-decoration: none;
+                padding: 12px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 14px;
+                transition: opacity 0.2s;
+            }
+            .wsb-showcase-btn:hover {
+                opacity: 0.9;
+                color: white;
+            }
+        </style>
+
+        <div class="wsb-services-showcase">
+            <div class="wsb-showcase-container">
+                <?php foreach ($services as $s): ?>
+                    <div class="wsb-showcase-card">
+                        <div class="wsb-showcase-img" style="background-image: url('<?php echo esc_url($s->image_url ?: WSB_PLUGIN_URL . 'assets/public/img/service-placeholder.jpg'); ?>');">
+                            <?php if ($s->category): ?>
+                                <span class="wsb-showcase-badge"><?php echo esc_html($s->category); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="wsb-showcase-content">
+                            <h4 class="wsb-showcase-title"><?php echo esc_html($s->name); ?></h4>
+                            <div class="wsb-showcase-meta">
+                                <span><span class="dashicons dashicons-clock" style="font-size:14px; width:14px; height:14px; vertical-align:middle; margin-right:4px;"></span> <?php echo esc_html($s->duration); ?> min</span>
+                                <span class="wsb-showcase-price"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($s->price); ?></span>
+                            </div>
+                            <p class="wsb-showcase-desc"><?php echo esc_html(wp_trim_words($s->description, 15)); ?></p>
+                            <a href="<?php echo esc_url(add_query_arg('service_id', $s->id, home_url('/booking'))); ?>" class="wsb-showcase-btn">Book Appointment</a>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 }
