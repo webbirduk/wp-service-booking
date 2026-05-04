@@ -130,13 +130,18 @@ class Wsb_Ajax {
         $created_account = false;
 
         if (!$user_id) {
-            $username = sanitize_user(current(explode('@', $email)));
-            if (username_exists($username)) {
-                $username .= time();
+            // Robust Username Generation
+            $username_base = sanitize_user(current(explode('@', $email)));
+            $username = $username_base;
+            $suffix = 1;
+            while (username_exists($username)) {
+                $username = $username_base . $suffix;
+                $suffix++;
             }
-            $generated_password = wp_generate_password(12, false);
             
+            $generated_password = wp_generate_password(14, false);
             $user_id = wp_create_user($username, $generated_password, $email);
+            
             if (!is_wp_error($user_id)) {
                 wp_update_user(array(
                     'ID' => $user_id,
@@ -146,6 +151,8 @@ class Wsb_Ajax {
                     'role' => 'subscriber'
                 ));
                 $created_account = true;
+            } else {
+                error_log('WSB User Creation Error: ' . $user_id->get_error_message());
             }
         }
 
@@ -198,9 +205,47 @@ class Wsb_Ajax {
         } else {
             $staff_id = intval($staff_id);
         }
+        if ($customer) {
+            $customer_id = $customer->id;
+        } else {
+            $wpdb->insert($customer_table, array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email));
+            $customer_id = $wpdb->insert_id;
+        }
 
+        // Send Welcome Email immediately if account was created (Guest -> User)
+        if ($created_account) {
+            $welcome_subject = 'Welcome to ' . get_bloginfo('name') . ' - Your Secure Client Portal';
+            $welcome_content = '
+            <div class="info-card" style="text-align:center;">
+                <div style="font-size:12px; text-transform:uppercase; color:#6366f1; font-weight:800; letter-spacing:0.1em; margin-bottom:15px;">Security Credentials</div>
+                <div style="background:#ffffff; border:1px solid #e2e8f0; padding:25px; border-radius:16px; display:inline-block; text-align:left; min-width:250px;">
+                    <div style="margin-bottom:12px;"><strong style="color:#64748b;">Username:</strong> <span style="font-family:monospace; color:#0f172a; font-weight:600;">' . $email . '</span></div>
+                    <div><strong style="color:#64748b;">Temp Password:</strong> <span style="font-family:monospace; color:#0f172a; font-weight:600;">' . $generated_password . '</span></div>
+                </div>
+                <br>
+                <a href="' . wp_login_url() . '" class="btn-primary">Access Your Secure Portal</a>
+            </div>';
+            
+            wsb_send_modern_email($email, $welcome_subject, 'Identity Verified', "Hello $first_name, we've established a secure client profile for you to manage your appointments.", $welcome_content);
+        }
+
+        // 3. Process Booking
+        $service_ids = sanitize_text_field($data['service_id']);
+        $total_duration = 0;
+        $total_price = 0.00;
+        if (!empty($service_ids)) {
+            $ids = array_map('intval', explode(',', $service_ids));
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $services = $wpdb->get_results($wpdb->prepare("SELECT price, duration FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+            foreach ($services as $s) {
+                $total_price += floatval($s->price);
+                $total_duration += intval($s->duration);
+            }
+        }
+        
         $end_time = date('H:i:s', strtotime($start_time) + ($total_duration * 60));
 
+        $booking_table = $wpdb->prefix . 'wsb_bookings';
         $wpdb->insert($booking_table, array(
             'customer_id' => $customer_id,
             'service_id' => $service_ids,
@@ -213,31 +258,54 @@ class Wsb_Ajax {
         ));
         $booking_id = $wpdb->insert_id;
 
-        if ($booking_id && $status === 'confirmed') {
-            $payment_table = $wpdb->prefix . 'wsb_payments';
-            $transaction_id = isset($data['transaction_id']) ? sanitize_text_field($data['transaction_id']) : null;
-            $wpdb->insert($payment_table, array(
-                'booking_id' => $booking_id,
-                'amount' => $total_price,
-                'gateway' => $payment_method,
-                'status' => ($payment_method === 'stripe' || $payment_method === 'paypal') ? 'completed' : 'pending',
-                'transaction_id' => $transaction_id
-            ));
-
-            // Mail notification (only for confirmed)
-            $mail_subject = 'Booking Confirmed & Your Account Details';
-            $mail_body = "Hello " . esc_html($first_name) . ",\n\n";
-            $mail_body .= "Thank you for your booking! We've securely scheduled your appointment (#$booking_id).\n\n";
-            
-            if ($created_account) {
-                $mail_body .= "An automated client dashboard profile was established securely for you.\n";
-                $mail_body .= "Login Portal: " . wp_login_url() . "\n";
-                $mail_body .= "Username: " . esc_html($email) . "\n";
-                $mail_body .= "Temporary Password: " . esc_html($generated_password) . "\n\n";
+        if ($booking_id) {
+            // Log Payment if confirmed
+            if ($status === 'confirmed') {
+                $payment_table = $wpdb->prefix . 'wsb_payments';
+                $transaction_id = isset($data['transaction_id']) ? sanitize_text_field($data['transaction_id']) : null;
+                $wpdb->insert($payment_table, array(
+                    'booking_id' => $booking_id,
+                    'amount' => $total_price,
+                    'gateway' => $payment_method,
+                    'status' => ($payment_method === 'stripe' || $payment_method === 'paypal') ? 'completed' : 'pending',
+                    'transaction_id' => $transaction_id
+                ));
             }
+
+            // Booking Receipt Email (Sent for BOTH confirmed and pending)
+            $email_title = ($status === 'confirmed') ? 'Booking Secured' : 'Booking Received';
+            $subject = $email_title . ': Appointment #' . $booking_id;
+            $intro_text = ($status === 'confirmed') 
+                ? "Hello $first_name, your appointment has been successfully registered and confirmed." 
+                : "Hello $first_name, we have received your booking request. Our team will review it and confirm shortly.";
+
+            $details_html = '
+                <div class="info-card">
+                    <div style="margin-bottom:12px; font-size:15px;"><strong style="color:#64748b;">ID:</strong> <span style="color:#0f172a; font-weight:600;">#' . $booking_id . '</span></div>
+                    <div style="margin-bottom:12px; font-size:15px;"><strong style="color:#64748b;">Date:</strong> <span style="color:#0f172a; font-weight:600;">' . $booking_date . '</span></div>
+                    <div style="margin-bottom:12px; font-size:15px;"><strong style="color:#64748b;">Time:</strong> <span style="color:#0f172a; font-weight:600;">' . $start_time . '</span></div>
+                    <div style="font-size:15px;"><strong style="color:#64748b;">Status:</strong> <span style="color:' . ($status === 'confirmed' ? '#10b981' : '#6366f1') . '; font-weight:800; text-transform:uppercase;">' . $status . '</span></div>
+                </div>';
+
+            // Add Cancellation Policy
+            $cancellation_policy = get_option('wsb_cancellation_policy', 'Cancellations must be made at least 24 hours in advance.');
+            $details_html .= '
+                <div style="margin-top:25px; padding:20px; background:#fff1f2; border:1px solid #fecdd3; border-radius:16px;">
+                    <div style="font-size:11px; text-transform:uppercase; color:#e11d48; font-weight:800; margin-bottom:8px; letter-spacing:0.05em;">Cancellation Policy</div>
+                    <div style="font-size:13px; color:#9f1239; line-height:1.5;">' . wp_kses_post($cancellation_policy) . '</div>
+                </div>';
+
+            wsb_send_modern_email($email, $subject, $email_title, $intro_text, $details_html);
             
-            $mail_body .= "Best Regards.";
-            wp_mail($email, $mail_subject, $mail_body);
+            // Notify Admin
+            $admin_email = get_option('admin_email');
+            $admin_details = '
+                <div class="info-card">
+                    <strong style="color:#64748b;">Client:</strong> ' . $first_name . ' ' . $last_name . '<br>
+                    <strong style="color:#64748b;">Email:</strong> ' . $email . '<br>
+                    <strong style="color:#64748b;">Status:</strong> ' . strtoupper($status) . '
+                </div>';
+            wsb_send_modern_email($admin_email, 'New Lead: Booking #' . $booking_id, 'Lead Captured', "A new reservation has been logged in the system.", $admin_details);
         }
 
         return $booking_id;
@@ -276,15 +344,18 @@ class Wsb_Ajax {
         if ($client_action === 'cancel') {
             $wpdb->update($booking_table, array('status' => 'pending', 'request_type' => 'cancel'), array('id' => $booking_id));
             
-            $admin_subject = "[Action Required] Cancellation Request: Appointment #$booking_id";
-            $admin_body = "Client " . esc_html($current_user->display_name) . " requests to cancel appointment #$booking_id.\nPlease approve or decline via administrator modules.";
-            wp_mail($admin_email, $admin_subject, $admin_body);
+            // Admin Notification
+            $admin_subject = "[Action Required] Cancellation Request: #" . $booking_id;
+            $admin_details = '<div style="background:#fef2f2; padding:20px; border-radius:12px; border:1px solid #fee2e2;">
+                <strong>Client Name:</strong> ' . $current_user->display_name . '<br>
+                <strong>Booking ID:</strong> #' . $booking_id . '
+            </div>';
+            wsb_send_modern_email($admin_email, $admin_subject, 'Cancellation Request', 'A client has requested to cancel their scheduled appointment.', $admin_details);
             
-            $client_subject = "Cancellation Request Logged - Appointment #$booking_id";
-            $client_body = "Hello " . esc_html($current_user->display_name) . ",\n\n";
-            $client_body .= "We have successfully received your request to cancel appointment #$booking_id.\n\n";
-            $client_body .= "Our staff team will review and process this shortly.\n\nBest Regards.";
-            wp_mail($current_user->user_email, $client_subject, $client_body);
+            // Client Notification
+            $client_subject = "Cancellation Request Logged: #" . $booking_id;
+            $client_content = '<p>Your request to cancel appointment #' . $booking_id . ' has been logged. Our team will review this shortly and update your status.</p>';
+            wsb_send_modern_email($current_user->user_email, $client_subject, 'Request Received', "Hello " . $current_user->display_name . ",", $client_content);
             
             wp_send_json_success(array('message' => 'Cancellation request submitted successfully!'));
         } else {
@@ -298,7 +369,7 @@ class Wsb_Ajax {
             
             $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_date DATE DEFAULT NULL");
             $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_time TIME DEFAULT NULL");
-            $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_staff_id BIGINT(20) DEFAULT NULL");
+            $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_staff_id INT DEFAULT NULL");
 
             $wpdb->update($booking_table, array(
                 'status' => 'pending',
@@ -308,17 +379,21 @@ class Wsb_Ajax {
                 'requested_staff_id' => $reschedule_staff
             ), array('id' => $booking_id));
             
-            $admin_subject = "[Alert] Reschedule Request: Appointment #$booking_id";
-            $admin_body = "Client " . esc_html($current_user->display_name) . " rescheduled appointment #$booking_id to $reschedule_date at $reschedule_time.";
-            wp_mail($admin_email, $admin_subject, $admin_body);
+            // Admin Notification
+            $admin_subject = "[Action Required] Reschedule Request: #" . $booking_id;
+            $admin_details = '<div style="background:#f0f9ff; padding:20px; border-radius:12px; border:1px solid #e0f2fe;">
+                <strong>Client:</strong> ' . $current_user->display_name . '<br>
+                <strong>Requested Date:</strong> ' . $reschedule_date . '<br>
+                <strong>Requested Time:</strong> ' . $reschedule_time . '
+            </div>';
+            wsb_send_modern_email($admin_email, $admin_subject, 'Reschedule Requested', 'A client has requested to move their appointment.', $admin_details);
             
-            $client_subject = "Reschedule Request Logged - Appointment #$booking_id";
-            $client_body = "Hello " . esc_html($current_user->display_name) . ",\n\n";
-            $client_body .= "We have successfully received your request to reschedule appointment #$booking_id to $reschedule_date at $reschedule_time.\n\n";
-            $client_body .= "Our administrative team will verify and process the request shortly.\n\nBest Regards.";
-            wp_mail($current_user->user_email, $client_subject, $client_body);
-            
-            wp_send_json_success(array('message' => 'Reschedule request logged for administrative review!'));
+            // Client Notification
+            $client_subject = "Reschedule Request Logged: #" . $booking_id;
+            $client_content = '<p>We have received your request to reschedule appointment #' . $booking_id . '. Our team will check availability and confirm the change shortly.</p>';
+            wsb_send_modern_email($current_user->user_email, $client_subject, 'Request Received', "Hello " . $current_user->display_name . ",", $client_content);
+
+            wp_send_json_success(array('message' => 'Reschedule request submitted successfully!'));
         }
     }
 

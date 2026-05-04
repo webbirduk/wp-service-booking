@@ -604,6 +604,180 @@
     animation: wsb-slide-in 0.3s ease-out;
 }
 
+/* Tooltips */
+.wsb-info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: rgba(255,255,255,0.1);
+    color: var(--wsb-text-muted);
+    border-radius: 50%;
+    font-size: 11px;
+    margin-left: 8px;
+    cursor: help;
+    transition: all 0.2s;
+    position: relative;
+    vertical-align: middle;
+}
+
+.wsb-info-icon:hover {
+    background: var(--wsb-primary);
+    color: #fff;
+}
+
+.wsb-info-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    background: #1e293b;
+    color: #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    width: 200px;
+    text-align: center;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 100;
+    line-height: 1.4;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.wsb-info-icon:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) scale(1);
+}
+
+/* Premium Admin Modals (v2.0 Elite) */
+.wsb-admin-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.85);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    animation: wsbFadeIn 0.4s ease;
+}
+
+.wsb-admin-modal {
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 32px;
+    width: 100%;
+    max-width: 480px;
+    padding: 40px;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.wsb-admin-modal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #ef4444, transparent);
+}
+
+.wsb-admin-modal-badge {
+    display: inline-block;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 25px;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.wsb-admin-modal-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    display: block;
+    filter: drop-shadow(0 10px 15px rgba(239, 68, 68, 0.2));
+}
+
+.wsb-admin-modal h3 {
+    color: #fff;
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0 0 16px 0;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+}
+
+.wsb-admin-modal-body {
+    color: #94a3b8;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 35px;
+    padding: 0 10px;
+}
+
+.wsb-admin-modal-footer {
+    display: flex;
+    gap: 16px;
+}
+
+.wsb-modal-btn {
+    flex: 1;
+    padding: 16px;
+    border-radius: 16px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    border: none;
+    outline: none;
+}
+
+.wsb-modal-cancel {
+    background: rgba(255, 255, 255, 0.03);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.wsb-modal-cancel:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.wsb-modal-confirm {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: #fff;
+    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.25);
+}
+
+.wsb-modal-confirm:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(239, 68, 68, 0.4);
+    filter: brightness(1.1);
+}
+
+@keyframes wsbFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes wsb-slide-in {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }

@@ -1,4 +1,8 @@
 jQuery(document).ready(function($) {
+    let splitBookingMode = false;
+    let selectedServicesData = []; // [{id, name, duration, staff_id, staff_name, date, time}]
+    let currentSplitIndex = 0;
+
     // Category Filtering Logic
     $('.wsb-filter-btn').on('click', function() {
         $('.wsb-filter-btn').removeClass('active');
@@ -28,6 +32,32 @@ jQuery(document).ready(function($) {
         const selectedCount = $('.wsb-card-option.selected').length;
         // Enable the Next button if at least one service is selected
         $(this).closest('.wsb-wizard-step').find('.wsb-next-btn').prop('disabled', selectedCount === 0);
+
+        // Calculate and update session duration summary
+        let totalDuration = 0;
+        let breakdownHtml = '';
+        $('.wsb-card-option.selected').each(function() {
+            const name = $(this).find('h4').text();
+            const durText = $(this).find('.wsb-service-meta span:first-child').text();
+            const duration = parseInt(durText) || 0;
+            totalDuration += duration;
+            
+            breakdownHtml += `
+                <div style="display:flex; justify-content:space-between; font-size:13px; opacity:0.8;">
+                    <span>• ${name}</span>
+                    <span>${duration}m</span>
+                </div>
+            `;
+        });
+
+        if (selectedCount > 1) {
+            $('#wsb-session-duration').text(totalDuration);
+            $('#wsb-session-duration-time').text(totalDuration);
+            $('#wsb-service-breakdown').html(breakdownHtml);
+            $('#wsb-multi-session-notice, #wsb-multi-time-notice').fadeIn(300);
+        } else {
+            $('#wsb-multi-session-notice, #wsb-multi-time-notice').hide();
+        }
     });
 
     $(document).on('click', '.wsb-staff-card', function() {
@@ -49,13 +79,64 @@ jQuery(document).ready(function($) {
         var nextStep = $(this).data('next');
         var currentStep = $(this).closest('.wsb-wizard-step');
         
+        // Handle Step-Specific Initialization
+        if (currentStep.attr('id') === 'wsb-step-service') {
+            const selectedCount = $('.wsb-card-option.selected').length;
+            splitBookingMode = (wsb_ajax.enable_split_scheduling === 'yes' && selectedCount > 1);
+            
+            selectedServicesData = $('.wsb-card-option.selected').map(function() {
+                return {
+                    id: $(this).data('service-id'),
+                    name: $(this).find('h4').text(),
+                    duration: parseInt($(this).find('.wsb-service-meta span:first-child').text())
+                };
+            }).get();
+            currentSplitIndex = 0;
+            
+            if (splitBookingMode) {
+                $('#wsb-split-indicator').show();
+                updateSplitUI();
+            } else {
+                $('#wsb-split-indicator').hide();
+            }
+        }
+
+        // Handle Sequential Scheduling Logic for Split Mode
+        if (currentStep.attr('id') === 'wsb-step-time' && splitBookingMode) {
+            // Store current selection
+            selectedServicesData[currentSplitIndex].staff_id = $('.wsb-staff-card.selected').data('staff-id') || 'any';
+            selectedServicesData[currentSplitIndex].staff_name = $('.wsb-staff-card.selected h4').text() || 'Any Specialist';
+            selectedServicesData[currentSplitIndex].date = $('#wsb-booking-date').val();
+            selectedServicesData[currentSplitIndex].time = $('.wsb-slot-btn.selected').text();
+
+            if (currentSplitIndex < selectedServicesData.length - 1) {
+                currentSplitIndex++;
+                updateSplitUI();
+                
+                // Clear selections for next service
+                $('.wsb-staff-card').removeClass('selected');
+                $('#wsb-booking-date').val('');
+                selectedDate = null; // Reset the global calendar state
+                $('.wsb-slot-btn').removeClass('selected');
+                $('.wsb-time-slots').empty();
+                $('.wsb-time-picker-section').hide();
+                $('#wsb-step-time .wsb-next-btn').prop('disabled', true);
+                $('#wsb-step-staff .wsb-next-btn').prop('disabled', true);
+
+                transitionToStep('wsb-step-staff');
+                applyStaffFilter();
+                return;
+            }
+        }
+
         // Handle Skip Professional Step
         if (nextStep === 'wsb-step-staff' && wsb_ajax.skip_professional === 'yes') {
             nextStep = 'wsb-step-time';
         }
 
-        // Apply Staff Filtering if enabled
+        // Apply Staff Filtering
         if (nextStep === 'wsb-step-staff') {
+            // In split mode, we filter by the SINGLE current service
             applyStaffFilter();
         }
 
@@ -179,20 +260,35 @@ jQuery(document).ready(function($) {
                 let currencySymbol = '';
 
                 $('.wsb-card-option.selected').each(function() {
-                    serviceNames.push($(this).find('h4').text());
                     const priceText = $(this).find('.wsb-price-tag').text();
-                    // Extract numeric value and symbol
                     const numericPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
                     totalPrice += numericPrice;
                     currencySymbol = priceText.replace(/[0-9.,]/g, '').trim();
                 });
+
+                if (splitBookingMode) {
+                    let summaryHtml = '';
+                    selectedServicesData.forEach(item => {
+                        summaryHtml += `<div style="margin-bottom:10px; border-bottom:1px dashed rgba(0,0,0,0.05); padding-bottom:8px;">
+                                        <strong>${item.name}</strong><br>
+                                        <span style="font-size:12px; opacity:0.7;">👤 Specialist: ${item.staff_name}</span><br>
+                                        <span style="font-size:12px; opacity:0.7;">📅 ${item.date} at ${item.time}</span>
+                                        </div>`;
+                    });
+                    $('#wsb-checkout-summary-service').html(summaryHtml);
+                    $('#wsb-checkout-summary-datetime').html('<span style="color:var(--wsb-brand); font-weight:700;">Multiple Appointments</span>');
+                } else {
+                    $('.wsb-card-option.selected').each(function() {
+                        serviceNames.push($(this).find('h4').text());
+                    });
+                    $('#wsb-checkout-summary-service').html(serviceNames.join('<br>'));
+                    $('#wsb-checkout-summary-datetime').html(
+                        '📅 ' + $('#wsb-booking-date').val() + '<br>' +
+                        '🕒 ' + $('.wsb-slot-btn.selected').text()
+                    );
+                }
                 
-                $('#wsb-checkout-summary-service').html(serviceNames.join('<br>'));
                 $('#wsb-checkout-summary-price, #wsb-checkout-summary-total').text(currencySymbol + totalPrice.toFixed(2));
-                $('#wsb-checkout-summary-datetime').html(
-                    '📅 ' + $('#wsb-booking-date').val() + '<br>' +
-                    '🕒 ' + $('.wsb-slot-btn.selected').text()
-                );
 
                 if (method === 'paypal') {
                     $('#wsb-stripe-payment-container').hide();
@@ -209,10 +305,64 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    function updateSplitUI() {
+        const current = selectedServicesData[currentSplitIndex];
+        
+        // Update Breakdown with Status indicators
+        let breakdownHtml = '';
+        selectedServicesData.forEach((item, index) => {
+            let statusIcon = '<span style="color:var(--wsb-text-muted); opacity:0.3;">○</span>';
+            let rowStyle = 'opacity:0.5;';
+            let statusLabel = '';
+            
+            if (index < currentSplitIndex) {
+                statusIcon = '<span style="color:#10b981;">✅</span>';
+                rowStyle = 'opacity:1; font-weight:500;';
+                statusLabel = '<span style="font-size:10px; color:#10b981; margin-left:8px;">Scheduled</span>';
+            } else if (index === currentSplitIndex) {
+                statusIcon = '<span style="color:var(--wsb-brand); animation: wsbPulse 1.5s infinite;">📍</span>';
+                rowStyle = 'opacity:1; font-weight:800; background:rgba(99, 102, 241, 0.03); border-radius:6px; padding:4px 8px; margin: 2px -8px;';
+                statusLabel = '<span style="font-size:10px; color:var(--wsb-brand); margin-left:8px;">Planning...</span>';
+            }
+            
+            breakdownHtml += `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; ${rowStyle} transition:all 0.3s;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        ${statusIcon}
+                        <span>${item.name}${statusLabel}</span>
+                    </div>
+                    <span style="font-variant-numeric: tabular-nums;">${item.duration}m</span>
+                </div>
+            `;
+        });
+
+        $('#wsb-service-breakdown').html(breakdownHtml);
+        $('#wsb-current-split-service-name').text(current.name);
+        $('#wsb-session-duration').text(current.duration);
+        $('#wsb-session-duration-time').text(current.duration);
+        
+        // Update headers to reflect "Step X of Y" for the specific service
+        $('#wsb-step-staff .wsb-step-details h3').text(`Select Specialist for ${current.name}`);
+        $('#wsb-step-time .wsb-step-details h3').text(`Schedule ${current.name}`);
+    }
+
+    function transitionToStep(stepId) {
+        const current = $('.wsb-wizard-step:visible');
+        current.css({opacity: 1}).animate({opacity: 0, marginTop: '20px'}, 200, function() {
+            current.hide();
+            $('#' + stepId).css({opacity: 0, marginTop: '-20px'}).show().animate({opacity: 1, marginTop: '0'}, 300);
+        });
+    }
+
     function applyStaffFilter() {
         if (wsb_ajax.filter_staff_by_service !== 'yes') return;
 
-        const selectedServiceIds = $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get();
+        let selectedServiceIds = [];
+        if (splitBookingMode && selectedServicesData[currentSplitIndex]) {
+            selectedServiceIds = [selectedServicesData[currentSplitIndex].id];
+        } else {
+            selectedServiceIds = $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get();
+        }
         
         if (selectedServiceIds.length > 0) {
             let eligibleStaffIds = null;
@@ -245,7 +395,7 @@ jQuery(document).ready(function($) {
                 }
             } else {
                 if ($('.wsb-no-staff-msg').length === 0) {
-                    $('#wsb-step-staff .wsb-card-grid').after('<p class="wsb-no-staff-msg" style="text-align:center; color:#ef4444; padding:20px; font-weight:700;">No professionals are available for the selected service combination.</p>');
+                    $('#wsb-step-staff .wsb-card-grid').after('<p class="wsb-no-staff-msg" style="text-align:center; color:#ef4444; padding:20px; font-weight:700;">No professionals are available for the selected service.</p>');
                 }
                 $('.wsb-no-staff-msg').show();
                 $('#wsb-step-staff .wsb-next-btn').prop('disabled', true);
@@ -269,48 +419,71 @@ jQuery(document).ready(function($) {
         });
     });
 
-    function processManualBooking($btn) {
+    async function processManualBooking($btn) {
         const originalText = $btn.text();
-        $btn.text('Processing...').prop('disabled', true);
+        $btn.text('Securing Appointments...').prop('disabled', true);
 
-        $.ajax({
-            url: wsb_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'wsb_create_booking',
-                nonce: wsb_ajax.nonce,
-                first_name: $('#wsb-first-name').val(),
-                last_name: $('#wsb-last-name').val(),
-                email: $('#wsb-email').val(),
-                phone: $('#wsb-phone').val(),
-                notes: $('#wsb-notes').val(),
+        const customerData = {
+            first_name: $('#wsb-first-name').val(),
+            last_name: $('#wsb-last-name').val(),
+            email: $('#wsb-email').val(),
+            phone: $('#wsb-phone').val(),
+            notes: $('#wsb-notes').val()
+        };
+
+        let bookingsToCreate = [];
+        if (splitBookingMode) {
+            bookingsToCreate = selectedServicesData.map(item => ({
+                service_id: item.id,
+                staff_id: item.staff_id,
+                booking_date: item.date,
+                start_time: item.time
+            }));
+        } else {
+            bookingsToCreate = [{
                 service_id: $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get().join(','),
                 staff_id: $('.wsb-staff-card.selected').data('staff-id') || 'any',
                 booking_date: $('#wsb-booking-date').val(),
-                start_time: $('.wsb-slot-btn.selected').text(),
-                payment_method: 'manual'
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Show success state
-                    $('#wsb-booking-wizard-container').html(
-                        '<div style="text-align:center; padding:60px 40px; background:#fff; border-radius:32px; border:1px solid var(--wsb-border); box-shadow:var(--wsb-shadow-lg);">' +
-                        '<div style="width:100px; height:100px; background:#10b981; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:50px; margin:0 auto 30px; animation:wsbPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);">✓</div>' +
-                        '<h2 style="font-size:32px; font-weight:800; color:#0f172a; margin-bottom:15px;">Appointment Requested!</h2>' +
-                        '<p style="color:#64748b; font-size:18px; line-height:1.6; margin-bottom:40px;">' + response.data.message + '</p>' +
-                        '<button onclick="location.reload()" class="wsb-btn wsb-next-btn" style="padding:15px 40px;">Book Another Service</button>' +
-                        '</div>'
-                    );
-                } else {
-                    alert(response.data.message || 'Booking failed.');
-                    $btn.text(originalText).prop('disabled', false);
-                }
-            },
-            error: function() {
-                alert('Connection error.');
+                start_time: $('.wsb-slot-btn.selected').text()
+            }];
+        }
+
+        try {
+            let lastResponse = null;
+            for (const b of bookingsToCreate) {
+                const res = await $.ajax({
+                    url: wsb_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'wsb_create_booking',
+                        nonce: wsb_ajax.nonce,
+                        ...customerData,
+                        ...b,
+                        payment_method: 'manual'
+                    }
+                });
+                lastResponse = res;
+            }
+
+            if (lastResponse && lastResponse.success) {
+                // Show success state
+                $('#wsb-booking-wizard-container').html(
+                    '<div style="text-align:center; padding:60px 40px; background:#fff; border-radius:32px; border:1px solid var(--wsb-border); box-shadow:var(--wsb-shadow-lg);">' +
+                    '<div style="width:100px; height:100px; background:#10b981; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:50px; margin:0 auto 30px; animation:wsbPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);">✓</div>' +
+                    '<h2 style="font-size:32px; font-weight:800; color:#0f172a; margin-bottom:15px;">All appointments secured!</h2>' +
+                    '<p style="color:#64748b; font-size:18px; line-height:1.6; margin-bottom:40px;">Your scheduling request has been processed successfully. Check your email for details.</p>' +
+                    '<button onclick="location.reload()" class="wsb-btn wsb-next-btn" style="padding:15px 40px;">Book More Services</button>' +
+                    '</div>'
+                );
+            } else {
+                alert(lastResponse.data.message || 'Booking failed.');
                 $btn.text(originalText).prop('disabled', false);
             }
-        });
+        } catch (err) {
+            console.error('WSB Booking Error:', err);
+            alert('A technical error occurred while securing your appointments. Please try again.');
+            $btn.text(originalText).prop('disabled', false);
+        }
     }
 
     // Custom Interactive Calendar Generator
@@ -400,7 +573,9 @@ jQuery(document).ready(function($) {
                 action: 'wsb_get_slots',
                 nonce: wsb_ajax.nonce,
                 date: dateVal,
-                service_id: $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get().join(','),
+                service_id: splitBookingMode && selectedServicesData[currentSplitIndex] 
+                            ? selectedServicesData[currentSplitIndex].id 
+                            : $('.wsb-card-option.selected').map(function() { return $(this).data('service-id'); }).get().join(','),
                 staff_id: $('.wsb-staff-card.selected').data('staff-id') || 'any'
             },
             success: function(response) {

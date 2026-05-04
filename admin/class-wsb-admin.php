@@ -127,18 +127,22 @@ class Wsb_Admin
              FROM $booking_table b 
              JOIN $customer_table c ON b.customer_id = c.id 
              WHERE b.id = %d", 
-            $booking_id
+             $booking_id
         ));
         
         if ($booking && !empty($booking->email)) {
-            $mail_subject = "Update: Booking #$booking_id Status Changed to " . ucfirst($new_status);
-            $mail_body = "Hello " . esc_html($booking->first_name) . ",\n\n";
-            $mail_body .= "We're writing to inform you that your booking status has been updated to: " . strtoupper($new_status) . ".\n\n";
-            $mail_body .= "Review schedule timelines directly inside dashboards:\n";
-            $mail_body .= esc_url(home_url('/booking-dashboard')) . "\n\n";
-            $mail_body .= "Best Regards.";
+            $mail_subject = "Update: Booking #" . $booking_id . " Status Changed";
+            $status_color = ($new_status === 'confirmed') ? '#10b981' : (($new_status === 'cancelled') ? '#ef4444' : '#6366f1');
             
-            wp_mail($booking->email, $mail_subject, $mail_body);
+            $content_html = '
+                <div style="background:#f8fafc; padding:30px; border-radius:16px; text-align:center;">
+                    <div style="font-size:12px; text-transform:uppercase; color:#94a3b8; font-weight:800; margin-bottom:10px;">New Status</div>
+                    <div style="display:inline-block; padding:8px 20px; background:' . $status_color . '; color:#fff; border-radius:30px; font-weight:800; font-size:18px;">' . strtoupper($new_status) . '</div>
+                    <p style="margin-top:20px; color:#475569;">Your appointment has been successfully updated in our system. You can view all your booking history and manage your appointments via your personal dashboard.</p>
+                    <a href="' . home_url('/booking-dashboard') . '" style="display:inline-block; margin-top:10px; padding:14px 30px; background:#0f172a; color:#fff; text-decoration:none; border-radius:12px; font-weight:700;">Access Client Portal</a>
+                </div>';
+
+            wsb_send_modern_email($booking->email, $mail_subject, 'Status Update', "Hello " . $booking->first_name . ", your booking status has been updated.", $content_html);
         }
     }
 }

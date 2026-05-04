@@ -57,14 +57,16 @@ class Wsb_Public
                     wp_set_auth_cookie($user->ID);
                 }
 
-                $mail_subject = 'Booking Confirmed - Appointment #' . $booking_id;
-                $mail_body = "Hello " . esc_html($customer->first_name) . ",\n\n";
-                $mail_body .= "Your payment was successful and your booking is now confirmed!\n\n";
-                $mail_body .= "Booking ID: #" . $booking_id . "\n";
-                $mail_body .= "Date: " . $booking->booking_date . "\n";
-                $mail_body .= "Time: " . $booking->start_time . "\n\n";
-                $mail_body .= "Thank you for choosing our services.";
-                wp_mail($customer->email, $mail_subject, $mail_body);
+                $mail_subject = 'Payment Received: Booking Confirmed';
+                $details_html = '
+                <div style="background:#f0fdf4; padding:25px; border-radius:16px; border:1px solid #dcfce7;">
+                    <div style="font-size:12px; text-transform:uppercase; color:#166534; font-weight:800; margin-bottom:10px;">Payment Successful</div>
+                    <div style="margin-bottom:10px;"><strong>Booking ID:</strong> #' . $booking_id . '</div>
+                    <div style="margin-bottom:10px;"><strong>Scheduled Date:</strong> ' . $booking->booking_date . '</div>
+                    <div style="margin-bottom:10px;"><strong>Start Time:</strong> ' . $booking->start_time . '</div>
+                </div>';
+
+                wsb_send_modern_email($customer->email, $mail_subject, 'Payment Confirmed', "Hello " . $customer->first_name . ", your payment was successful and your appointment is now fully confirmed!", $details_html);
             }
 
             // Redirect to dashboard with success message
@@ -99,6 +101,7 @@ class Wsb_Public
             'skip_professional' => get_option('wsb_skip_professional_step', 'no'),
             'skip_payment' => get_option('wsb_skip_payment_step', 'no'),
             'filter_staff_by_service' => get_option('wsb_filter_staff_by_service', 'no'),
+            'enable_split_scheduling' => get_option('wsb_enable_split_scheduling', 'no'),
             'staff_service_mapping' => $mapping
         ));
     }
@@ -237,11 +240,12 @@ class Wsb_Public
                         <h3><?php echo esc_html($clean_label($l_step1)); ?></h3>
                         <p>Select your desired service to begin your experience.</p>
                         
-                        <div style="margin-top:20px;">
+                        <div style="margin-top:20px; display:flex; flex-direction:column; align-items:center; gap:10px;">
                             <a href="<?php echo esc_url(home_url('/booking-dashboard')); ?>" class="wsb-btn"
                                 style="display:inline-flex; align-items:center; background:rgba(99, 102, 241, 0.05); border:1.5px solid var(--wsb-brand); color:var(--wsb-brand); text-decoration:none; font-size: 13px; padding: 10px 22px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:8px;">
                                 <span class="dashicons dashicons-admin-users" style="font-size:18px;"></span> Client Portal
                             </a>
+                            
                         </div>
                     </div>
                 </div>
@@ -301,6 +305,20 @@ class Wsb_Public
                     <div class="wsb-step-details">
                         <h3><?php echo esc_html($clean_label($l_step2)); ?></h3>
                         <p>Our team of experts is ready to provide exceptional care.</p>
+                        
+                        <!-- MULTI-SERVICE SESSION NOTICE -->
+                        <div id="wsb-multi-session-notice" style="display:none; margin-top:20px; padding:15px 25px; background:rgba(99, 102, 241, 0.05); border:1px solid var(--wsb-brand); border-radius:12px; font-size:14px; color:var(--wsb-brand); font-weight:600; text-align:left;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid rgba(99, 102, 241, 0.1); padding-bottom:8px;">
+                                <span style="font-size:16px; font-weight:800;">✨ Selected Bundle</span>
+                                <span style="background:var(--wsb-brand); color:#fff; padding:2px 10px; border-radius:20px; font-size:11px;"><span id="wsb-session-duration">0</span> mins</span>
+                            </div>
+                            <div id="wsb-service-breakdown" style="display:flex; flex-direction:column; gap:6px;">
+                                <!-- Populated via JS -->
+                            </div>
+                            <div id="wsb-split-indicator" style="display:none; margin-top:12px; padding-top:10px; border-top:1px dashed var(--wsb-brand); color:var(--wsb-brand); font-style:italic; font-size:12px;">
+                                📍 Scheduling: <span id="wsb-current-split-service-name">Service Name</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="wsb-staff-grid">
@@ -346,6 +364,12 @@ class Wsb_Public
                     <div class="wsb-step-details">
                         <h3><?php echo esc_html($clean_label($l_step3)); ?></h3>
                         <p>Find a time that perfectly fits your schedule.</p>
+
+                        <!-- MULTI-SERVICE TIME NOTICE -->
+                        <div id="wsb-multi-time-notice" style="display:none; margin-top:20px; padding:12px 20px; background:rgba(16, 185, 129, 0.05); border:1px solid #10b981; border-radius:12px; font-size:14px; color:#10b981; font-weight:600;">
+                            <span style="font-size:18px; margin-right:8px;">🕒</span> 
+                            <span>Finding a <span id="wsb-session-duration-time">0</span> min opening for your combined services.</span>
+                        </div>
                     </div>
                 </div>
                 <div class="wsb-datetime-layout-stacked">

@@ -282,6 +282,107 @@ jQuery(document).ready(function($) {
         loadTab(tab);
         handleWSBNotices();
     };
+
+    // 6. Admin Safety Confirmation (Impact Analysis)
+    function wsbConfirm(title, msg) {
+        return new Promise((resolve) => {
+            const modal = $(`
+                <div class="wsb-admin-modal-overlay">
+                    <div class="wsb-admin-modal">
+                        <div class="wsb-admin-modal-badge">System Integrity Warning</div>
+                        <h3 id="wsb-modal-title">${title}</h3>
+                        <div class="wsb-admin-modal-body" id="wsb-modal-msg">${msg}</div>
+                        <div class="wsb-admin-modal-footer">
+                            <button class="wsb-modal-btn wsb-modal-cancel">Keep Enabled</button>
+                            <button class="wsb-modal-btn wsb-modal-confirm">Confirm Deactivation</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            
+            $('body').append(modal);
+            
+            modal.find('.wsb-modal-confirm').on('click', function() {
+                modal.fadeOut(200, function() { modal.remove(); });
+                resolve(true);
+            });
+            
+            modal.find('.wsb-modal-cancel').on('click', function() {
+                modal.fadeOut(200, function() { modal.remove(); });
+                resolve(false);
+            });
+        });
+    }
+
+    $(document).on('change', '.wsb-master-content .wsb-switch input', async function(e) {
+        var checkbox = $(this);
+        var name = checkbox.attr('name');
+        var isChecked = checkbox.is(':checked');
+        
+        // Impact messages for disabling critical features
+        const impacts = {
+            'wsb_skip_professional_step': {
+                'title': 'Bypassing Team Selection',
+                'msg': 'Enabling this will automatically skip the professional selection step for customers. Bookings will be assigned to any available staff member.',
+                'triggerOn': 'check'
+            },
+            'wsb_skip_payment_step': {
+                'title': 'Deactivating Online Checkout',
+                'msg': 'Enabling this will allow customers to book without paying upfront. Your Stripe/PayPal integrations will be bypassed.',
+                'triggerOn': 'check'
+            },
+            'wsb_filter_staff_by_service': {
+                'title': 'Deactivating Expertise Filtering',
+                'msg': 'All staff members will now be visible for every service. The system will no longer restrict selection based on your specialist-to-service mapping.',
+                'triggerOn': 'uncheck'
+            },
+            'wsb_enable_split_scheduling': {
+                'title': 'Disabling Multi-Pro Scheduling',
+                'msg': 'Customers will lose the ability to pick different specialists for multi-service bundles. All selected services will be booked as a single consolidated session.',
+                'triggerOn': 'uncheck'
+            }
+        };
+
+        const impact = impacts[name];
+        if (!impact) return;
+
+        // Determine if we should trigger the modal
+        let isTriggered = false;
+        if (impact.triggerOn === 'check' && isChecked) isTriggered = true;
+        if (impact.triggerOn === 'uncheck' && !isChecked) isTriggered = true;
+
+        if (isTriggered) {
+            // Revert state temporarily while waiting for confirmation
+            checkbox.prop('checked', !isChecked);
+            
+            const confirmed = await wsbConfirm(impact.title, impact.msg);
+            if (confirmed) {
+                checkbox.prop('checked', isChecked);
+            } else {
+                checkbox.prop('checked', !isChecked);
+            }
+        }
+    });
+
+    // 7. Restore Defaults Confirmation
+    $(document).on('click', '#wsb-restore-defaults-btn', async function(e) {
+        e.preventDefault();
+        const confirmed = await wsbConfirm(
+            'Restore Factory Defaults?', 
+            'This will revert all system settings, scheduling rules, and flow controls to their original values. This action cannot be undone.'
+        );
+        
+        if (confirmed) {
+            // Create a hidden input to submit the action and trigger the form
+            $('<input>').attr({
+                type: 'hidden',
+                name: 'wsb_restore_defaults',
+                value: '1'
+            }).appendTo($(this).closest('form'));
+            
+            $(this).closest('form').submit();
+        }
+    });
 });
 
 /**

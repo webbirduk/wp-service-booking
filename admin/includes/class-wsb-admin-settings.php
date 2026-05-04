@@ -13,7 +13,20 @@ class Wsb_Admin_Settings
         global $wpdb;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (isset($_POST['wsb_settings_nonce']) && wp_verify_nonce($_POST['wsb_settings_nonce'], 'wsb_save_settings')) {
+            if (isset($_POST['wsb_restore_defaults'])) {
+                delete_option('wsb_currency');
+                delete_option('wsb_skip_professional_step');
+                delete_option('wsb_skip_payment_step');
+                delete_option('wsb_filter_staff_by_service');
+                delete_option('wsb_enable_split_scheduling');
+                delete_option('wsb_booking_buffer');
+                delete_option('wsb_min_notice');
+                delete_option('wsb_instant_confirm');
+                delete_option('wsb_enable_notifications');
+                delete_option('wsb_cancellation_policy');
+                
+                echo '<div class="notice notice-warning is-dismissible"><p>All settings have been restored to factory defaults.</p></div>';
+            } elseif (isset($_POST['wsb_settings_nonce']) && wp_verify_nonce($_POST['wsb_settings_nonce'], 'wsb_save_settings')) {
                 do_action('wsb_before_save_settings', $_POST);
                 update_option('wsb_currency', sanitize_text_field($_POST['wsb_currency']));
 
@@ -21,6 +34,7 @@ class Wsb_Admin_Settings
                 update_option('wsb_skip_professional_step', isset($_POST['wsb_skip_professional_step']) ? 'yes' : 'no');
                 update_option('wsb_skip_payment_step', isset($_POST['wsb_skip_payment_step']) ? 'yes' : 'no');
                 update_option('wsb_filter_staff_by_service', isset($_POST['wsb_filter_staff_by_service']) ? 'yes' : 'no');
+                update_option('wsb_enable_split_scheduling', isset($_POST['wsb_enable_split_scheduling']) ? 'yes' : 'no');
 
                 // Advanced Rules
                 update_option('wsb_booking_buffer', intval($_POST['wsb_booking_buffer']));
@@ -37,7 +51,8 @@ class Wsb_Admin_Settings
         $currency = get_option('wsb_currency', 'USD');
         $skip_prof = get_option('wsb_skip_professional_step', 'no');
         $skip_pay = get_option('wsb_skip_payment_step', 'no');
-        $filter_staff = get_option('wsb_filter_staff_by_service', 'no');
+        $filter_staff = get_option('wsb_filter_staff_by_service', 'yes');
+        $enable_split = get_option('wsb_enable_split_scheduling', 'yes');
         $buffer = get_option('wsb_booking_buffer', '15');
         $min_notice = get_option('wsb_min_notice', '2');
         $instant_confirm = get_option('wsb_instant_confirm', 'yes');
@@ -122,7 +137,10 @@ class Wsb_Admin_Settings
                                 <div style="display:flex; flex-direction:column; gap:20px;">
                                         <div style="display:flex; align-items:center; justify-content:space-between;">
                                             <div>
-                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">01. System Default Currency</label>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                                    System Default Currency
+                                                    <span class="wsb-info-icon" data-tooltip="Sets the primary currency used for all pricing and checkout transactions throughout the plugin.">?</span>
+                                                </label>
                                                 <span style="color:var(--wsb-text-muted); font-size:12px;">Primary currency for all financial transactions.</span>
                                             </div>
                                             <select name="wsb_currency" style="width:180px; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:10px; border-radius:8px;">
@@ -134,7 +152,10 @@ class Wsb_Admin_Settings
                                         </div>
                                         <div style="display:flex; align-items:center; justify-content:space-between;">
                                             <div>
-                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">02. Skip Professional Selection</label>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                                    Skip Professional Selection
+                                                    <span class="wsb-info-icon" data-tooltip="If enabled, the 'Choose Professional' step will be removed, and bookings will be assigned automatically.">?</span>
+                                                </label>
                                                 <span style="color:var(--wsb-text-muted); font-size:12px;">Automatically bypass the team step if not required.</span>
                                             </div>
                                             <label class="wsb-switch">
@@ -144,7 +165,10 @@ class Wsb_Admin_Settings
                                         </div>
                                         <div style="display:flex; align-items:center; justify-content:space-between;">
                                             <div>
-                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">03. Disable Online Payments</label>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                                    Disable Online Payments
+                                                    <span class="wsb-info-icon" data-tooltip="Hides Stripe/PayPal options and allows users to submit booking requests without immediate payment.">?</span>
+                                                </label>
                                                 <span style="color:var(--wsb-text-muted); font-size:12px;">Skip checkout and confirm bookings instantly.</span>
                                             </div>
                                             <label class="wsb-switch">
@@ -154,11 +178,27 @@ class Wsb_Admin_Settings
                                         </div>
                                         <div style="display:flex; align-items:center; justify-content:space-between;">
                                             <div>
-                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">04. Filter Staff by Service</label>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                                    Filter Staff by Service
+                                                    <span class="wsb-info-icon" data-tooltip="When selecting a service, only professionals who are marked as specialists for that service will be displayed.">?</span>
+                                                </label>
                                                 <span style="color:var(--wsb-text-muted); font-size:12px;">Only show professionals assigned to selected services.</span>
                                             </div>
                                             <label class="wsb-switch">
                                                 <input type="checkbox" name="wsb_filter_staff_by_service" value="yes" <?php checked($filter_staff, 'yes'); ?>>
+                                                <span class="wsb-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                                    Enable Split Scheduling
+                                                    <span class="wsb-info-icon" data-tooltip="Allows customers to book multiple services with different team members and at different times within one session.">?</span>
+                                                </label>
+                                                <span style="color:var(--wsb-text-muted); font-size:12px;">Allow customers to pick different pros/times for each service.</span>
+                                            </div>
+                                            <label class="wsb-switch">
+                                                <input type="checkbox" name="wsb_enable_split_scheduling" value="yes" <?php checked($enable_split, 'yes'); ?>>
                                                 <span class="wsb-slider"></span>
                                             </label>
                                         </div>
@@ -217,11 +257,9 @@ class Wsb_Admin_Settings
                     </div>
 
                     <!-- Save Actions -->
-                    <div
-                        style="background:var(--wsb-panel-dark); padding:25px; border-radius:16px; border:1px solid var(--wsb-border); display:flex; flex-direction:column; gap:15px;">
-                        <button type="submit" class="wsb-btn-primary"
-                            style="width:100%; padding:15px; font-size:16px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);">Save
-                            Settings</button>
+                    <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:16px; border:1px solid var(--wsb-border); display:flex; gap:15px;">
+                        <button type="submit" name="wsb_save_settings" class="wsb-btn-primary" style="flex:2; padding:15px; font-size:16px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);">Save Settings</button>
+                        <button type="submit" name="wsb_restore_defaults" id="wsb-restore-defaults-btn" class="wsb-btn" style="flex:1; background:rgba(255,255,255,0.05); color:#94a3b8; border:1px solid rgba(255,255,255,0.1); padding:15px; font-size:14px; font-weight:700;">Restore Defaults</button>
                     </div>
 
                 </div>
