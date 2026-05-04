@@ -83,6 +83,8 @@ class Wsb_Admin_Bookings {
 
         if ($action === 'edit' && $booking_id) {
             $booking = $wpdb->get_row($wpdb->prepare("
+                SELECT b.*, c.first_name, c.last_name, c.email as customer_email, c.phone as customer_phone, st.name as staff_name
+                FROM $table_bookings b
                 LEFT JOIN {$wpdb->prefix}wsb_customers c ON b.customer_id = c.id
                 LEFT JOIN {$wpdb->prefix}wsb_staff st ON b.staff_id = st.id
                 WHERE b.id = %d
@@ -324,7 +326,6 @@ class Wsb_Admin_Bookings {
         // Joined query to get names instead of raw IDs for a professional look
         $query = "SELECT b.*, 
                  c.first_name, c.last_name, c.email as customer_email, c.phone as customer_phone,
-                 s.name as service_name, 
                  st.name as staff_name,
                  req_staff.name as requested_staff_name
           FROM {$wpdb->prefix}wsb_bookings b

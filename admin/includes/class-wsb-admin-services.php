@@ -322,6 +322,7 @@ class Wsb_Admin_Services {
                 <table class="wsb-modern-table">
                     <thead>
                         <tr>
+                            <th style="width:40px; color:var(--wsb-primary);">ID</th>
                             <th style="width:60px;">Image</th>
                             <th>Service Name</th>
                             <th>Pricing & Duration</th>
@@ -334,6 +335,9 @@ class Wsb_Admin_Services {
                             <?php foreach ($services as $service): ?>
                                 <tr class="wsb-clickable-row"
                                     data-href="?page=wsb_main&tab=services&action=edit&id=<?php echo $service->id; ?>">
+                                    <td>
+                                        <code style="background:rgba(99, 102, 241, 0.1); color:var(--wsb-primary); padding:2px 6px; border-radius:4px; font-weight:800;"><?php echo $service->id; ?></code>
+                                    </td>
                                     <td>
                                         <?php if (!empty($service->image_url)): ?>
                                             <div
