@@ -49,6 +49,46 @@
 .wsb-category-badge { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); color: var(--wsb-brand); padding: 6px 14px; border-radius: 30px; font-size: 11px; font-weight: 800; text-transform: uppercase; z-index: 5; border: 1px solid var(--wsb-border); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .wsb-service-image { width: 100%; height: 220px; background-size: cover; background-position: center; border-bottom: 1px solid var(--wsb-border); transition: transform 0.6s ease; }
 .wsb-card-option:hover .wsb-service-image { transform: scale(1.08); }
+
+.wsb-view-service-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 46px;
+    height: 46px;
+    background: var(--wsb-brand);
+    color: white !important;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none !important;
+    font-size: 22px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 10;
+    border: 2px solid #fff;
+}
+
+.wsb-view-service-btn .dashicons {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wsb-card-option:hover .wsb-view-service-btn {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.wsb-view-service-btn:hover {
+    background: #000;
+    transform: translate(-50%, -50%) scale(1.1) !important;
+}
+
 .wsb-service-content { padding: 32px; position: relative; z-index: 2; }
 .wsb-service-content h4 { margin: 0 0 10px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
 .wsb-price-tag { color: var(--wsb-brand); font-weight: 900; font-size: 20px; display: block; margin-top: 15px; }
@@ -238,4 +278,19 @@
     0% { transform: scale(0.5); opacity: 0; }
     70% { transform: scale(1.1); }
     100% { transform: scale(1); opacity: 1; }
+}
+
+/* Basket Styles */
+#wsb-basket-trigger:hover { transform: translateY(-2px); box-shadow: 0 6px 15px var(--wsb-ring); }
+#wsb-basket-popup { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease; }
+#wsb-basket-items::-webkit-scrollbar { width: 5px; }
+#wsb-basket-items::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); border-radius: 10px; }
+#wsb-basket-items::-webkit-scrollbar-thumb { background: var(--wsb-brand); border-radius: 10px; }
+.wsb-basket-item { transition: all 0.2s; border-bottom: 1px solid var(--wsb-input-border); }
+.wsb-basket-item:last-child { border-bottom: none; }
+.wsb-basket-item:hover { background: rgba(0,0,0,0.02) !important; padding-left: 12px; }
+.wsb-remove-item:hover { transform: scale(1.3); }
+
+@media (max-width: 768px) {
+    #wsb-basket-popup { width: 90vw; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); right: auto; bottom: auto; margin: 0; }
 }

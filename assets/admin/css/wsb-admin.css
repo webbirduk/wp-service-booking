@@ -271,6 +271,12 @@
     border-color: rgba(59, 130, 246, 0.3);
 }
 
+.wsb-action-view:hover {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7 !important;
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
 /* Page Header */
 .wsb-page-header {
     display: flex;

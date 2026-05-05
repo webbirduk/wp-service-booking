@@ -118,9 +118,15 @@ class Wsb_Admin
 
     public function wsb_notify_status_change($booking_id, $new_status)
     {
+        $this->wsb_notify_booking_update($booking_id, array('status' => $new_status));
+    }
+
+    public function wsb_notify_booking_update($booking_id, $changes = array())
+    {
         global $wpdb;
         $booking_table = $wpdb->prefix . 'wsb_bookings';
         $customer_table = $wpdb->prefix . 'wsb_customers';
+        $staff_table = $wpdb->prefix . 'wsb_staff';
         
         $booking = $wpdb->get_row($wpdb->prepare(
             "SELECT b.*, c.email, c.first_name, c.last_name 
@@ -131,18 +137,46 @@ class Wsb_Admin
         ));
         
         if ($booking && !empty($booking->email)) {
-            $mail_subject = "Update: Booking #" . $booking_id . " Status Changed";
-            $status_color = ($new_status === 'confirmed') ? '#10b981' : (($new_status === 'cancelled') ? '#ef4444' : '#6366f1');
+            $change_details = "";
+            $subject_parts = array();
+
+            if (isset($changes['booking_date'])) {
+                $change_details .= '<div style="margin-bottom:10px;">📅 <strong>Date Changed:</strong> ' . esc_html($changes['booking_date']) . '</div>';
+                $subject_parts[] = "Date";
+            }
+            if (isset($changes['start_time'])) {
+                $change_details .= '<div style="margin-bottom:10px;">⏰ <strong>Time Changed:</strong> ' . esc_html($changes['start_time']) . '</div>';
+                $subject_parts[] = "Time";
+            }
+            if (isset($changes['staff_id'])) {
+                $staff_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM $staff_table WHERE id = %d", $changes['staff_id']));
+                $change_details .= '<div style="margin-bottom:10px;">👤 <strong>Professional Reassigned:</strong> ' . esc_html($staff_name) . '</div>';
+                $subject_parts[] = "Professional";
+            }
+            if (isset($changes['status'])) {
+                $change_details .= '<div style="margin-bottom:10px;">🔄 <strong>Status Updated:</strong> ' . strtoupper(esc_html($changes['status'])) . '</div>';
+                $subject_parts[] = "Status";
+            }
+
+            if (empty($change_details)) return; // No relevant changes
+
+            $mail_subject = "Update: Your Booking #" . $booking_id . " has been updated (" . implode(", ", $subject_parts) . ")";
             
             $content_html = '
-                <div style="background:#f8fafc; padding:30px; border-radius:16px; text-align:center;">
-                    <div style="font-size:12px; text-transform:uppercase; color:#94a3b8; font-weight:800; margin-bottom:10px;">New Status</div>
-                    <div style="display:inline-block; padding:8px 20px; background:' . $status_color . '; color:#fff; border-radius:30px; font-weight:800; font-size:18px;">' . strtoupper($new_status) . '</div>
-                    <p style="margin-top:20px; color:#475569;">Your appointment has been successfully updated in our system. You can view all your booking history and manage your appointments via your personal dashboard.</p>
-                    <a href="' . home_url('/booking-dashboard') . '" style="display:inline-block; margin-top:10px; padding:14px 30px; background:#0f172a; color:#fff; text-decoration:none; border-radius:12px; font-weight:700;">Access Client Portal</a>
+                <div style="background:#f8fafc; padding:30px; border-radius:16px; text-align:left;">
+                    <div style="font-size:12px; text-transform:uppercase; color:#94a3b8; font-weight:800; margin-bottom:20px;">Update Details</div>
+                    <div style="color:#1e293b; font-size:15px; line-height:1.6;">
+                        ' . $change_details . '
+                    </div>
+                    <p style="margin-top:20px; color:#475569; font-size:14px; border-top:1px solid #e2e8f0; padding-top:20px;">
+                        The details of your appointment have been updated in our system. If you have any questions regarding these changes, please contact our support team.
+                    </p>
+                    <div style="text-align:center; margin-top:25px;">
+                        <a href="' . home_url('/booking-dashboard') . '" style="display:inline-block; padding:14px 30px; background:#6366f1; color:#fff; text-decoration:none; border-radius:12px; font-weight:700; box-shadow:0 4px 12px rgba(99, 102, 241, 0.2);">View Full Details</a>
+                    </div>
                 </div>';
 
-            wsb_send_modern_email($booking->email, $mail_subject, 'Status Update', "Hello " . $booking->first_name . ", your booking status has been updated.", $content_html);
+            wsb_send_modern_email($booking->email, $mail_subject, 'Booking Updated', "Hello " . $booking->first_name . ", some details of your booking #" . $booking_id . " have been updated.", $content_html);
         }
     }
 }

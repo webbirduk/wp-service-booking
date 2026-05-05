@@ -12,6 +12,7 @@ class Wsb_Public
 
     public function enqueue_styles()
     {
+        wp_enqueue_style('dashicons');
         wp_enqueue_style($this->plugin_name, plugin_dir_url(dirname(__FILE__)) . 'assets/public/css/wsb-public.css', array(), time(), 'all');
     }
 
@@ -102,13 +103,54 @@ class Wsb_Public
             'skip_payment' => get_option('wsb_skip_payment_step', 'no'),
             'filter_staff_by_service' => get_option('wsb_filter_staff_by_service', 'no'),
             'enable_split_scheduling' => get_option('wsb_enable_split_scheduling', 'no'),
-            'staff_service_mapping' => $mapping
+            'staff_service_mapping' => $mapping,
+            'currency_symbol' => wsb_get_currency_symbol(get_option('wsb_currency', 'USD'))
         ));
     }
 
     public function render_booking_widget($atts)
     {
         global $wpdb;
+
+        if (isset($_GET['wsb_service_id'])) {
+            $service_id = intval($_GET['wsb_service_id']);
+            $s = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}wsb_services WHERE id = %d", $service_id));
+            if ($s) {
+                ob_start();
+                $brand_color = get_option('wsb_brand_color', '#6366f1');
+                $brand_color_end = get_option('wsb_brand_color_end', '#a855f7');
+                $font_family = get_option('wsb_font_family', 'Inter');
+                $back_url = remove_query_arg('wsb_service_id');
+                ?>
+                <style>
+                    :root {
+                        --wsb-brand: <?php echo esc_attr($brand_color); ?>;
+                        --wsb-gradient: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
+                        --wsb-font: "<?php echo esc_attr($font_family); ?>", sans-serif;
+                    }
+                </style>
+                <div class="wsb-single-service-page" style="font-family: var(--wsb-font); max-width: 800px; margin: 40px auto; background: #fff; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e2e8f0;">
+                    <?php if ($s->image_url): ?>
+                        <div style="width: 100%; height: 400px; background: url('<?php echo esc_url($s->image_url); ?>') center/cover;"></div>
+                    <?php endif; ?>
+                    <div style="padding: 40px;">
+                        <a href="<?php echo esc_url($back_url); ?>" style="display: inline-block; margin-bottom: 20px; color: #64748b; text-decoration: none; font-weight: 600;">&larr; Back to Services</a>
+                        <h1 style="margin: 0 0 15px; font-size: 36px; font-weight: 800; color: #0f172a;"><?php echo esc_html($s->name); ?></h1>
+                        <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+                            <span style="background: rgba(99, 102, 241, 0.1); color: var(--wsb-brand); padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: 700;">⏱️ <?php echo esc_html($s->duration); ?> mins</span>
+                            <span style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: 700;">💰 <?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')) . esc_html($s->price); ?></span>
+                        </div>
+                        <div style="color: #475569; line-height: 1.8; font-size: 16px; margin-bottom: 40px;">
+                            <?php echo wpautop(esc_html($s->description)); ?>
+                        </div>
+                        <a href="<?php echo esc_url($back_url); ?>" class="wsb-btn" style="display: block; text-align: center; background: var(--wsb-gradient); color: #fff; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 18px; text-decoration: none; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);">Book This Service Now</a>
+                    </div>
+                </div>
+                <?php
+                return ob_get_clean();
+            }
+        }
+
         $services = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}wsb_services WHERE status = 'active'");
         $staff = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}wsb_staff WHERE status = 'active'");
 
@@ -214,7 +256,7 @@ class Wsb_Public
             .wsb-field-wrap input, .wsb-field-wrap select, .wsb-field-wrap textarea { background-color: var(--wsb-input-bg) !important; border-color: var(--wsb-input-border) !important; color: var(--wsb-body); }
             
             /* Modern Header System - Centered */
-            .wsb-step-header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; margin-bottom: 40px; border-bottom: 1px solid var(--wsb-input-border); padding-bottom: 30px; }
+            .wsb-step-header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; margin-bottom: 40px; border-bottom: 1px solid var(--wsb-input-border); padding-bottom: 30px; position: relative; z-index: 1000; }
             .wsb-step-badge { 
                 background: var(--wsb-gradient); color: white; width: 50px; height: 50px; 
                 display: flex; align-items: center; justify-content: center; 
@@ -240,12 +282,39 @@ class Wsb_Public
                         <h3><?php echo esc_html($clean_label($l_step1)); ?></h3>
                         <p>Select your desired service to begin your experience.</p>
                         
-                        <div style="margin-top:20px; display:flex; flex-direction:column; align-items:center; gap:10px;">
+                        <div style="margin-top:20px; display:flex; align-items:center; justify-content:center; gap:15px; flex-wrap:wrap;">
                             <a href="<?php echo esc_url(home_url('/booking-dashboard')); ?>" class="wsb-btn"
                                 style="display:inline-flex; align-items:center; background:rgba(99, 102, 241, 0.05); border:1.5px solid var(--wsb-brand); color:var(--wsb-brand); text-decoration:none; font-size: 13px; padding: 10px 22px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:8px;">
                                 <span class="dashicons dashicons-admin-users" style="font-size:18px;"></span> Client Portal
                             </a>
-                            
+
+                            <div id="wsb-basket-trigger" class="wsb-btn"
+                                style="position:relative; display:inline-flex; align-items:center; background:var(--wsb-gradient); color:#fff; cursor:pointer; font-size: 13px; padding: 10px 26px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:12px; box-shadow: 0 4px 12px var(--wsb-ring);">
+                                <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+                                    <span class="dashicons dashicons-cart" style="font-size:20px; width:20px; height:20px;"></span> 
+                                    <span id="wsb-basket-count" style="position:absolute; top:-10px; right:-12px; background:var(--wsb-brand-alt); color:#fff; min-width:18px; height:18px; border-radius:10px; font-size:10px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #fff; font-weight:900; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.1);">0</span>
+                                </div>
+                                <span>Services Selected</span>
+                                
+                                <!-- Basket Popup -->
+                                <div id="wsb-basket-popup" style="display:none; position:absolute; top:calc(100% + 15px); right:0; width:320px; background:#fff; border-radius:16px; border:1px solid var(--wsb-input-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); z-index:999999; padding:20px; text-align:left; cursor:default;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--wsb-input-border); padding-bottom:10px;">
+                                        <h4 style="margin:0; font-size:16px; font-weight:800; color:var(--wsb-heading);">Your Selection</h4>
+                                        <span id="wsb-close-basket" style="font-size:20px; cursor:pointer; color:var(--wsb-body);">&times;</span>
+                                    </div>
+                                    <div id="wsb-basket-items" style="max-height:250px; overflow-y:auto; margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+                                        <!-- Items populated via JS -->
+                                        <p id="wsb-empty-basket-msg" style="text-align:center; color:var(--wsb-body); opacity:0.6; font-size:14px; margin:20px 0;">No services selected yet.</p>
+                                    </div>
+                                    <div id="wsb-basket-footer" style="border-top:1px solid var(--wsb-input-border); padding-top:15px; display:none;">
+                                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-weight:800; color:var(--wsb-heading);">
+                                            <span>Total</span>
+                                            <span id="wsb-basket-total">0.00</span>
+                                        </div>
+                                        <button class="wsb-btn wsb-next-btn" data-next="wsb-step-staff" style="width:100%; padding:12px;">Continue Booking</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -270,8 +339,13 @@ class Wsb_Public
                                 <?php endif; ?>
 
                                 <?php if ($layout !== 'minimal'): ?>
-                                    <div class="wsb-service-image"
-                                        style="background: #f8fafc <?php echo $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
+                                    <div class="wsb-service-image-container" style="position:relative; overflow:hidden;">
+                                        <div class="wsb-service-image"
+                                            style="background: #f8fafc <?php echo $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
+                                        </div>
+                                        <a href="<?php echo esc_url(add_query_arg('wsb_service_id', $s->id)); ?>" class="wsb-view-service-btn" title="View Product Details">
+                                            <span class="dashicons dashicons-visibility"></span>
+                                        </a>
                                     </div>
                                 <?php endif; ?>
                                 <div class="wsb-service-content">
@@ -626,8 +700,6 @@ class Wsb_Public
 
             <div class="wsb-actions" style="margin-top: 30px;">
 
-                <button class="wsb-submit-btn wsb-btn" id="wsb-confirm-booking" style="display:none;">Confirm Booking</button>
-            </div>
         </div>
         </div>
         <?php

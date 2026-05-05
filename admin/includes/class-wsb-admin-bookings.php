@@ -1,24 +1,30 @@
 <?php
-class Wsb_Admin_Bookings {
+class Wsb_Admin_Bookings
+{
     private $admin;
 
-    public function __construct($admin) {
+    public function __construct($admin)
+    {
         $this->admin = $admin;
     }
 
-    public function display() {
+    public function display()
+    {
         global $wpdb;
         $table_bookings = $wpdb->prefix . 'wsb_bookings';
 
-        $action = isset($_GET['action']) ? $_GET['action'] : 'list';
-        $booking_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        // Auto-patch schema
+        $wpdb->query("ALTER TABLE {$table_bookings} MODIFY COLUMN service_id varchar(255) NOT NULL");
+
+        $action = isset($_REQUEST['wsb_action']) ? sanitize_text_field($_REQUEST['wsb_action']) : (isset($_GET['action']) ? $_GET['action'] : 'list');
+        $booking_id = isset($_REQUEST['booking_id']) ? intval($_REQUEST['booking_id']) : (isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0);
 
         // Quick Status Updates (Approve / Reject)
         // Quick Action Decisions for Client Requests (Reschedule / Cancel)
         if ($action === 'request_action' && $booking_id) {
             $decision = isset($_GET['decision']) ? sanitize_text_field($_GET['decision']) : '';
             $booking_record = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_bookings WHERE id = %d", $booking_id));
-            
+
             if ($booking_record) {
                 if ($decision === 'approve') {
                     if ($booking_record->request_type === 'reschedule') {
@@ -68,17 +74,47 @@ class Wsb_Admin_Bookings {
         }
 
         // Full Edit Submission
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wsb_edit_booking_nonce']) && wp_verify_nonce($_POST['wsb_edit_booking_nonce'], 'wsb_edit_booking')) {
-            $wpdb->update($table_bookings, array(
-                'booking_date' => sanitize_text_field($_POST['booking_date']),
-                'start_time' => sanitize_text_field($_POST['start_time']),
-                'end_time' => sanitize_text_field($_POST['end_time']),
-                'total_amount' => floatval($_POST['total_amount']),
-                'status' => sanitize_text_field($_POST['status'])
-            ), array('id' => $booking_id));
-            $this->admin->wsb_notify_status_change($booking_id, sanitize_text_field($_POST['status']));
-            echo '<div class="notice notice-success is-dismissible"><p>Booking information updated successfully.</p></div>';
-            $action = 'list';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wsb_edit_booking_nonce'])) {
+            if (wp_verify_nonce($_POST['wsb_edit_booking_nonce'], 'wsb_edit_booking')) {
+                // Fetch current state for intelligent change detection
+                $old_booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_bookings WHERE id = %d", $booking_id));
+
+                $data = array(
+                    'booking_date' => sanitize_text_field($_POST['booking_date']),
+                    'start_time' => sanitize_text_field($_POST['start_time']),
+                    'end_time' => sanitize_text_field($_POST['end_time']),
+                    'total_amount' => floatval($_POST['total_amount']),
+                    'status' => sanitize_text_field($_POST['status']),
+                    'staff_id' => isset($_POST['staff_id']) ? intval($_POST['staff_id']) : ($old_booking ? $old_booking->staff_id : 0)
+                );
+
+                $result = $wpdb->update($table_bookings, $data, array('id' => $booking_id));
+
+                if ($result === false) {
+                    echo '<div class="notice notice-error is-dismissible"><p>Database Error: Could not update booking. ' . esc_html($wpdb->last_error) . '</p></div>';
+                } else {
+                    // Identify what exactly changed for custom notifications
+                    $changes = array();
+                    if ($old_booking) {
+                        if ($old_booking->booking_date !== $data['booking_date'])
+                            $changes['booking_date'] = $data['booking_date'];
+                        if (substr($old_booking->start_time, 0, 5) !== substr($data['start_time'], 0, 5))
+                            $changes['start_time'] = $data['start_time'];
+                        if ($old_booking->staff_id != $data['staff_id'])
+                            $changes['staff_id'] = $data['staff_id'];
+                        if ($old_booking->status !== $data['status'])
+                            $changes['status'] = $data['status'];
+                    }
+
+                    if (!empty($changes)) {
+                        $this->admin->wsb_notify_booking_update($booking_id, $changes);
+                    }
+
+                    echo '<div class="notice notice-success is-dismissible"><p>Booking information updated successfully.</p></div>';
+                }
+            } else {
+                echo '<div class="notice notice-error is-dismissible"><p>Security Check Failed: Nonce verification unsuccessful. Please refresh and try again.</p></div>';
+            }
         }
 
         if ($action === 'edit' && $booking_id) {
@@ -97,7 +133,8 @@ class Wsb_Admin_Bookings {
                 $placeholders = implode(',', array_fill(0, count($ids), '%d'));
                 $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
                 if ($services) {
-                    $names = array_map(function($s) { return $s->name; }, $services);
+                    $names = array_map(function ($s) {
+                        return $s->name; }, $services);
                     $service_names = implode(', ', $names);
                 }
             }
@@ -107,74 +144,104 @@ class Wsb_Admin_Bookings {
                 ?>
                 <div class="wrap wsb-admin-wrap">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
-                        <h1 style="margin:0; font-size:24px; color:#fff;">Manage Booking #<?php echo esc_html(str_pad($booking->id, 5, '0', STR_PAD_LEFT)); ?></h1>
-                        <a href="?page=wsb_main&tab=bookings" class="wsb-btn-primary"
-                            style="background:var(--wsb-border);">Back to Bookings</a>
+                        <h1 style="margin:0; font-size:24px; color:#fff;">Manage Booking
+                            #<?php echo esc_html(str_pad($booking->id, 5, '0', STR_PAD_LEFT)); ?></h1>
+                        <a href="?page=wsb_main&tab=bookings" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
+                            Bookings</a>
                     </div>
 
                     <form method="post" action="">
                         <?php wp_nonce_field('wsb_edit_booking', 'wsb_edit_booking_nonce'); ?>
-                        
+                        <input type="hidden" name="booking_id" value="<?php echo $booking_id; ?>">
+                        <input type="hidden" name="wsb_action" value="edit">
+                        <input type="hidden" name="tab" value="bookings">
+
                         <div style="display:grid; grid-template-columns: 2fr 1fr; gap:25px;">
-                            
+
                             <!-- Left Column: Core Booking Details -->
                             <div style="display:flex; flex-direction:column; gap:25px;">
-                                
+
                                 <!-- Customer Identity Card -->
-                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary);">
-                                    <h3 style="margin:0 0 20px 0; color:var(--wsb-primary); display:flex; align-items:center; gap:10px;">
+                                <div
+                                    style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-primary);">
+                                    <h3
+                                        style="margin:0 0 20px 0; color:var(--wsb-primary); display:flex; align-items:center; gap:10px;">
                                         <span class="dashicons dashicons-admin-users"></span> Customer Information
                                     </h3>
                                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                                         <div>
-                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Full Name</label>
-                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff; font-weight:600;">
+                                            <label
+                                                style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Full
+                                                Name</label>
+                                            <div
+                                                style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff; font-weight:600;">
                                                 <?php echo esc_html($booking->first_name . ' ' . $booking->last_name); ?>
                                             </div>
                                         </div>
                                         <div>
-                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Contact Email</label>
-                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff;">
+                                            <label
+                                                style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Contact
+                                                Email</label>
+                                            <div
+                                                style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff;">
                                                 <?php echo esc_html($booking->customer_email); ?>
                                             </div>
                                         </div>
                                         <div>
-                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Phone Number</label>
-                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff;">
+                                            <label
+                                                style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Phone
+                                                Number</label>
+                                            <div
+                                                style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:#fff;">
                                                 <?php echo esc_html($booking->customer_phone ?: 'No phone provided'); ?>
                                             </div>
                                         </div>
                                         <div>
-                                            <label style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Assigned Professional</label>
-                                            <div style="padding:12px; background:#0f172a; border:1px solid var(--wsb-border); border-radius:8px; color:var(--wsb-success); font-weight:700;">
-                                                <?php echo esc_html($booking->staff_name); ?>
-                                            </div>
+                                            <label
+                                                style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Assigned
+                                                Professional</label>
+                                            <select name="staff_id"
+                                                style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); border-radius:8px; padding:12px; font-weight:700;">
+                                                <?php
+                                                $all_staff = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_staff ORDER BY name ASC");
+                                                foreach ($all_staff as $st): ?>
+                                                    <option value="<?php echo $st->id; ?>" <?php selected($booking->staff_id, $st->id); ?>>
+                                                        <?php echo esc_html($st->name); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Appointment Configuration -->
-                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-warning);">
-                                    <h3 style="margin:0 0 20px 0; color:var(--wsb-warning); display:flex; align-items:center; gap:10px;">
+                                <div
+                                    style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-warning);">
+                                    <h3
+                                        style="margin:0 0 20px 0; color:var(--wsb-warning); display:flex; align-items:center; gap:10px;">
                                         <span class="dashicons dashicons-calendar-alt"></span> Schedule & Service
                                     </h3>
-                                    
+
                                     <div style="margin-bottom:20px;">
-                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Selected Services</label>
-                                        <div style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600; opacity:0.8; min-height:45px;">
+                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Selected
+                                            Services</label>
+                                        <div
+                                            style="width:100%; background:#0f172a; color:#fff; border:1px solid var(--wsb-border); padding:12px; border-radius:8px; font-weight:600; opacity:0.8; min-height:45px;">
                                             <?php echo esc_html($service_names); ?>
                                         </div>
                                     </div>
 
                                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
                                         <div>
-                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Booking Date</label>
-                                            <input name="booking_date" type="date" value="<?php echo esc_attr($booking->booking_date); ?>"
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Booking
+                                                Date</label>
+                                            <input name="booking_date" type="date"
+                                                value="<?php echo esc_attr($booking->booking_date); ?>"
                                                 style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;"
                                                 required>
                                         </div>
                                         <div>
-                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Start Time</label>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Start
+                                                Time</label>
                                             <input name="start_time" type="time" value="<?php echo esc_attr($booking->start_time); ?>"
                                                 style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;"
                                                 required>
@@ -183,14 +250,17 @@ class Wsb_Admin_Bookings {
 
                                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                                         <div>
-                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">End Time</label>
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">End
+                                                Time</label>
                                             <input name="end_time" type="time" value="<?php echo esc_attr($booking->end_time); ?>"
                                                 style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px; border-radius:8px;"
                                                 required>
                                         </div>
                                         <div>
-                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Total Duration (Auto)</label>
-                                            <div style="padding:12px; background:rgba(255,255,255,0.03); border:1px dashed var(--wsb-border); border-radius:8px; color:var(--wsb-text-muted);">
+                                            <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Total Duration
+                                                (Auto)</label>
+                                            <div
+                                                style="padding:12px; background:rgba(255,255,255,0.03); border:1px dashed var(--wsb-border); border-radius:8px; color:var(--wsb-text-muted);">
                                                 Calculated from start/end
                                             </div>
                                         </div>
@@ -200,19 +270,24 @@ class Wsb_Admin_Bookings {
 
                             <!-- Right Column: Status & Financials -->
                             <div style="display:flex; flex-direction:column; gap:25px;">
-                                
+
                                 <!-- Status Card -->
-                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid #fff;">
+                                <div
+                                    style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid #fff;">
                                     <h3 style="margin:0 0 20px 0; color:#fff; display:flex; align-items:center; gap:10px;">
                                         <span class="dashicons dashicons-marker"></span> Booking Status
                                     </h3>
                                     <div style="margin-bottom:20px;">
                                         <select name="status"
                                             style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:14px; border-radius:8px; font-weight:700; font-size:15px; border-left:4px solid <?php echo $booking->status === 'confirmed' ? 'var(--wsb-success)' : ($booking->status === 'pending' ? 'var(--wsb-warning)' : '#ef4444'); ?>;">
-                                            <option value="pending" <?php selected($booking->status, 'pending'); ?>>Pending Approval</option>
-                                            <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>>Confirmed</option>
-                                            <option value="completed" <?php selected($booking->status, 'completed'); ?>>Completed</option>
-                                            <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>>Cancelled</option>
+                                            <option value="pending" <?php selected($booking->status, 'pending'); ?>>Pending Approval
+                                            </option>
+                                            <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>>Confirmed
+                                            </option>
+                                            <option value="completed" <?php selected($booking->status, 'completed'); ?>>Completed
+                                            </option>
+                                            <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>>Cancelled
+                                            </option>
                                         </select>
                                     </div>
                                     <p style="font-size:12px; color:var(--wsb-text-muted); line-height:1.5;">
@@ -221,42 +296,54 @@ class Wsb_Admin_Bookings {
                                 </div>
 
                                 <!-- Financial Insights Card -->
-                                <div style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-success);">
-                                    <h3 style="margin:0 0 20px 0; color:var(--wsb-success); display:flex; align-items:center; gap:10px;">
+                                <div
+                                    style="background:var(--wsb-panel-dark); padding:25px; border-radius:12px; border:1px solid var(--wsb-border); border-top:4px solid var(--wsb-success);">
+                                    <h3
+                                        style="margin:0 0 20px 0; color:var(--wsb-success); display:flex; align-items:center; gap:10px;">
                                         <span class="dashicons dashicons-money-alt"></span> Financial Details
                                     </h3>
                                     <div style="margin-bottom:20px;">
-                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Amount Receivable</label>
+                                        <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Amount
+                                            Receivable</label>
                                         <div style="position:relative;">
-                                            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--wsb-text-muted); font-weight:bold;"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?></span>
-                                            <input name="total_amount" type="number" step="0.01" value="<?php echo esc_attr($booking->total_amount); ?>"
+                                            <span
+                                                style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--wsb-text-muted); font-weight:bold;"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?></span>
+                                            <input name="total_amount" type="number" step="0.01"
+                                                value="<?php echo esc_attr($booking->total_amount); ?>"
                                                 style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:12px 12px 12px 30px; border-radius:8px; font-size:18px; font-weight:800;"
                                                 required>
                                         </div>
                                     </div>
-                                    
-                                    <div style="background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:8px; border:1px solid rgba(16, 185, 129, 0.1);">
-                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+
+                                    <div
+                                        style="background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:8px; border:1px solid rgba(16, 185, 129, 0.1);">
+                                        <div
+                                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                                             <span style="font-size:13px; color:var(--wsb-text-muted);">Payment Strategy</span>
-                                            <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--wsb-success);">Secured</span>
+                                            <span
+                                                style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--wsb-success);">Secured</span>
                                         </div>
                                         <?php if ($payment): ?>
                                             <div style="border-top:1px solid rgba(16, 185, 129, 0.1); padding-top:10px; margin-top:5px;">
                                                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                                                     <span style="font-size:12px; color:var(--wsb-text-muted);">Gateway</span>
-                                                    <span style="font-size:12px; color:#fff; font-weight:600;"><?php echo strtoupper(esc_html($payment->gateway)); ?></span>
+                                                    <span
+                                                        style="font-size:12px; color:#fff; font-weight:600;"><?php echo strtoupper(esc_html($payment->gateway)); ?></span>
                                                 </div>
                                                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                                                     <span style="font-size:12px; color:var(--wsb-text-muted);">Transaction ID</span>
-                                                    <span style="font-size:12px; color:#fff; font-family:monospace;"><?php echo esc_html($payment->transaction_id ?: 'N/A'); ?></span>
+                                                    <span
+                                                        style="font-size:12px; color:#fff; font-family:monospace;"><?php echo esc_html($payment->transaction_id ?: 'N/A'); ?></span>
                                                 </div>
                                                 <div style="display:flex; justify-content:space-between;">
                                                     <span style="font-size:12px; color:var(--wsb-text-muted);">Payment Status</span>
-                                                    <span style="font-size:11px; padding:2px 6px; border-radius:4px; background:<?php echo $payment->status === 'completed' ? 'var(--wsb-success)' : '#f59e0b'; ?>; color:#fff; font-weight:bold;"><?php echo strtoupper(esc_html($payment->status)); ?></span>
+                                                    <span
+                                                        style="font-size:11px; padding:2px 6px; border-radius:4px; background:<?php echo $payment->status === 'completed' ? 'var(--wsb-success)' : '#f59e0b'; ?>; color:#fff; font-weight:bold;"><?php echo strtoupper(esc_html($payment->status)); ?></span>
                                                 </div>
                                             </div>
                                         <?php else: ?>
-                                            <div style="border-top:1px solid rgba(16, 185, 129, 0.1); padding-top:10px; margin-top:5px; text-align:center; color:var(--wsb-text-muted); font-size:11px; font-style:italic;">
+                                            <div
+                                                style="border-top:1px solid rgba(16, 185, 129, 0.1); padding-top:10px; margin-top:5px; text-align:center; color:var(--wsb-text-muted); font-size:11px; font-style:italic;">
                                                 No payment transaction linked to this booking yet.
                                             </div>
                                         <?php endif; ?>
@@ -265,10 +352,13 @@ class Wsb_Admin_Bookings {
 
                                 <!-- Action Container -->
                                 <div style="display:flex; flex-direction:column; gap:10px;">
-                                    <button type="submit" class="wsb-btn-primary" style="width:100%; padding:15px; font-size:16px; background:var(--wsb-primary); border:none; box-shadow:0 4px 15px rgba(99, 102, 241, 0.3);">
+                                    <button type="submit" class="wsb-btn-primary"
+                                        style="width:100%; padding:15px; font-size:16px; background:var(--wsb-primary); border:none; box-shadow:0 4px 15px rgba(99, 102, 241, 0.3);">
                                         Update Booking Details
                                     </button>
-                                    <a href="?page=wsb_main&tab=bookings" style="text-align:center; padding:10px; color:var(--wsb-text-muted); text-decoration:none; font-size:14px;">Discard Changes</a>
+                                    <a href="?page=wsb_main&tab=bookings"
+                                        style="text-align:center; padding:10px; color:var(--wsb-text-muted); text-decoration:none; font-size:14px;">Discard
+                                        Changes</a>
                                 </div>
 
                             </div>
@@ -281,15 +371,15 @@ class Wsb_Admin_Bookings {
         }
 
         // Advanced Filter Engine
-        $filter_status   = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
-        $filter_staff    = isset($_GET['filter_staff']) ? intval($_GET['filter_staff']) : 0;
-        $filter_service  = isset($_GET['filter_service']) ? intval($_GET['filter_service']) : 0;
-        $filter_search   = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
+        $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
+        $filter_staff = isset($_GET['filter_staff']) ? intval($_GET['filter_staff']) : 0;
+        $filter_service = isset($_GET['filter_service']) ? intval($_GET['filter_service']) : 0;
+        $filter_search = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
         $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
-        $filter_date_end   = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
+        $filter_date_end = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
 
         $where_clause = "WHERE 1=1";
-        
+
         if (in_array($filter_status, ['pending', 'confirmed', 'completed', 'cancelled'])) {
             $where_clause .= " AND b.status = '{$filter_status}'";
         } elseif ($filter_status === 'pending_requests') {
@@ -338,10 +428,10 @@ class Wsb_Admin_Bookings {
         $query = apply_filters('wsb_admin_bookings_query', $query);
         $bookings = $wpdb->get_results($query);
         $bookings = apply_filters('wsb_admin_bookings_results', $bookings);
-        
+
         $all_staff = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_staff ORDER BY name ASC");
         $all_services = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}wsb_services ORDER BY name ASC");
-        
+
         $view = isset($_GET['view']) ? $_GET['view'] : 'list';
         $page_url = "?page=wsb_main&tab=bookings";
         ?>
@@ -361,7 +451,8 @@ class Wsb_Admin_Bookings {
             </div>
 
             <!-- Advanced Filter Toolbar -->
-            <div style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-top:20px;">
+            <div
+                style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-top:20px;">
                 <form method="get" action="" style="display:flex; flex-wrap:wrap; gap:15px; align-items:flex-end;">
                     <input type="hidden" name="page" value="wsb_main">
                     <input type="hidden" name="tab" value="bookings">
@@ -369,43 +460,57 @@ class Wsb_Admin_Bookings {
                     <input type="hidden" name="filter_status" value="<?php echo esc_attr($filter_status); ?>">
 
                     <div style="flex:1; min-width:200px;">
-                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Search Bookings</label>
-                        <input type="text" name="filter_search" value="<?php echo esc_attr($filter_search); ?>" placeholder="Name, Email, or ID..." style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Search
+                            Bookings</label>
+                        <input type="text" name="filter_search" value="<?php echo esc_attr($filter_search); ?>"
+                            placeholder="Name, Email, or ID..."
+                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
                     </div>
 
                     <div style="width:180px;">
-                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Professional</label>
-                        <select name="filter_staff" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                        <label
+                            style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Professional</label>
+                        <select name="filter_staff"
+                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
                             <option value="0">All Professionals</option>
-                            <?php foreach($all_staff as $st): ?>
-                                <option value="<?php echo $st->id; ?>" <?php selected($filter_staff, $st->id); ?>><?php echo esc_html($st->name); ?></option>
+                            <?php foreach ($all_staff as $st): ?>
+                                <option value="<?php echo $st->id; ?>" <?php selected($filter_staff, $st->id); ?>>
+                                    <?php echo esc_html($st->name); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
                     <div style="width:180px;">
-                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Service</label>
-                        <select name="filter_service" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                        <label
+                            style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">Service</label>
+                        <select name="filter_service"
+                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
                             <option value="0">All Services</option>
-                            <?php foreach($all_services as $srv): ?>
-                                <option value="<?php echo $srv->id; ?>" <?php selected($filter_service, $srv->id); ?>><?php echo esc_html($srv->name); ?></option>
+                            <?php foreach ($all_services as $srv): ?>
+                                <option value="<?php echo $srv->id; ?>" <?php selected($filter_service, $srv->id); ?>>
+                                    <?php echo esc_html($srv->name); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
                     <div style="width:150px;">
-                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">From Date</label>
-                        <input type="date" name="filter_date_start" value="<?php echo esc_attr($filter_date_start); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">From
+                            Date</label>
+                        <input type="date" name="filter_date_start" value="<?php echo esc_attr($filter_date_start); ?>"
+                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
                     </div>
 
                     <div style="width:150px;">
-                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">To Date</label>
-                        <input type="date" name="filter_date_end" value="<?php echo esc_attr($filter_date_end); ?>" style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
+                        <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted); font-size:12px;">To
+                            Date</label>
+                        <input type="date" name="filter_date_end" value="<?php echo esc_attr($filter_date_end); ?>"
+                            style="width:100%; background:#0f172a; color:white; border:1px solid var(--wsb-border); padding:8px; border-radius:6px;">
                     </div>
 
                     <div style="display:flex; gap:5px;">
                         <button type="submit" class="wsb-btn-primary">Apply</button>
-                        <a href="?page=wsb_main&tab=bookings&view=<?php echo esc_attr($view); ?>" class="wsb-btn-primary" style="background:var(--wsb-border);">Clear</a>
+                        <a href="?page=wsb_main&tab=bookings&view=<?php echo esc_attr($view); ?>" class="wsb-btn-primary"
+                            style="background:var(--wsb-border);">Clear</a>
                     </div>
                 </form>
             </div>
@@ -440,25 +545,29 @@ class Wsb_Admin_Bookings {
                     class="booking-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Bookings</h3>
                     <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
-                        <?php echo intval($total_bookings); ?></p>
+                        <?php echo intval($total_bookings); ?>
+                    </p>
                 </a>
                 <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=pending"
                     class="booking-filter-card <?php echo $filter_status === 'pending' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:#f59e0b;">Pending Approvals</h3>
                     <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
-                        <?php echo intval($pending_count); ?></p>
+                        <?php echo intval($pending_count); ?>
+                    </p>
                 </a>
                 <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=confirmed"
                     class="booking-filter-card <?php echo $filter_status === 'confirmed' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-success);">Confirmed / Completed</h3>
                     <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
-                        <?php echo intval($confirmed_count); ?></p>
+                        <?php echo intval($confirmed_count); ?>
+                    </p>
                 </a>
                 <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=pending_requests"
                     class="booking-filter-card <?php echo $filter_status === 'pending_requests' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:#ef4444;">Client Requests</h3>
                     <p style="margin:0; font-size:28px; font-weight:bold; color:var(--wsb-text-main);">
-                        <?php echo intval($client_requests_count); ?></p>
+                        <?php echo intval($client_requests_count); ?>
+                    </p>
                 </a>
             </div>
 
@@ -475,7 +584,7 @@ class Wsb_Admin_Bookings {
 
                             var events = [
                                 <?php foreach ($bookings as $b): ?>
-                                                {
+                                                                {
                                         title: '<?php echo esc_js($b->first_name . " - " . $b->service_name); ?>',
                                         start: '<?php echo esc_js($b->booking_date); ?>T<?php echo esc_js($b->start_time); ?>',
                                         end: '<?php echo esc_js($b->booking_date); ?>T<?php echo esc_js($b->end_time); ?>',
@@ -589,26 +698,29 @@ class Wsb_Admin_Bookings {
                                     <td>
                                         <div class="wsb-customer-info">
                                             <span class="wsb-customer-name">
-                                                <?php 
-                                                    if (!empty($b->service_id)) {
-                                                        $ids = array_map('intval', explode(',', $b->service_id));
-                                                        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-                                                        $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
-                                                        if ($services) {
-                                                            $names = array_map(function($s) { return $s->name; }, $services);
-                                                            echo esc_html(implode(', ', $names));
-                                                        } else {
-                                                            echo 'Unknown Service';
-                                                        }
+                                                <?php
+                                                if (!empty($b->service_id)) {
+                                                    $ids = array_map('intval', explode(',', $b->service_id));
+                                                    $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                                                    $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM {$wpdb->prefix}wsb_services WHERE id IN ($placeholders)", $ids));
+                                                    if ($services) {
+                                                        $names = array_map(function ($s) {
+                                                            return $s->name; }, $services);
+                                                        echo esc_html(implode(', ', $names));
                                                     } else {
                                                         echo 'Unknown Service';
                                                     }
+                                                } else {
+                                                    echo 'Unknown Service';
+                                                }
                                                 ?>
                                             </span>
                                             <span class="wsb-customer-meta">
                                                 <?php if ($b->request_type === 'reschedule' && !empty($b->requested_staff_id)): ?>
-                                                    <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html($b->staff_name); ?></span> 
-                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔ <?php echo esc_html($b->requested_staff_name); ?></span>
+                                                    <span
+                                                        style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html($b->staff_name); ?></span>
+                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔
+                                                        <?php echo esc_html($b->requested_staff_name); ?></span>
                                                 <?php else: ?>
                                                     with <?php echo esc_html($b->staff_name); ?>
                                                 <?php endif; ?>
@@ -619,41 +731,54 @@ class Wsb_Admin_Bookings {
                                         <div class="wsb-customer-info">
                                             <span class="wsb-customer-name">
                                                 <?php if ($b->request_type === 'reschedule' && !empty($b->requested_date)): ?>
-                                                    <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?></span> 
-                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔ <?php echo esc_html(date('M d, Y', strtotime($b->requested_date))); ?></span>
+                                                    <span
+                                                        style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?></span>
+                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔
+                                                        <?php echo esc_html(date('M d, Y', strtotime($b->requested_date))); ?></span>
                                                 <?php else: ?>
                                                     <?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?>
                                                 <?php endif; ?>
                                             </span>
                                             <span class="wsb-customer-meta">
                                                 <?php if ($b->request_type === 'reschedule' && !empty($b->requested_time)): ?>
-                                                    <span style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?></span> 
-                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔ <?php echo esc_html(date('g:i A', strtotime($b->requested_time))); ?></span>
+                                                    <span
+                                                        style="text-decoration:line-through; color:var(--wsb-text-muted);"><?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?></span>
+                                                    <span style="color:var(--wsb-warning); font-weight:bold;">➔
+                                                        <?php echo esc_html(date('g:i A', strtotime($b->requested_time))); ?></span>
                                                 <?php else: ?>
-                                                    <?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?> - <?php echo esc_html(date('g:i A', strtotime($b->end_time))); ?>
+                                                    <?php echo esc_html(date('g:i A', strtotime($b->start_time))); ?> -
+                                                    <?php echo esc_html(date('g:i A', strtotime($b->end_time))); ?>
                                                 <?php endif; ?>
                                             </span>
                                         </div>
                                     </td>
-                                    <td><strong><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($b->total_amount); ?></strong></td>
+                                    <td><strong><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($b->total_amount); ?></strong>
+                                    </td>
                                     <td>
                                         <?php if ($b->status === 'pending' && !empty($b->request_type)): ?>
-                                            <span style="background:rgba(245, 158, 11, 0.15); color:var(--wsb-warning); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold; white-space:nowrap; display:block; text-align:center; margin-bottom:5px;">
+                                            <span
+                                                style="background:rgba(245, 158, 11, 0.15); color:var(--wsb-warning); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold; white-space:nowrap; display:block; text-align:center; margin-bottom:5px;">
                                                 <?php echo esc_html(ucfirst($b->request_type)); ?> Request
                                             </span>
                                             <div style="display:flex; gap:5px;">
-                                                <a href="?page=wsb_main&tab=bookings&action=request_action&decision=approve&id=<?php echo $b->id; ?>" class="button" style="flex:1; text-align:center; background:var(--wsb-success); color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; padding:4px 0; text-decoration:none;">Accept</a>
-                                                <a href="?page=wsb_main&tab=bookings&action=request_action&decision=reject&id=<?php echo $b->id; ?>" class="button" style="flex:1; text-align:center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; padding:4px 0; text-decoration:none;">Reject</a>
+                                                <a href="?page=wsb_main&tab=bookings&action=request_action&decision=approve&id=<?php echo $b->id; ?>"
+                                                    class="button"
+                                                    style="flex:1; text-align:center; background:var(--wsb-success); color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; padding:4px 0; text-decoration:none;">Accept</a>
+                                                <a href="?page=wsb_main&tab=bookings&action=request_action&decision=reject&id=<?php echo $b->id; ?>"
+                                                    class="button"
+                                                    style="flex:1; text-align:center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; padding:4px 0; text-decoration:none;">Reject</a>
                                             </div>
                                         <?php else: ?>
-                                            <span class="wsb-status wsb-status-<?php echo esc_attr($b->status); ?>"><?php echo esc_html(ucfirst($b->status)); ?></span>
+                                            <span
+                                                class="wsb-status wsb-status-<?php echo esc_attr($b->status); ?>"><?php echo esc_html(ucfirst($b->status)); ?></span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No bookings found.</td>
+                                <td colspan="6" style="text-align:center; padding: 40px; color: var(--wsb-text-muted);">No bookings
+                                    found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

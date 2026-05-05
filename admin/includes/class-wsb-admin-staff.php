@@ -19,8 +19,8 @@ class Wsb_Admin_Staff {
         $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN address text AFTER qualification");
         $wpdb->show_errors();
 
-        $action = isset($_GET['action']) ? $_GET['action'] : 'list';
-        $staff_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        $action = isset($_REQUEST['wsb_action']) ? sanitize_text_field($_REQUEST['wsb_action']) : (isset($_GET['action']) ? $_GET['action'] : 'list');
+        $staff_id = isset($_REQUEST['staff_id']) ? intval($_REQUEST['staff_id']) : (isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0);
 
         // Delete Handler
         if ($action === 'delete' && $staff_id && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_staff_' . $staff_id)) {
@@ -49,10 +49,15 @@ class Wsb_Admin_Staff {
 
             if ($staff_id) {
                 $wpdb->update($table_staff, $data, array('id' => $staff_id));
-                echo '<div class="notice notice-success is-dismissible"><p>Staff profile successfully updated.</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                else echo '<div class="notice notice-success is-dismissible"><p>Staff profile updated securely.</p></div>';
             } else {
                 $wpdb->insert($table_staff, $data);
-                echo '<div class="notice notice-success is-dismissible"><p>New Staff member securely created.</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                else {
+                    $staff_id = $wpdb->insert_id;
+                    echo '<div class="notice notice-success is-dismissible"><p>New professional added to the roster.</p></div>';
+                }
             }
             $action = 'list';
         }
@@ -78,9 +83,11 @@ class Wsb_Admin_Staff {
                 </div>
                 <hr class="wp-header-end" style="margin-bottom:20px;">
 
-                <form method="post"
-                    action="?page=wsb_main&tab=staff&action=<?php echo $action; ?><?php echo $staff_id ? '&id=' . $staff_id : ''; ?>">
+                <form method="post" action="">
                     <?php wp_nonce_field('wsb_staff_save', 'wsb_staff_nonce'); ?>
+                    <input type="hidden" name="staff_id" value="<?php echo $staff_id; ?>">
+                    <input type="hidden" name="wsb_action" value="<?php echo $action; ?>">
+                    <input type="hidden" name="tab" value="staff">
 
                     <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
                         <div>

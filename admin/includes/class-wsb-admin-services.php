@@ -15,12 +15,13 @@ class Wsb_Admin_Services {
         $wpdb->query("ALTER TABLE {$table_services} ADD COLUMN IF NOT EXISTS image_url varchar(255) DEFAULT NULL");
         $wpdb->query("ALTER TABLE {$table_services} ADD COLUMN IF NOT EXISTS gallery_urls text DEFAULT NULL");
 
-        $action = isset($_GET['action']) ? $_GET['action'] : 'list';
-        $service_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        $action = isset($_REQUEST['wsb_action']) ? sanitize_text_field($_REQUEST['wsb_action']) : (isset($_GET['action']) ? $_GET['action'] : 'list');
+        $service_id = isset($_REQUEST['service_id']) ? intval($_REQUEST['service_id']) : (isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0);
 
         if ($action === 'delete' && $service_id) {
             $wpdb->delete($table_services, array('id' => $service_id));
-            echo '<div class="notice notice-success is-dismissible"><p>Service permanently deleted.</p></div>';
+            if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+            else echo '<div class="notice notice-success is-dismissible"><p>Service permanently deleted.</p></div>';
             $action = 'list';
         }
 
@@ -43,12 +44,16 @@ class Wsb_Admin_Services {
             if ($service_id) {
                 // Edit existing
                 $wpdb->update($table_services, $data, array('id' => $service_id));
-                echo '<div class="notice notice-success is-dismissible"><p>Service updated successfully!</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                else echo '<div class="notice notice-success is-dismissible"><p>Service updated successfully!</p></div>';
             } else {
                 // Add new
                 $wpdb->insert($table_services, $data);
-                $service_id = $wpdb->insert_id;
-                echo '<div class="notice notice-success is-dismissible"><p>Service created successfully!</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                else {
+                    $service_id = $wpdb->insert_id;
+                    echo '<div class="notice notice-success is-dismissible"><p>Service created successfully!</p></div>';
+                }
             }
 
             // Sync staff
@@ -85,6 +90,9 @@ class Wsb_Admin_Services {
 
                 <form method="post" action="">
                     <?php wp_nonce_field('wsb_add_service', 'wsb_service_nonce'); ?>
+                    <input type="hidden" name="service_id" value="<?php echo $service_id; ?>">
+                    <input type="hidden" name="wsb_action" value="<?php echo $action; ?>">
+                    <input type="hidden" name="tab" value="services">
                     <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px;">
 
                         <!-- Main Panel -->
@@ -368,6 +376,14 @@ class Wsb_Admin_Services {
                                     </td>
                                     <td align="right">
                                         <div class="wsb-row-actions">
+                                            <a href="<?php echo esc_url(home_url('/booking/?wsb_service_id=' . $service->id)); ?>"
+                                                target="_blank"
+                                                class="wsb-row-action wsb-action-view" title="View Service">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                            </a>
                                             <a href="?page=wsb_main&tab=services&action=edit&id=<?php echo $service->id; ?>"
                                                 class="wsb-row-action wsb-action-edit" title="Edit Service">
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"

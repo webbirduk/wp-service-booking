@@ -25,9 +25,81 @@ jQuery(document).ready(function($) {
     });
 
 
+    // Basket Toggle Logic (Hover + Click)
+    $(document).on('mouseenter', '#wsb-basket-trigger', function() {
+        $('#wsb-basket-popup').stop().fadeIn(200);
+    }).on('mouseleave', '#wsb-basket-trigger', function() {
+        $('#wsb-basket-popup').stop().fadeOut(200);
+    });
+
+    $(document).on('click', '#wsb-basket-trigger', function(e) {
+        if ($(e.target).closest('#wsb-basket-popup').length === 0) {
+            $('#wsb-basket-popup').stop().fadeToggle(200);
+        }
+    });
+
+    $(document).on('click', '#wsb-close-basket', function(e) {
+        e.stopPropagation();
+        $('#wsb-basket-popup').fadeOut(200);
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#wsb-basket-trigger').length) {
+            $('#wsb-basket-popup').fadeOut(200);
+        }
+    });
+
+    function updateBasketUI() {
+        const selectedServices = $('.wsb-card-option.selected');
+        const count = selectedServices.length;
+        $('#wsb-basket-count').text(count);
+        
+        let itemsHtml = '';
+        let totalPrice = 0;
+
+        if (count > 0) {
+            $('#wsb-empty-basket-msg').hide();
+            $('#wsb-basket-footer').show();
+
+            selectedServices.each(function() {
+                const id = $(this).data('service-id');
+                const name = $(this).find('h4').text();
+                const priceText = $(this).find('.wsb-price-tag').text().replace(/[^0-9.]/g, '');
+                const price = parseFloat(priceText) || 0;
+                totalPrice += price;
+
+                itemsHtml += `
+                    <div class="wsb-basket-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(0,0,0,0.02); border-radius:10px;">
+                        <div style="flex-grow:1;">
+                            <div style="font-weight:700; font-size:14px; color:var(--wsb-heading);">${name}</div>
+                            <div style="font-size:12px; color:var(--wsb-brand); font-weight:600;">${$(this).find('.wsb-price-tag').text()}</div>
+                        </div>
+                        <span class="wsb-remove-item" data-service-id="${id}" style="color:#ef4444; font-size:18px; cursor:pointer; padding:5px;">&times;</span>
+                    </div>
+                `;
+            });
+            $('#wsb-basket-items').html(itemsHtml);
+            $('#wsb-basket-total').text(wsb_ajax.currency_symbol + totalPrice.toFixed(2));
+        } else {
+            $('#wsb-basket-items').html('<p id="wsb-empty-basket-msg" style="text-align:center; color:var(--wsb-body); opacity:0.6; font-size:14px; margin:20px 0;">No services selected yet.</p>');
+            $('#wsb-basket-footer').hide();
+        }
+    }
+
+    $(document).on('click', '.wsb-remove-item', function(e) {
+        e.stopPropagation();
+        const serviceId = $(this).data('service-id');
+        $(`.wsb-card-option[data-service-id="${serviceId}"]`).trigger('click');
+    });
+
     // Card Selection Logic for UI (Updated for Multi-Service)
-    $(document).on('click', '.wsb-card-option', function() {
+    $(document).on('click', '.wsb-card-option', function(e) {
+        // Prevent selection if clicking the image link
+        if ($(e.target).closest('a').length) return;
+        
         $(this).toggleClass('selected');
+        
+        updateBasketUI();
         
         const selectedCount = $('.wsb-card-option.selected').length;
         // Enable the Next button if at least one service is selected
