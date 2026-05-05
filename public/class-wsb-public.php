@@ -104,7 +104,8 @@ class Wsb_Public
             'filter_staff_by_service' => get_option('wsb_filter_staff_by_service', 'no'),
             'enable_split_scheduling' => get_option('wsb_enable_split_scheduling', 'no'),
             'staff_service_mapping' => $mapping,
-            'currency_symbol' => wsb_get_currency_symbol(get_option('wsb_currency', 'USD'))
+            'currency_symbol' => wsb_get_currency_symbol(get_option('wsb_currency', 'USD')),
+            'basket_mode' => get_option('wsb_basket_mode', 'hover')
         ));
     }
 
@@ -143,7 +144,7 @@ class Wsb_Public
                         <div style="color: #475569; line-height: 1.8; font-size: 16px; margin-bottom: 40px;">
                             <?php echo wpautop(esc_html($s->description)); ?>
                         </div>
-                        <a href="<?php echo esc_url($back_url); ?>" class="wsb-btn" style="display: block; text-align: center; background: var(--wsb-gradient); color: #fff; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 18px; text-decoration: none; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);">Book This Service Now</a>
+                        <a href="<?php echo esc_url(add_query_arg(['wsb_select_service' => $s->id, 'wsb_jump_to_staff' => '1'], $back_url)); ?>" class="wsb-btn" style="display: block; text-align: center; background: var(--wsb-gradient); color: #fff; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 18px; text-decoration: none; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);">Book This Service Now</a>
                     </div>
                 </div>
                 <?php
@@ -282,19 +283,24 @@ class Wsb_Public
                         <h3><?php echo esc_html($clean_label($l_step1)); ?></h3>
                         <p>Select your desired service to begin your experience.</p>
                         
+                        <?php 
+                        $l_basket = get_option('wsb_label_basket_btn', 'Services Selected');
+                        $i_basket = get_option('wsb_icon_basket_btn', 'dashicons-cart');
+                        ?>
+                        
                         <div style="margin-top:20px; display:flex; align-items:center; justify-content:center; gap:15px; flex-wrap:wrap;">
                             <a href="<?php echo esc_url(home_url('/booking-dashboard')); ?>" class="wsb-btn"
                                 style="display:inline-flex; align-items:center; background:rgba(99, 102, 241, 0.05); border:1.5px solid var(--wsb-brand); color:var(--wsb-brand); text-decoration:none; font-size: 13px; padding: 10px 22px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:8px;">
                                 <span class="dashicons dashicons-admin-users" style="font-size:18px;"></span> Client Portal
                             </a>
 
-                            <div id="wsb-basket-trigger" class="wsb-btn"
+                            <div id="wsb-basket-trigger" class="wsb-basket-trigger-btn wsb-btn"
                                 style="position:relative; display:inline-flex; align-items:center; background:var(--wsb-gradient); color:#fff; cursor:pointer; font-size: 13px; padding: 10px 26px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:12px; box-shadow: 0 4px 12px var(--wsb-ring);">
                                 <div style="position:relative; display:flex; align-items:center; justify-content:center;">
-                                    <span class="dashicons dashicons-cart" style="font-size:20px; width:20px; height:20px;"></span> 
-                                    <span id="wsb-basket-count" style="position:absolute; top:-10px; right:-12px; background:var(--wsb-brand-alt); color:#fff; min-width:18px; height:18px; border-radius:10px; font-size:10px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #fff; font-weight:900; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.1);">0</span>
+                                    <span class="dashicons <?php echo esc_attr($i_basket); ?>" style="font-size:20px; width:20px; height:20px;"></span> 
+                                    <span class="wsb-basket-count-val" style="position:absolute; top:-10px; right:-12px; background:var(--wsb-brand-alt); color:#fff; min-width:18px; height:18px; border-radius:10px; font-size:10px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #fff; font-weight:900; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.1);">0</span>
                                 </div>
-                                <span>Services Selected</span>
+                                <span><?php echo esc_html($l_basket); ?></span>
                                 
                                 <!-- Basket Popup -->
                                 <div id="wsb-basket-popup" style="display:none; position:absolute; top:calc(100% + 15px); right:0; width:320px; background:#fff; border-radius:16px; border:1px solid var(--wsb-input-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); z-index:999999; padding:20px; text-align:left; cursor:default;">
@@ -333,7 +339,10 @@ class Wsb_Public
                 <div class="wsb-services-container wsb-layout-<?php echo esc_attr($layout); ?>">
                     <?php if (!empty($services)):
                         foreach ($services as $s): ?>
-                            <div class="wsb-card-option" data-service-id="<?php echo esc_attr($s->id); ?>">
+                            <div class="wsb-card-option" 
+                                data-service-id="<?php echo esc_attr($s->id); ?>"
+                                data-price="<?php echo esc_attr($s->price); ?>"
+                                data-duration="<?php echo esc_attr($s->duration); ?>">
                                 <?php if ($s->category): ?>
                                     <span class="wsb-category-badge"><?php echo esc_html($s->category); ?></span>
                                 <?php endif; ?>
@@ -344,7 +353,7 @@ class Wsb_Public
                                             style="background: #f8fafc <?php echo $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
                                         </div>
                                         <a href="<?php echo esc_url(add_query_arg('wsb_service_id', $s->id)); ?>" class="wsb-view-service-btn" title="View Product Details">
-                                            <span class="dashicons dashicons-visibility"></span>
+                                            <span class="dashicons <?php echo esc_attr(get_option('wsb_icon_view_details', 'dashicons-visibility')); ?>"></span>
                                         </a>
                                     </div>
                                 <?php endif; ?>
@@ -1191,53 +1200,17 @@ class Wsb_Public
         $slug = end($parts);
 
         if ($slug === 'booking' || $slug === 'booking-dashboard') {
-            status_header(200);
+            get_header();
             $brand_color = get_option('wsb_brand_color', '#6366f1');
             $brand_color_end = get_option('wsb_brand_color_end', '#a855f7');
             $virtual_bg_color = get_option('wsb_virtual_bg_color', '#f8fafc');
             ?>
-            <!DOCTYPE html>
-            <html <?php language_attributes(); ?>>
-
-            <head>
-                <meta charset="<?php bloginfo('charset'); ?>">
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <?php wp_head(); ?>
-                <style>
-                    body {
-                        background: #f1f5f9;
-                        min-height: 100vh;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 20px;
-                        margin: 0;
-                    }
-
-                    .wsb-virtual-page {
-                        background:
-                            <?php echo esc_attr($virtual_bg_color); ?>
-                        ;
-                        width: 100%;
-                        max-width: 850px;
-                        padding: 40px;
-                        border-radius: 24px;
-                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                    }
-
-                    #wsb-booking-wizard-container {
-                        margin: 0;
-                        padding: 20px;
-                        background: transparent;
-                        border: none;
-                        box-shadow: none;
-                    }
-                </style>
-            </head>
-
-            <body>
-                <div class="wsb-virtual-page">
+            <div class="wsb-virtual-wrapper" style="padding: 60px 20px; background: #f1f5f9; min-height: 80vh; display: flex; justify-content: center; align-items: flex-start;">
+                <div class="wsb-virtual-page" style="width: 100%; max-width: 900px; background: <?php echo esc_attr($virtual_bg_color); ?>; padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.05);">
+                    <style>
+                        #wsb-booking-wizard-container { margin: 0; padding: 0; background: transparent; border: none; box-shadow: none; }
+                        @media (max-width: 768px) { .wsb-virtual-wrapper { padding: 20px 10px; } .wsb-virtual-page { padding: 20px; } }
+                    </style>
                     <?php
                     if ($slug === 'booking-dashboard') {
                         echo $this->render_client_dashboard();
@@ -1246,16 +1219,15 @@ class Wsb_Public
                     }
                     ?>
                 </div>
-                <?php wp_footer(); ?>
-            </body>
-
-            </html>
+            </div>
             <?php
+            get_footer();
             exit;
         }
     }
     public function wsb_login_redirect($redirect_to, $request, $user)
     {
+
         if (isset($user->roles) && is_array($user->roles)) {
             if (in_array('subscriber', $user->roles)) {
                 return home_url('/booking-dashboard');
@@ -1432,7 +1404,12 @@ class Wsb_Public
                                 <span class="wsb-showcase-price"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($s->price); ?></span>
                             </div>
                             <p class="wsb-showcase-desc"><?php echo esc_html(wp_trim_words($s->description, 15)); ?></p>
-                            <a href="<?php echo esc_url(add_query_arg('service_id', $s->id, home_url('/booking'))); ?>" class="wsb-showcase-btn">Book Appointment</a>
+                            <?php
+                            global $wpdb;
+                            $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[wsb_booking_widget]%' AND post_status = 'publish' LIMIT 1");
+                            $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
+                            ?>
+                            <a href="<?php echo esc_url(add_query_arg(['wsb_select_service' => $s->id, 'wsb_jump_to_staff' => '1'], $booking_url)); ?>" class="wsb-showcase-btn">Book Appointment</a>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -1440,5 +1417,145 @@ class Wsb_Public
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    /**
+     * Render basket widget shortcode
+     */
+    public function render_basket_shortcode($atts) {
+        $l_basket = get_option('wsb_label_basket_btn', 'Services Selected');
+        $i_basket = get_option('wsb_icon_basket_btn', 'dashicons-cart');
+        
+        ob_start();
+        ?>
+        <div class="wsb-standalone-basket" style="display:inline-block; position:relative;">
+            <div id="wsb-basket-trigger" class="wsb-basket-trigger-btn wsb-btn"
+                style="position:relative; display:inline-flex; align-items:center; background:var(--wsb-gradient); color:#fff; cursor:pointer; font-size: 13px; padding: 10px 26px; border-radius: 12px; font-weight: 700; transition:all 0.3s; gap:12px; box-shadow: 0 4px 12px var(--wsb-ring);">
+                <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+                    <span class="dashicons <?php echo esc_attr($i_basket); ?>" style="font-size:20px; width:20px; height:20px;"></span> 
+                    <span class="wsb-basket-count-val" style="position:absolute; top:-10px; right:-12px; background:var(--wsb-brand-alt); color:#fff; min-width:18px; height:18px; border-radius:10px; font-size:10px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #fff; font-weight:900; line-height:1; box-shadow:0 2px 4px rgba(0,0,0,0.1);">0</span>
+                </div>
+                <span><?php echo esc_html($l_basket); ?></span>
+                
+                <!-- Basket Popup -->
+                <div id="wsb-basket-popup" style="display:none; position:absolute; top:calc(100% + 15px); right:0; width:320px; background:#fff; border-radius:16px; border:1px solid var(--wsb-input-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); z-index:999999; padding:20px; text-align:left; cursor:default;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--wsb-input-border); padding-bottom:10px;">
+                        <h4 style="margin:0; font-size:16px; font-weight:800; color:var(--wsb-heading);">Your Selection</h4>
+                        <span id="wsb-close-basket" style="font-size:20px; cursor:pointer; color:var(--wsb-body);">&times;</span>
+                    </div>
+                    <div id="wsb-basket-items" style="max-height:250px; overflow-y:auto; margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+                        <p id="wsb-empty-basket-msg" style="text-align:center; color:var(--wsb-body); opacity:0.6; font-size:14px; margin:20px 0;">No services selected yet.</p>
+                    </div>
+                    <div id="wsb-basket-footer" style="border-top:1px solid var(--wsb-input-border); padding-top:15px; display:none;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-weight:800; color:var(--wsb-heading);">
+                            <span>Total</span>
+                            <span id="wsb-basket-total">0.00</span>
+                        </div>
+                        <?php
+                        global $wpdb;
+                        $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[wsb_booking_widget]%' AND post_status = 'publish' LIMIT 1");
+                        $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
+                        ?>
+                        <a href="<?php echo esc_url(add_query_arg('wsb_jump_to_staff', '1', $booking_url)); ?>" class="wsb-btn wsb-next-btn wsb-basket-checkout-btn" style="width:100%; padding:12px; text-decoration:none; text-align:center;">Continue Booking</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Add basket to WordPress menu
+     */
+    public function add_basket_to_menu($items, $args) {
+        $enabled = get_option('wsb_menu_basket_enable', 'no');
+        if ($enabled !== 'yes') return $items;
+
+        $text = get_option('wsb_menu_basket_text', 'Selection');
+        $icon = get_option('wsb_menu_basket_icon', 'dashicons-cart');
+        $pos = get_option('wsb_menu_basket_pos', 'after');
+
+        $basket_html = '
+        <li class="menu-item wsb-menu-basket-wrap" style="position:relative; display:inline-flex; align-items:center;">
+            <a href="#" class="wsb-basket-trigger-btn" style="display:flex; align-items:center; gap:8px; text-decoration:none;">
+                <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+                    <span class="dashicons ' . esc_attr($icon) . '"></span>
+                    <span class="wsb-basket-count-val" style="position:absolute; top:-8px; right:-10px; background:var(--wsb-brand-alt, #ef4444); color:#fff; min-width:16px; height:16px; border-radius:50%; font-size:9px; display:flex; align-items:center; justify-content:center; padding:0 3px; border:1px solid #fff; font-weight:900;">0</span>
+                </div>
+                ' . ( !empty($text) ? '<span style="margin-left:5px;">' . esc_html($text) . '</span>' : '' ) . '
+            </a>
+            <div id="wsb-basket-popup" style="display:none; position:absolute; top:100%; right:0; width:300px; background:#fff; border-radius:12px; border:1px solid #eee; box-shadow:0 15px 30px rgba(0,0,0,0.1); z-index:99999; padding:15px; text-align:left; cursor:default; color:#333;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                    <h4 style="margin:0; font-size:14px; font-weight:800;">Your Selection</h4>
+                </div>
+                <div id="wsb-basket-items" style="max-height:200px; overflow-y:auto; margin-bottom:12px; display:flex; flex-direction:column; gap:8px;">
+                    <p id="wsb-empty-basket-msg" style="text-align:center; font-size:12px; opacity:0.6; margin:15px 0;">Empty</p>
+                </div>
+                <div id="wsb-basket-footer" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-weight:800; font-size:13px;">
+                        <span>Total</span>
+                        <span id="wsb-basket-total">0.00</span>
+                    </div>
+                    <a href="' . esc_url(add_query_arg('wsb_jump_to_staff', '1', home_url('/booking'))) . '" class="wsb-basket-checkout-btn" style="display:block; background:var(--wsb-brand, #6366f1); color:#fff; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-size:12px; font-weight:700;">Book Now</a>
+                </div>
+            </div>
+        </li>';
+
+        if ($pos === 'before') {
+            return $basket_html . $items;
+        } else {
+            return $items . $basket_html;
+        }
+    }
+
+    /**
+     * Render floating booking button
+     */
+    public function render_floating_booking_btn() {
+        $enabled = get_option('wsb_float_btn_enable', 'no');
+        if ($enabled !== 'yes') return;
+
+        $pos = get_option('wsb_float_btn_pos', 'bottom-right');
+        $icon = get_option('wsb_float_btn_icon', 'dashicons-calendar-alt');
+        
+        $side = ($pos === 'bottom-left') ? 'left: 30px;' : 'right: 30px;';
+        
+        global $wpdb;
+        $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[wsb_booking_widget]%' AND post_status = 'publish' LIMIT 1");
+        $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
+
+        echo '
+        <div class="wsb-standalone-basket wsb-floating-basket-wrap" style="position: fixed; bottom: 30px; ' . $side . ' z-index: 99999;">
+            <div class="wsb-basket-trigger-btn" style="width: 60px; height: 60px; background: var(--wsb-gradient, linear-gradient(135deg, #6366f1 0%, #a855f7 100%)); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); position: relative; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <span class="dashicons ' . esc_attr($icon) . '" style="font-size: 24px; width: 24px; height: 24px;"></span>
+                <span class="wsb-basket-count-val" style="position:absolute; top:-5px; right:-5px; background:var(--wsb-brand-alt, #ef4444); color:#fff; min-width:22px; height:22px; border-radius:50%; font-size:10px; display:flex; align-items:center; justify-content:center; padding:0 4px; border:2px solid #fff; font-weight:900; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">0</span>
+            </div>
+            
+            <div id="wsb-basket-popup" style="display:none; position:absolute; bottom:80px; ' . (($pos === 'bottom-left') ? 'left:0;' : 'right:0;') . ' width:320px; background:#fff; border-radius:16px; border:1px solid #eee; box-shadow:0 20px 40px rgba(0,0,0,0.2); padding:20px; text-align:left; cursor:default; color:#333;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                    <h4 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Your Selection</h4>
+                    <span id="wsb-close-basket" style="font-size:24px; cursor:pointer; color:#64748b; line-height:1;">&times;</span>
+                </div>
+                <div id="wsb-basket-items" style="max-height:300px; overflow-y:auto; margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+                    <p id="wsb-empty-basket-msg" style="text-align:center; font-size:14px; color:#64748b; margin:30px 0;">Your basket is empty</p>
+                </div>
+                <div id="wsb-basket-footer" style="display:none; border-top:1px solid #eee; padding-top:15px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-weight:800; font-size:14px; color:#0f172a;">
+                        <span>Total</span>
+                        <span id="wsb-basket-total">0.00</span>
+                    </div>
+                    <a href="' . esc_url(add_query_arg('wsb_jump_to_staff', '1', $booking_url)) . '" class="wsb-basket-checkout-btn" style="display:block; background:var(--wsb-brand, #6366f1); color:#fff; text-align:center; padding:12px; border-radius:10px; text-decoration:none; font-size:14px; font-weight:700; transition:all 0.3s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">Book Now</a>
+                </div>
+                <div id="wsb-empty-basket-footer" style="display:block; text-align:center;">
+                     <a href="' . esc_url($booking_url) . '" style="display:inline-block; background:rgba(15, 23, 42, 0.05); color:#0f172a; padding:12px 25px; border-radius:10px; text-decoration:none; font-size:13px; font-weight:700; transition:all 0.2s;">Start Booking</a>
+                </div>
+            </div>
+        </div>
+        <style>
+            .wsb-basket-trigger-btn:hover { transform: scale(1.1) translateY(-3px); box-shadow: 0 15px 30px rgba(99, 102, 241, 0.5); }
+            .wsb-basket-trigger-btn:active { transform: scale(0.95); }
+            .wsb-basket-checkout-btn:hover { background: var(--wsb-primary-dark, #4f46e5); transform: translateY(-2px); box-shadow: 0 6px 15px rgba(99, 102, 241, 0.3); }
+        </style>';
     }
 }

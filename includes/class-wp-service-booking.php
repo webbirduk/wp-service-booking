@@ -34,11 +34,14 @@ class Wp_Service_Booking {
         add_shortcode( 'wsb_booking_widget', array( $plugin_public, 'render_booking_widget' ) );
         add_shortcode( 'wsb_services', array( $plugin_public, 'render_services_widget' ) );
         add_shortcode( 'wsb_client_dashboard', array( $plugin_public, 'render_client_dashboard' ) );
+        add_shortcode( 'wsb_basket', array( $plugin_public, 'render_basket_shortcode' ) );
         add_action( 'template_redirect', array( $plugin_public, 'virtual_booking_route' ) );
         add_action( 'init', array( $plugin_public, 'handle_stripe_return' ) );
         add_filter( 'login_redirect', array( $plugin_public, 'wsb_login_redirect' ), 10, 3 );
         add_filter( 'logout_redirect', array( $plugin_public, 'wsb_logout_redirect' ), 10, 3 );
         add_action( 'admin_init', array( $plugin_public, 'wsb_restrict_admin_access' ) );
+        add_filter( 'wp_nav_menu_items', array( $plugin_public, 'add_basket_to_menu' ), 10, 2 );
+        add_action( 'wp_footer', array( $plugin_public, 'render_floating_booking_btn' ) );
 	}
 
     private function define_ajax_hooks() {

@@ -9,26 +9,16 @@ class Wsb_Admin_Design {
     public function display() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['wsb_design_nonce']) && wp_verify_nonce($_POST['wsb_design_nonce'], 'wsb_save_design')) {
             if (isset($_POST['wsb_reset_design'])) {
-                delete_option('wsb_service_layout');
-                delete_option('wsb_brand_color');
-                delete_option('wsb_brand_color_end');
-                delete_option('wsb_accent_color');
-                delete_option('wsb_virtual_bg_color');
-                delete_option('wsb_font_family');
-                delete_option('wsb_border_radius');
-                delete_option('wsb_shadow_intensity');
-                delete_option('wsb_label_step1');
-                delete_option('wsb_label_step2');
-                delete_option('wsb_label_step3');
-                delete_option('wsb_label_step4');
-                delete_option('wsb_label_next_btn');
-                delete_option('wsb_label_prev_btn');
-                delete_option('wsb_card_bg_color');
-                delete_option('wsb_heading_text_color');
-                delete_option('wsb_body_text_color');
-                delete_option('wsb_input_bg_color');
-                delete_option('wsb_input_border_color');
-                echo '<div class="notice notice-info is-dismissible"><p>Factory default settings restored successfully!</p></div>';
+                delete_option('wsb_label_basket_btn');
+                delete_option('wsb_icon_basket_btn');
+                delete_option('wsb_icon_view_details');
+                delete_option('wsb_menu_basket_enable');
+                delete_option('wsb_float_btn_enable');
+                delete_option('wsb_float_btn_pos');
+                delete_option('wsb_menu_basket_text');
+                delete_option('wsb_menu_basket_pos');
+                delete_option('wsb_menu_basket_icon');
+                echo '<div class="notice notice-info is-dismissible wsb-custom-notice"><p>Factory default settings restored successfully!</p></div>';
             } else {
                 // Layout & Colors
                 update_option('wsb_service_layout', sanitize_text_field($_POST['wsb_service_layout']));
@@ -57,7 +47,21 @@ class Wsb_Admin_Design {
                 update_option('wsb_input_bg_color', sanitize_hex_color($_POST['wsb_input_bg_color']));
                 update_option('wsb_input_border_color', sanitize_hex_color($_POST['wsb_input_border_color']));
 
-                echo '<div class="notice notice-success is-dismissible"><p>Advanced customization settings applied successfully!</p></div>';
+                // Basket & Icons
+                update_option('wsb_label_basket_btn', sanitize_text_field($_POST['wsb_label_basket_btn']));
+                update_option('wsb_icon_basket_btn', sanitize_text_field($_POST['wsb_icon_basket_btn']));
+                update_option('wsb_icon_view_details', sanitize_text_field($_POST['wsb_icon_view_details']));
+                update_option('wsb_menu_basket_enable', isset($_POST['wsb_menu_basket_enable']) ? 'yes' : 'no');
+                update_option('wsb_float_btn_enable', isset($_POST['wsb_float_btn_enable']) ? 'yes' : 'no');
+                update_option('wsb_float_btn_pos', sanitize_text_field($_POST['wsb_float_btn_pos']));
+                update_option('wsb_float_btn_text', sanitize_text_field($_POST['wsb_float_btn_text']));
+                update_option('wsb_float_btn_icon', sanitize_text_field($_POST['wsb_float_btn_icon']));
+                update_option('wsb_basket_mode', sanitize_text_field($_POST['wsb_basket_mode']));
+                update_option('wsb_menu_basket_text', sanitize_text_field($_POST['wsb_menu_basket_text']));
+                update_option('wsb_menu_basket_pos', sanitize_text_field($_POST['wsb_menu_basket_pos']));
+                update_option('wsb_menu_basket_icon', sanitize_text_field($_POST['wsb_menu_basket_icon']));
+
+                echo '<div class="notice notice-success is-dismissible wsb-custom-notice"><p>Advanced customization settings applied successfully!</p></div>';
             }
         }
 
@@ -86,10 +90,34 @@ class Wsb_Admin_Design {
         $l_step4 = get_option('wsb_label_step4', '4. Your Details');
         $l_next = get_option('wsb_label_next_btn', 'Next Step');
         $l_prev = get_option('wsb_label_prev_btn', 'Back');
+
+        // Basket & Icons
+        $l_basket = get_option('wsb_label_basket_btn', 'Services Selected');
+        $i_basket = get_option('wsb_icon_basket_btn', 'dashicons-cart');
+        $i_view = get_option('wsb_icon_view_details', 'dashicons-visibility');
+        $m_basket_enable = get_option('wsb_menu_basket_enable', 'no');
+        $m_basket_text = get_option('wsb_menu_basket_text', 'Selection');
+        $m_basket_icon = get_option('wsb_menu_basket_icon', 'dashicons-cart');
+        $m_basket_pos = get_option('wsb_menu_basket_pos', 'after');
+        $basket_mode = get_option('wsb_basket_mode', 'hover');
+
+        $float_enable = get_option('wsb_float_btn_enable', 'no');
+        $float_pos = get_option('wsb_float_btn_pos', 'bottom-right');
+        $float_text = get_option('wsb_float_btn_text', 'Book Now');
+        $float_icon = get_option('wsb_float_btn_icon', 'dashicons-calendar-alt');
         ?>
         <div class="wrap wsb-admin-wrap">
             <h1 style="margin-bottom:20px;">System Customization & Branding</h1>
             <p style="color:var(--wsb-text-muted); margin-bottom:30px;">Fully loaded control center for your premium booking ecosystem.</p>
+
+            <style>
+                .wsb-switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+                .wsb-switch input { opacity: 0; width: 0; height: 0; }
+                .wsb-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.05); transition: .4s; border-radius: 34px; border: 1px solid rgba(255,255,255,0.1); }
+                .wsb-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 4px; bottom: 3px; background-color: #94a3b8; transition: .4s; border-radius: 50%; }
+                input:checked + .wsb-slider { background-color: var(--wsb-brand, #6366f1); border-color: var(--wsb-brand, #6366f1); }
+                input:checked + .wsb-slider:before { transform: translateX(22px); background-color: #fff; }
+            </style>
 
             <form method="post">
                 <?php wp_nonce_field('wsb_save_design', 'wsb_design_nonce'); ?>
@@ -274,6 +302,94 @@ class Wsb_Admin_Design {
                             </div>
                         </div>
 
+                        <!-- Section 4: Basket & Interaction Ecosystem -->
+                        <div class="wsb-design-section" style="margin:0; border-top: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.02);">
+                            <h2 style="color:white; margin-bottom:25px; font-weight: 800; display:flex; align-items:center; gap:12px; font-size:18px;">
+                                <span class="dashicons dashicons-cart" style="color:#f59e0b; font-size:24px; width:24px; height:24px;"></span> 04. Basket & Interaction Ecosystem
+                            </h2>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:25px; margin-bottom:30px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05);">
+                                    <div>
+                                        <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                            Show Basket in Menu
+                                            <span class="wsb-info-icon" data-tooltip="Integrates the service selection basket directly into your primary WordPress navigation menu.">?</span>
+                                        </label>
+                                        <span style="color:var(--wsb-text-muted); font-size:12px;">Integrate selection into main nav.</span>
+                                    </div>
+                                    <label class="wsb-switch">
+                                        <input type="checkbox" name="wsb_menu_basket_enable" value="yes" <?php checked($m_basket_enable, 'yes'); ?>>
+                                        <span class="wsb-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="wsb-input-wrap">
+                                    <label style="color:rgba(255,255,255,0.6); font-size:12px; display:block; margin-bottom:8px; font-weight:600;">Interaction Mode</label>
+                                    <select name="wsb_basket_mode" style="width:100%; background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:10px;">
+                                        <option value="hover" <?php selected($basket_mode, 'hover'); ?>>Open on Hover (Premium)</option>
+                                        <option value="click" <?php selected($basket_mode, 'click'); ?>>Open on Click (Standard)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:20px; padding:20px; background:rgba(0,0,0,0.1); border-radius:16px;">
+                                <div class="wsb-input-wrap">
+                                    <label style="color:rgba(255,255,255,0.5); font-size:11px; text-transform:uppercase; margin-bottom:8px; display:block;">Basket Icon</label>
+                                    <input type="text" name="wsb_icon_basket_btn" value="<?php echo esc_attr($i_basket); ?>" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:8px;">
+                                </div>
+                                <div class="wsb-input-wrap">
+                                    <label style="color:rgba(255,255,255,0.5); font-size:11px; text-transform:uppercase; margin-bottom:8px; display:block;">Details Icon</label>
+                                    <input type="text" name="wsb_icon_view_details" value="<?php echo esc_attr($i_view); ?>" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:8px;">
+                                </div>
+                                <div class="wsb-input-wrap">
+                                    <label style="color:rgba(255,255,255,0.5); font-size:11px; text-transform:uppercase; margin-bottom:8px; display:block;">Menu Label</label>
+                                    <input type="text" name="wsb_menu_basket_text" value="<?php echo esc_attr($m_basket_text); ?>" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:8px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 5: Floating Booking Widget -->
+                        <div class="wsb-design-section" style="margin:0; border-top: 4px solid var(--wsb-success); background: rgba(16, 185, 129, 0.02);">
+                            <h2 style="color:white; margin-bottom:25px; font-weight: 800; display:flex; align-items:center; gap:12px; font-size:18px;">
+                                <span class="dashicons dashicons-calendar-alt" style="color:var(--wsb-success); font-size:24px; width:24px; height:24px;"></span> 05. Floating Booking Assistant
+                            </h2>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:25px; margin-bottom:25px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:20px; border-radius:14px; border:1px solid rgba(255,255,255,0.05);">
+                                    <div>
+                                        <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                            Display Floating Widget
+                                            <span class="wsb-info-icon" data-tooltip="Enables a persistent floating mini-basket button that follows users across your entire website.">?</span>
+                                        </label>
+                                        <span style="color:var(--wsb-text-muted); font-size:12px;">Persistent site-wide mini-basket.</span>
+                                    </div>
+                                    <label class="wsb-switch">
+                                        <input type="checkbox" name="wsb_float_btn_enable" value="yes" <?php checked($float_enable, 'yes'); ?>>
+                                        <span class="wsb-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="wsb-input-wrap">
+                                    <label style="color:rgba(255,255,255,0.6); font-size:12px; display:block; margin-bottom:8px; font-weight:600;">Button Position</label>
+                                    <select name="wsb_float_btn_pos" style="width:100%; background:rgba(255,255,255,0.05); color:white; border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:10px;">
+                                        <option value="bottom-right" <?php selected($float_pos, 'bottom-right'); ?>>Bottom Right Corner</option>
+                                        <option value="bottom-left" <?php selected($float_pos, 'bottom-left'); ?>>Bottom Left Corner</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                                <div class="wsb-input-wrap">
+                                    <label style="color:rgba(255,255,255,0.5); font-size:11px; text-transform:uppercase; margin-bottom:8px; display:block;">Floating Widget Icon</label>
+                                    <input type="text" name="wsb_float_btn_icon" value="<?php echo esc_attr($float_icon); ?>" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:white; padding:12px; border-radius:8px;">
+                                </div>
+                                <div style="background:rgba(16, 185, 129, 0.05); padding:15px; border-radius:12px; border:1px solid rgba(16, 185, 129, 0.1); display:flex; align-items:center; gap:12px;">
+                                    <span class="dashicons dashicons-info" style="color:var(--wsb-success);"></span>
+                                    <span style="color:rgba(255,255,255,0.6); font-size:11px; line-height:1.4;">The floating widget acts as a mini-basket that expands on click, allowing users to manage their selection from any page.</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Save Actions -->
                         <div style="background:var(--wsb-panel-dark); padding:20px; border-radius:16px; border:1px solid var(--wsb-border); margin-top:30px; display:flex; gap:15px;">
                             <button type="submit" class="wsb-btn-premium"
@@ -420,6 +536,12 @@ class Wsb_Admin_Design {
                                         <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">03. Specific Service IDs</label>
                                         <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services ids="1,5,8"]</code>
                                     </div>
+
+                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">04. Floating Basket Widget</label>
+                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_basket]</code>
+                                    </div>
+                                </div>
                                 </div>
 
                                 <div style="margin-top:20px; padding:15px; background:rgba(99, 102, 241, 0.05); border-radius:12px; border:1px solid rgba(99, 102, 241, 0.1);">

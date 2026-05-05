@@ -25,7 +25,7 @@ class Wsb_Admin_Settings
                 delete_option('wsb_enable_notifications');
                 delete_option('wsb_cancellation_policy');
                 
-                echo '<div class="notice notice-warning is-dismissible"><p>All settings have been restored to factory defaults.</p></div>';
+                echo '<div class="notice notice-warning is-dismissible wsb-custom-notice"><p>All settings have been restored to factory defaults.</p></div>';
             } elseif (isset($_POST['wsb_settings_nonce']) && wp_verify_nonce($_POST['wsb_settings_nonce'], 'wsb_save_settings')) {
                 do_action('wsb_before_save_settings', $_POST);
                 update_option('wsb_currency', sanitize_text_field($_POST['wsb_currency']));
@@ -44,7 +44,7 @@ class Wsb_Admin_Settings
                 update_option('wsb_cancellation_policy', sanitize_textarea_field($_POST['wsb_cancellation_policy']));
 
                 do_action('wsb_after_save_settings', $_POST);
-                echo '<div class="notice notice-success is-dismissible"><p>System Integration Settings securely saved!</p></div>';
+                echo '<div class="notice notice-success is-dismissible wsb-custom-notice"><p>System Integration Settings securely saved!</p></div>';
             }
         }
 

@@ -13,6 +13,9 @@ class Wsb_Admin
 
         // Register AJAX tab loader
         add_action('wp_ajax_wsb_load_admin_tab', array($this, 'ajax_load_tab'));
+
+        // Suppress other notices on our plugin page to maintain premium UI
+        add_action('admin_head', array($this, 'suppress_other_notices'), 1);
     }
 
     private function load_dependencies()
@@ -177,6 +180,30 @@ class Wsb_Admin
                 </div>';
 
             wsb_send_modern_email($booking->email, $mail_subject, 'Booking Updated', "Hello " . $booking->first_name . ", some details of your booking #" . $booking_id . " have been updated.", $content_html);
+        }
+    }
+
+    /**
+     * Suppress third-party notices on our master dashboard
+     */
+    public function suppress_other_notices() {
+        if (isset($_GET['page']) && $_GET['page'] === 'wsb_main') {
+            remove_all_actions('admin_notices');
+            remove_all_actions('all_admin_notices');
+            remove_all_actions('network_admin_notices');
+            remove_all_actions('user_admin_notices');
+            
+            // Fallback CSS to hide any notices that were injected directly or via JS
+            echo '<style>
+                .notice:not(.wsb-custom-notice), 
+                .update-nag, 
+                #message, 
+                .error, 
+                .updated,
+                .is-dismissible:not(.wsb-custom-notice) { 
+                    display: none !important; 
+                }
+            </style>';
         }
     }
 }
