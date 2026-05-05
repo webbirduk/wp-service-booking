@@ -13,8 +13,8 @@ class Wsb_Admin_Design {
                 delete_option('wsb_icon_basket_btn');
                 delete_option('wsb_icon_view_details');
                 delete_option('wsb_menu_basket_enable');
-                delete_option('wsb_float_btn_enable');
                 delete_option('wsb_float_btn_pos');
+                delete_option('wsb_showcase_layout');
                 delete_option('wsb_menu_basket_text');
                 delete_option('wsb_menu_basket_pos');
                 delete_option('wsb_menu_basket_icon');
@@ -60,6 +60,7 @@ class Wsb_Admin_Design {
                 update_option('wsb_menu_basket_text', sanitize_text_field($_POST['wsb_menu_basket_text']));
                 update_option('wsb_menu_basket_pos', sanitize_text_field($_POST['wsb_menu_basket_pos']));
                 update_option('wsb_menu_basket_icon', sanitize_text_field($_POST['wsb_menu_basket_icon']));
+                update_option('wsb_showcase_layout', sanitize_text_field($_POST['wsb_showcase_layout']));
 
                 echo '<div class="notice notice-success is-dismissible wsb-custom-notice"><p>Advanced customization settings applied successfully!</p></div>';
             }
@@ -105,6 +106,7 @@ class Wsb_Admin_Design {
         $float_pos = get_option('wsb_float_btn_pos', 'bottom-right');
         $float_text = get_option('wsb_float_btn_text', 'Book Now');
         $float_icon = get_option('wsb_float_btn_icon', 'dashicons-calendar-alt');
+        $showcase_layout = get_option('wsb_showcase_layout', 'grid');
         ?>
         <div class="wrap wsb-admin-wrap">
             <h1 style="margin-bottom:20px;">System Customization & Branding</h1>
@@ -511,45 +513,41 @@ class Wsb_Admin_Design {
                             </div>
                         </div>
 
-                        <!-- Section 6: Service Showcase Architecture -->
-                        <div style="background:var(--wsb-panel-dark); border-radius:16px; border:1px solid var(--wsb-border); overflow:hidden; border-top:4px solid #6366f1; margin-top:30px;">
-                            <div style="padding:20px; border-bottom:1px solid var(--wsb-border);">
-                                <h3 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px; font-size:15px;">
-                                    <span class="dashicons dashicons-products" style="color:#6366f1;"></span> 06. Service Display Showcase
-                                </h3>
-                            </div>
-                            <div style="padding:20px;">
-                                <p style="color:var(--wsb-text-muted); font-size:12px; margin-bottom:20px; line-height:1.6;">Embed your services anywhere on your site using these advanced shortcodes. Clients can view service details and jump directly into the booking flow.</p>
+                        <!-- Section 06: Service Display Showcase -->
+                        <div class="wsb-design-section" style="margin:0; border-left: 4px solid #f43f5e;">
+                            <h2 style="color:white; margin-bottom:10px; font-weight: 700; letter-spacing: -0.02em; display:flex; align-items:center; gap:10px;">
+                                <span class="dashicons dashicons-layout"></span> 06. Service Display Showcase
+                            </h2>
+                            <p style="color:var(--wsb-text-muted); font-size:12px; margin-bottom:25px; line-height:1.6;">Embed your services anywhere on your site using these advanced shortcodes. Clients can view service details and jump directly into the booking flow.</p>
+
+                            <!-- Shortcode Guide -->
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-bottom:35px;">
+                                <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                    <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:8px; font-weight:700;">01. Show All Services</label>
+                                    <code style="background:rgba(244, 63, 94, 0.1); color:#f43f5e; padding:4px 8px; border-radius:6px; font-size:13px; font-weight:700;">[wsb_services]</code>
+                                </div>
                                 
-                                <div style="display:flex; flex-direction:column; gap:12px;">
-                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
-                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">01. Show All Services</label>
-                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services]</code>
-                                    </div>
-                                    
-                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
-                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">02. Filter by Category</label>
-                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services category="Hair"]</code>
-                                    </div>
-
-                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
-                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">03. Specific Service IDs</label>
-                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_services ids="1,5,8"]</code>
-                                    </div>
-
-                                    <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
-                                        <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:5px; font-weight:700;">04. Floating Basket Widget</label>
-                                        <code style="background:transparent; color:var(--wsb-primary); font-size:13px;">[wsb_basket]</code>
-                                    </div>
-                                </div>
+                                <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                    <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:8px; font-weight:700;">02. Override Layout</label>
+                                    <code style="background:rgba(244, 63, 94, 0.1); color:#f43f5e; padding:4px 8px; border-radius:6px; font-size:13px; font-weight:700;">[wsb_services layout="carousel"]</code>
                                 </div>
 
-                                <div style="margin-top:20px; padding:15px; background:rgba(99, 102, 241, 0.05); border-radius:12px; border:1px solid rgba(99, 102, 241, 0.1);">
-                                    <div style="display:flex; align-items:center; gap:8px; color:var(--wsb-primary); font-weight:700; font-size:12px; margin-bottom:5px;">
-                                        <span class="dashicons dashicons-info" style="font-size:16px; width:16px; height:16px;"></span> Pro Tip
-                                    </div>
-                                    <p style="color:var(--wsb-text-muted); font-size:11px; margin:0; line-height:1.5;">This widget uses your global branding and "Service Booking Page Style" selected above for a perfectly consistent experience.</p>
+                                <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                    <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:8px; font-weight:700;">03. Specific IDs</label>
+                                    <code style="background:rgba(244, 63, 94, 0.1); color:#f43f5e; padding:4px 8px; border-radius:6px; font-size:13px; font-weight:700;">[wsb_services ids="1,5,8"]</code>
                                 </div>
+
+                                <div style="background:rgba(255,255,255,0.03); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                    <label style="display:block; color:rgba(255,255,255,0.5); font-size:10px; text-transform:uppercase; margin-bottom:8px; font-weight:700;">04. Category + Grid</label>
+                                    <code style="background:rgba(244, 63, 94, 0.1); color:#f43f5e; padding:4px 8px; border-radius:6px; font-size:13px; font-weight:700;">[wsb_services category="Hair" layout="grid"]</code>
+                                </div>
+                            </div>
+
+                            <div style="padding:15px; background:rgba(244, 63, 94, 0.05); border-radius:12px; border:1px solid rgba(244, 63, 94, 0.1); margin-bottom:15px;">
+                                <div style="display:flex; align-items:center; gap:8px; color:#f43f5e; font-weight:700; font-size:12px; margin-bottom:5px;">
+                                    <span class="dashicons dashicons-info" style="font-size:16px; width:16px; height:16px;"></span> Shortcode Power
+                                </div>
+                                <p style="color:var(--wsb-text-muted); font-size:11px; margin:0; line-height:1.5;">You can combine your own styles by using the <code>layout="grid"</code> or <code>layout="carousel"</code> attribute in the shortcode.</p>
                             </div>
                         </div>
 

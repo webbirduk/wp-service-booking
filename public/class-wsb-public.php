@@ -1263,6 +1263,7 @@ class Wsb_Public
         $atts = shortcode_atts(array(
             'category' => '',
             'ids'      => '',
+            'layout'   => '', // Override global layout
         ), $atts, 'wsb_services');
 
         global $wpdb;
@@ -1289,7 +1290,7 @@ class Wsb_Public
         $brand_color_end = get_option('wsb_brand_color_end', '#a855f7');
         $font_family = get_option('wsb_font_family', 'Inter');
         $border_radius = get_option('wsb_border_radius', '16');
-        $layout = get_option('wsb_service_layout', 'modern_grid');
+        $layout = !empty($atts['layout']) ? $atts['layout'] : get_option('wsb_showcase_layout', 'grid');
         
         $card_bg = get_option('wsb_card_bg_color', '#ffffff');
         $heading_color = get_option('wsb_heading_text_color', '#0f172a');
@@ -1298,77 +1299,197 @@ class Wsb_Public
         ob_start();
         ?>
         <style>
-            .wsb-services-showcase {
-                font-family: "<?php echo esc_attr($font_family); ?>", sans-serif;
-                color: <?php echo esc_attr($body_color); ?>;
-            }
+            .wsb-services-showcase, .wsb-services-showcase * { box-sizing: border-box; }
+            .wsb-services-showcase { margin: 40px 0; font-family: 'Inter', sans-serif; }
+            
+            /* Showcase Layout Engine */
             .wsb-showcase-container {
                 display: grid;
                 gap: 25px;
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                width: 100%;
             }
+
+            .wsb-layout-grid .wsb-showcase-container {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+
+            /* Kinetic Carousel - High-End Design */
+            .wsb-layout-carousel {
+                overflow: hidden;
+                position: relative;
+                padding: 20px 0 60px 0;
+                width: 100%;
+                max-width: 1300px; /* Max width for 4 cards + gaps */
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .wsb-layout-carousel .wsb-showcase-container {
+                display: flex;
+                gap: 25px;
+                flex-wrap: nowrap;
+                transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+                will-change: transform;
+                cursor: grab;
+                user-select: none;
+                width: max-content !important;
+            }
+            .wsb-layout-carousel .wsb-showcase-container:active { cursor: grabbing; }
+            
+            .wsb-layout-carousel .wsb-showcase-card {
+                width: 300px; /* Fixed Width */
+                flex: 0 0 300px;
+                height: 480px; /* Fixed Height */
+                transition: all 0.5s ease;
+                margin: 0 !important;
+            }
+            
+            /* Section Responsiveness based on Card Count */
+            @media (max-width: 1350px) {
+                .wsb-layout-carousel { max-width: 950px; } /* 3 items */
+            }
+            @media (max-width: 1000px) {
+                .wsb-layout-carousel { max-width: 625px; } /* 2 items */
+            }
+            @media (max-width: 650px) {
+                .wsb-layout-carousel { max-width: 300px; } /* 1 item */
+            }
+
+            /* Carousel Navigation Arrows - Corner Positioned */
+            .wsb-carousel-nav {
+                position: absolute;
+                top: 50%;
+                left: -25px;
+                right: -25px;
+                transform: translateY(-100%); /* Shift up slightly for better visual center */
+                display: flex;
+                justify-content: space-between;
+                pointer-events: none;
+                z-index: 10;
+            }
+            .wsb-nav-btn {
+                width: 50px;
+                height: 50px;
+                background: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                pointer-events: auto;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                border: 1px solid #f1f5f9;
+                color: <?php echo esc_attr($brand_color); ?>;
+            }
+            .wsb-nav-btn:hover {
+                transform: scale(1.15);
+                box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+                color: <?php echo esc_attr($brand_color_end); ?>;
+            }
+            .wsb-nav-btn.prev { margin-left: 10px; }
+            .wsb-nav-btn.next { margin-right: 10px; }
+
+            @media (max-width: 1400px) {
+                .wsb-carousel-nav { left: 0; right: 0; }
+                .wsb-nav-btn { width: 40px; height: 40px; }
+            }
+
+            /* Dots - Stylish */
+            .wsb-carousel-dots {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                margin-top: 40px;
+            }
+            .wsb-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: #e2e8f0;
+                cursor: pointer;
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+            .wsb-dot.active {
+                background: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?>, <?php echo esc_attr($brand_color_end); ?>);
+                width: 35px;
+                border-radius: 20px;
+            }
+
             .wsb-showcase-card {
                 background: <?php echo esc_attr($card_bg); ?>;
+                border: 1px solid #e2e8f0;
                 border-radius: <?php echo esc_attr($border_radius); ?>px;
                 overflow: hidden;
-                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
-                border: 1px solid rgba(0,0,0,0.05);
-                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 display: flex;
                 flex-direction: column;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             }
             .wsb-showcase-card:hover {
                 transform: translateY(-5px);
-                box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
+                box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.1);
+                border-color: <?php echo esc_attr($brand_color); ?>44;
             }
             .wsb-showcase-img {
-                height: 180px;
-                background: #f1f5f9;
+                height: 220px;
                 background-position: center;
                 background-size: cover;
                 position: relative;
+                overflow: hidden;
+                background-color: #f8fafc;
             }
+            .wsb-showcase-card:hover .wsb-showcase-img { transform: scale(1.05); }
             .wsb-showcase-badge {
                 position: absolute;
                 top: 15px;
                 left: 15px;
-                background: rgba(255,255,255,0.9);
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 11px;
+                background: rgba(255,255,255,0.95);
+                padding: 5px 12px;
+                border-radius: 30px;
+                font-size: 10px;
                 font-weight: 800;
                 color: <?php echo esc_attr($brand_color); ?>;
                 text-transform: uppercase;
-                backdrop-filter: blur(4px);
+                letter-spacing: 0.05em;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                z-index: 2;
             }
             .wsb-showcase-content {
-                padding: 20px;
+                padding: 24px;
                 flex: 1;
+                display: flex;
+                flex-direction: column;
             }
             .wsb-showcase-title {
-                margin: 0 0 10px 0;
-                font-size: 18px;
+                margin: 0 0 12px 0;
+                font-size: 20px;
                 font-weight: 800;
                 color: <?php echo esc_attr($heading_color); ?>;
+                letter-spacing: -0.01em;
             }
             .wsb-showcase-meta {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 15px;
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: 600;
+                color: <?php echo esc_attr($body_color); ?>;
             }
             .wsb-showcase-price {
                 color: <?php echo esc_attr($brand_color); ?>;
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 800;
             }
             .wsb-showcase-desc {
                 font-size: 14px;
                 line-height: 1.6;
-                margin-bottom: 20px;
-                opacity: 0.8;
+                margin-bottom: 25px;
+                color: <?php echo esc_attr($body_color); ?>;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
             }
             .wsb-showcase-btn {
                 display: block;
@@ -1376,19 +1497,161 @@ class Wsb_Public
                 background: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
                 color: white;
                 text-decoration: none;
-                padding: 12px;
-                border-radius: 12px;
+                padding: 14px;
+                border-radius: 14px;
                 font-weight: 700;
                 font-size: 14px;
-                transition: opacity 0.2s;
+                transition: all 0.3s;
+                box-shadow: 0 4px 12px <?php echo esc_attr($brand_color); ?>33;
             }
             .wsb-showcase-btn:hover {
-                opacity: 0.9;
+                filter: brightness(1.1);
+                box-shadow: 0 8px 20px <?php echo esc_attr($brand_color); ?>44;
                 color: white;
+            }
+
+            @media (max-width: 768px) {
+                .wsb-layout-horizontal .wsb-showcase-card,
+                .wsb-layout-list .wsb-showcase-card {
+                    flex-direction: column;
+                    height: auto;
+                }
+                .wsb-layout-horizontal .wsb-showcase-img,
+                .wsb-layout-list .wsb-showcase-img {
+                    width: 100%;
+                    height: 180px;
+                }
+                .wsb-layout-list .wsb-showcase-content {
+                    padding: 20px;
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .wsb-layout-list .wsb-showcase-title { margin-bottom: 10px; }
+                .wsb-layout-list .wsb-showcase-meta { margin-bottom: 15px; }
             }
         </style>
 
-        <div class="wsb-services-showcase">
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const wrappers = document.querySelectorAll('.wsb-layout-carousel');
+            wrappers.forEach(wrapper => {
+                const container = wrapper.querySelector('.wsb-showcase-container');
+                const cards = container.querySelectorAll('.wsb-showcase-card');
+                if (cards.length === 0) return;
+
+                // Create Nav Arrows
+                const nav = document.createElement('div');
+                nav.className = 'wsb-carousel-nav';
+                nav.innerHTML = `
+                    <div class="wsb-nav-btn prev"><span class="dashicons dashicons-arrow-left-alt2"></span></div>
+                    <div class="wsb-nav-btn next"><span class="dashicons dashicons-arrow-right-alt2"></span></div>
+                `;
+                wrapper.appendChild(nav);
+                
+                nav.querySelector('.prev').addEventListener('click', () => { clearInterval(autoSlideInterval); goToSlide(currentIndex - 1); startAutoSlide(); });
+                nav.querySelector('.next').addEventListener('click', () => { clearInterval(autoSlideInterval); goToSlide(currentIndex + 1); startAutoSlide(); });
+
+                // Create Dots
+                const dotsContainer = document.createElement('div');
+                dotsContainer.className = 'wsb-carousel-dots';
+                cards.forEach((_, i) => {
+                    const dot = document.createElement('div');
+                    dot.className = 'wsb-dot' + (i === 0 ? ' active' : '');
+                    dot.addEventListener('click', () => { clearInterval(autoSlideInterval); goToSlide(i); startAutoSlide(); });
+                    dotsContainer.appendChild(dot);
+                });
+                wrapper.appendChild(dotsContainer);
+                const dots = dotsContainer.querySelectorAll('.wsb-dot');
+
+                let currentIndex = 0;
+                let startX = 0;
+                let currentTranslate = 0;
+                let prevTranslate = 0;
+                let isDragging = false;
+                let autoSlideInterval;
+
+                const updateDots = () => {
+                    dots.forEach((dot, i) => dot.classList.toggle('active', i === currentIndex));
+                    cards.forEach((card, i) => card.classList.toggle('active-slide', i === currentIndex));
+                };
+
+                const getSlideWidth = () => {
+                    const card = cards[0];
+                    const gap = 25;
+                    return card.getBoundingClientRect().width + gap; 
+                };
+
+                const goToSlide = (index) => {
+                    currentIndex = index;
+                    if (currentIndex < 0) currentIndex = cards.length - 1;
+                    if (currentIndex > cards.length - 1) currentIndex = 0;
+                    
+                    currentTranslate = currentIndex * -getSlideWidth();
+                    prevTranslate = currentTranslate;
+                    container.style.transform = `translateX(${currentTranslate}px)`;
+                    updateDots();
+                };
+
+                const autoSlide = () => {
+                    currentIndex = (currentIndex + 1) % cards.length;
+                    goToSlide(currentIndex);
+                };
+
+                const startAutoSlide = () => {
+                    clearInterval(autoSlideInterval);
+                    autoSlideInterval = setInterval(autoSlide, 5000);
+                };
+
+                updateDots();
+                startAutoSlide();
+
+                // Drag functionality
+                container.addEventListener('mousedown', dragStart);
+                container.addEventListener('touchstart', dragStart, {passive: true});
+                container.addEventListener('mouseup', dragEnd);
+                container.addEventListener('touchend', dragEnd);
+                container.addEventListener('mousemove', dragAction);
+                container.addEventListener('touchmove', dragAction, {passive: true});
+                container.addEventListener('mouseleave', dragEnd);
+
+                function dragStart(e) {
+                    isDragging = true;
+                    startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                    clearInterval(autoSlideInterval);
+                    container.style.transition = 'none';
+                }
+
+                function dragAction(e) {
+                    if (!isDragging) return;
+                    const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                    const diff = currentX - startX;
+                    container.style.transform = `translateX(${prevTranslate + diff}px)`;
+                }
+
+                function dragEnd(e) {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    container.style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+                    
+                    const endX = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
+                    const diff = endX - startX;
+
+                    if (Math.abs(diff) > 70) {
+                        if (diff > 0) goToSlide(currentIndex - 1);
+                        else goToSlide(currentIndex + 1);
+                    } else {
+                        goToSlide(currentIndex);
+                    }
+                    startAutoSlide();
+                }
+
+                // Window resize support
+                window.addEventListener('resize', () => goToSlide(currentIndex));
+            });
+        });
+        </script>
+        
+        <div class="wsb-services-showcase wsb-layout-<?php echo esc_attr($layout); ?>">
             <div class="wsb-showcase-container">
                 <?php foreach ($services as $s): ?>
                     <div class="wsb-showcase-card">
@@ -1398,12 +1661,14 @@ class Wsb_Public
                             <?php endif; ?>
                         </div>
                         <div class="wsb-showcase-content">
-                            <h4 class="wsb-showcase-title"><?php echo esc_html($s->name); ?></h4>
-                            <div class="wsb-showcase-meta">
-                                <span><span class="dashicons dashicons-clock" style="font-size:14px; width:14px; height:14px; vertical-align:middle; margin-right:4px;"></span> <?php echo esc_html($s->duration); ?> min</span>
-                                <span class="wsb-showcase-price"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($s->price); ?></span>
+                            <div>
+                                <h4 class="wsb-showcase-title"><?php echo esc_html($s->name); ?></h4>
+                                <div class="wsb-showcase-meta">
+                                    <span><span class="dashicons dashicons-clock" style="font-size:14px; width:14px; height:14px; vertical-align:middle; margin-right:4px;"></span> <?php echo esc_html($s->duration); ?> min</span>
+                                    <span class="wsb-showcase-price"><?php echo wsb_get_currency_symbol(get_option('wsb_currency', 'USD')); ?><?php echo esc_html($s->price); ?></span>
+                                </div>
+                                <p class="wsb-showcase-desc"><?php echo esc_html(wp_trim_words($s->description, 15)); ?></p>
                             </div>
-                            <p class="wsb-showcase-desc"><?php echo esc_html(wp_trim_words($s->description, 15)); ?></p>
                             <?php
                             global $wpdb;
                             $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[wsb_booking_widget]%' AND post_status = 'publish' LIMIT 1");
