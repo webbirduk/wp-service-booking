@@ -80,8 +80,24 @@ class Wsb_Admin_Services {
             }
 
             ?>
-            <div class="wrap wsb-admin-wrap">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="wrap wsb-admin-wrap wsb-service-edit-wrapper">
+                <style>
+                    /* Service Edit Responsive Layouts */
+                    .wsb-service-edit-header { display: flex; justify-content: space-between; align-items: center; }
+                    .wsb-service-edit-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+                    .wsb-service-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                    
+                    @media (max-width: 1024px) {
+                        .wsb-service-edit-grid { grid-template-columns: 1fr; }
+                    }
+                    @media (max-width: 768px) {
+                        .wsb-service-edit-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+                        .wsb-service-edit-header > div { width: 100%; }
+                        .wsb-service-edit-wrapper .wsb-btn-primary { width: 100%; text-align: center; display: block; margin-left: 0 !important; }
+                        .wsb-service-info-grid { grid-template-columns: 1fr; }
+                    }
+                </style>
+                <div class="wsb-service-edit-header">
                     <h1 style="margin:0;"><?php echo $action === 'edit' ? 'Manage Service' : 'Add New Service'; ?></h1>
                     <a href="?page=wsb_main&tab=services" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
                         Services</a>
@@ -93,7 +109,7 @@ class Wsb_Admin_Services {
                     <input type="hidden" name="service_id" value="<?php echo $service_id; ?>">
                     <input type="hidden" name="wsb_action" value="<?php echo $action; ?>">
                     <input type="hidden" name="tab" value="services">
-                    <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+                    <div class="wsb-service-edit-grid">
 
                         <!-- Main Panel -->
                         <div
@@ -159,7 +175,7 @@ class Wsb_Admin_Services {
                                 <h3
                                     style="margin-top:0; color:var(--wsb-success); font-size:18px; display:flex; align-items:center; gap:8px;">
                                     <span class="dashicons dashicons-money-alt"></span> Pricing & Duration</h3>
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 15px;">
+                                <div class="wsb-service-info-grid" style="margin-bottom: 15px;">
                                     <div>
                                         <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Price
                                             ($)</label>
@@ -177,7 +193,7 @@ class Wsb_Admin_Services {
                                             required>
                                     </div>
                                 </div>
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div class="wsb-service-info-grid">
                                     <div>
                                         <label style="display:block; margin-bottom:5px; color:var(--wsb-text-muted);">Buffer
                                             (m)</label>
@@ -251,8 +267,29 @@ class Wsb_Admin_Services {
             $inactive_services = $wpdb->get_var("SELECT COUNT(*) FROM {$table_services} WHERE status='inactive'");
             $page_url = "?page=wsb_main&tab=services";
             ?>
-            <div class="wrap wsb-admin-wrap">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="wrap wsb-admin-wrap wsb-services-list-wrapper">
+                <style>
+                    /* Services List Responsive Layouts */
+                    .wsb-services-list-header { display: flex; justify-content: space-between; align-items: center; }
+                    .wsb-services-meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; margin-bottom: 20px; }
+                    .wsb-services-filter-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+                    
+                    @media (max-width: 1024px) {
+                        .wsb-services-meta-grid { grid-template-columns: repeat(2, 1fr); }
+                    }
+                    
+                    @media (max-width: 768px) {
+                        .wsb-services-list-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+                        .wsb-services-list-header > div { width: 100%; }
+                        .wsb-services-list-wrapper .wsb-btn-primary { width: 100%; text-align: center; display: block; margin-left: 0 !important; }
+                        .wsb-services-meta-grid { grid-template-columns: 1fr; }
+                        .wsb-services-filter-form { flex-direction: column; align-items: stretch; }
+                        .wsb-services-filter-form input[type="text"], .wsb-services-filter-form select, .wsb-services-filter-form button, .wsb-services-filter-form a { width: 100%; box-sizing: border-box; }
+                        .wsb-services-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                        .wsb-modern-table { min-width: 800px; }
+                    }
+                </style>
+                <div class="wsb-services-list-header">
                     <h1 style="margin:0;">Services Repository</h1>
                     <div>
 
@@ -284,7 +321,7 @@ class Wsb_Admin_Services {
                         border-color: var(--wsb-primary) !important;
                     }
                 </style>
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
+                <div class="wsb-services-meta-grid">
                     <a href="<?php echo $page_url; ?>&filter_status=all"
                         class="service-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                         <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Services</h3>
@@ -305,7 +342,7 @@ class Wsb_Admin_Services {
                     </a>
                 </div>
 
-                <form method="get" action="" style="display:flex; gap:10px; margin-bottom:20px;">
+                <form method="get" action="" class="wsb-services-filter-form">
                     <input type="hidden" name="page" value="wsb_main">
                     <input type="hidden" name="tab" value="services">
                     <?php if ($filter_status !== 'all'): ?>
@@ -327,7 +364,8 @@ class Wsb_Admin_Services {
                     <?php endif; ?>
                 </form>
 
-                <table class="wsb-modern-table">
+                <div class="wsb-services-table-wrapper">
+                    <table class="wsb-modern-table">
                     <thead>
                         <tr>
                             <th style="width:40px; color:var(--wsb-primary);">ID</th>
@@ -417,6 +455,7 @@ class Wsb_Admin_Services {
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
             </div>
             <?php
         }

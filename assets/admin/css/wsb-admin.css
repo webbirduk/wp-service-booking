@@ -139,6 +139,7 @@
     transition: background 0.2s;
     text-decoration: none;
     display: inline-block;
+    box-sizing: border-box;
 }
 .wsb-btn-primary:hover {
     background: var(--wsb-primary-hover);
