@@ -15,9 +15,18 @@ class Wsb_Admin_Customers {
 
         // Filter Matrix Engine
         $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
+        $filter_search = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
         $where_clause = "WHERE 1=1";
         if ($filter_status === 'recent') {
             $where_clause .= " AND c.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+        }
+        if (!empty($filter_search)) {
+            $where_clause .= $wpdb->prepare(" AND (c.first_name LIKE %s OR c.last_name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)", 
+                '%' . $wpdb->esc_like($filter_search) . '%',
+                '%' . $wpdb->esc_like($filter_search) . '%',
+                '%' . $wpdb->esc_like($filter_search) . '%',
+                '%' . $wpdb->esc_like($filter_search) . '%'
+            );
         }
         $having_clause = "";
         if ($filter_status === 'vip') {
@@ -53,14 +62,34 @@ class Wsb_Admin_Customers {
 
         $page_url = "?page=wsb_main&tab=customers";
         ?>
-        <div class="wrap wsb-admin-wrap">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="wrap wsb-admin-wrap wsb-crm-list-wrapper">
+            <style>
+                /* CRM Responsive Layouts */
+                .wsb-crm-header { display: flex; justify-content: space-between; align-items: center; }
+                .wsb-crm-meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; margin-bottom: 20px; }
+                .wsb-crm-filter-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+                
+                @media (max-width: 1024px) {
+                    .wsb-crm-meta-grid { grid-template-columns: repeat(2, 1fr); }
+                }
+                
+                @media (max-width: 768px) {
+                    .wsb-crm-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+                    .wsb-crm-list-wrapper .wsb-btn-primary { width: 100%; text-align: center; display: block; margin-left: 0 !important; }
+                    .wsb-crm-meta-grid { grid-template-columns: 1fr; }
+                    .wsb-crm-filter-form { flex-direction: column; align-items: stretch; }
+                    .wsb-crm-filter-form input[type="text"], .wsb-crm-filter-form button, .wsb-crm-filter-form a { width: 100%; box-sizing: border-box; }
+                    .wsb-crm-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                    .wsb-modern-table { min-width: 800px; }
+                }
+            </style>
+            <div class="wsb-crm-header">
                 <h1 style="margin:0;">Client CRM & Directory</h1>
 
             </div>
 
             <!-- Dashboard Interactive Filters -->
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
+            <div class="wsb-crm-meta-grid">
                 <a href="<?php echo $page_url; ?>&filter_status=all"
                     class="customer-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Client Base</h3>
@@ -81,8 +110,24 @@ class Wsb_Admin_Customers {
                 </a>
             </div>
 
-            <div
-                style="background: var(--wsb-panel-dark); border-radius: 12px; border: 1px solid var(--wsb-border); overflow: hidden;">
+            <!-- Search Filter Bar -->
+            <form method="get" action="" class="wsb-crm-filter-form">
+                <input type="hidden" name="page" value="wsb_main">
+                <input type="hidden" name="tab" value="customers">
+                <input type="hidden" name="filter_status" value="<?php echo esc_attr($filter_status); ?>">
+                
+                <input type="text" name="filter_search" value="<?php echo esc_attr($filter_search); ?>" 
+                    placeholder="Search by name, email or phone..." 
+                    style="flex-grow:1; background:#0f172a; border:1px solid var(--wsb-border); color:white; padding:10px 15px; border-radius:8px;">
+                
+                <button type="submit" class="wsb-btn-primary">Search Clients</button>
+                <?php if (!empty($filter_search)): ?>
+                    <a href="?page=wsb_main&tab=customers&filter_status=<?php echo esc_attr($filter_status); ?>" 
+                        class="wsb-btn-primary" style="background:var(--wsb-border);">Clear</a>
+                <?php endif; ?>
+            </form>
+
+            <div class="wsb-crm-table-wrapper">
                 <table class="wsb-modern-table" style="margin:0; width:100%;">
                     <thead>
                         <tr>
