@@ -48,8 +48,26 @@ class Wsb_Admin_Finance {
         $payments = $wpdb->get_results($query);
 
         ?>
-        <div class="wrap wsb-admin-wrap">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div class="wrap wsb-admin-wrap wsb-finance-wrapper">
+            <style>
+                /* Finance Responsive Layouts */
+                .wsb-finance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+                .wsb-finance-meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+                
+                @media (max-width: 1024px) {
+                    .wsb-finance-meta-grid { grid-template-columns: repeat(2, 1fr); }
+                }
+                
+                @media (max-width: 768px) {
+                    .wsb-finance-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+                    .wsb-finance-filter-form { width: 100%; display: flex; flex-direction: column; align-items: stretch !important; gap: 10px; }
+                    .wsb-finance-filter-form select { width: 100%; }
+                    .wsb-finance-meta-grid { grid-template-columns: 1fr; }
+                    .wsb-finance-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                    .wsb-modern-table { min-width: 800px; }
+                }
+            </style>
+            <div class="wsb-finance-header">
                 <h1 style="margin:0;">Financial Ledger & Revenue</h1>
 
                 <!-- Master Dashboard Filter -->
@@ -70,8 +88,7 @@ class Wsb_Admin_Finance {
             </div>
 
             <!-- Metric Cards -->
-            <div class="wsb-dashboard-grid"
-                style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom:30px;">
+            <div class="wsb-finance-meta-grid">
                 <div class="wsb-stat-card" style="border-left: 4px solid var(--wsb-success);">
                     <h3 style="margin-top:0; font-size:16px;">Total Realized Revenue</h3>
                     <p class="wsb-stat-value" style="margin:0; font-size:32px; font-weight:bold; color:var(--wsb-success);">
@@ -109,7 +126,7 @@ class Wsb_Admin_Finance {
                 <div style="padding: 20px; border-bottom: 1px solid var(--wsb-border);">
                     <h3 style="margin:0; color: #fff;">Recent Activity</h3>
                 </div>
-                <div style="max-height: 450px; overflow-y: auto;">
+                <div class="wsb-finance-table-wrapper" style="max-height: 450px; overflow-y: auto;">
                     <table class="wsb-modern-table" style="margin:0; width: 100%;">
                         <thead style="position: sticky; top: 0; background: #0f172a; z-index: 10;">
                             <tr>

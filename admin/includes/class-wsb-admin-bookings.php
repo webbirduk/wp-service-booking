@@ -142,8 +142,25 @@ class Wsb_Admin_Bookings
 
             if ($booking) {
                 ?>
-                <div class="wrap wsb-admin-wrap">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                <div class="wrap wsb-admin-wrap wsb-booking-edit-wrapper">
+                    <style>
+                        /* Edit Booking Responsive Layouts */
+                        .wsb-booking-edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+                        .wsb-booking-edit-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; }
+                        .wsb-booking-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                        .wsb-booking-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+                        
+                        @media (max-width: 1024px) {
+                            .wsb-booking-edit-grid { grid-template-columns: 1fr; }
+                        }
+                        
+                        @media (max-width: 768px) {
+                            .wsb-booking-edit-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+                            .wsb-booking-info-grid, .wsb-booking-time-grid { grid-template-columns: 1fr; }
+                            .wsb-booking-edit-wrapper .wsb-btn-primary { width: 100%; text-align: center; display: block; margin-left: 0 !important; }
+                        }
+                    </style>
+                    <div class="wsb-booking-edit-header">
                         <h1 style="margin:0; font-size:24px; color:#fff;">Manage Booking
                             #<?php echo esc_html(str_pad($booking->id, 5, '0', STR_PAD_LEFT)); ?></h1>
                         <a href="?page=wsb_main&tab=bookings" class="wsb-btn-primary" style="background:var(--wsb-border);">Back to
@@ -156,7 +173,7 @@ class Wsb_Admin_Bookings
                         <input type="hidden" name="wsb_action" value="edit">
                         <input type="hidden" name="tab" value="bookings">
 
-                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:25px;">
+                        <div class="wsb-booking-edit-grid">
 
                             <!-- Left Column: Core Booking Details -->
                             <div style="display:flex; flex-direction:column; gap:25px;">
@@ -168,7 +185,7 @@ class Wsb_Admin_Bookings
                                         style="margin:0 0 20px 0; color:var(--wsb-primary); display:flex; align-items:center; gap:10px;">
                                         <span class="dashicons dashicons-admin-users"></span> Customer Information
                                     </h3>
-                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                                    <div class="wsb-booking-info-grid">
                                         <div>
                                             <label
                                                 style="display:block; margin-bottom:6px; color:var(--wsb-text-muted); font-size:13px;">Full
@@ -230,7 +247,7 @@ class Wsb_Admin_Bookings
                                         </div>
                                     </div>
 
-                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
+                                    <div class="wsb-booking-time-grid">
                                         <div>
                                             <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">Booking
                                                 Date</label>
@@ -248,7 +265,7 @@ class Wsb_Admin_Bookings
                                         </div>
                                     </div>
 
-                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                                    <div class="wsb-booking-time-grid" style="margin-bottom:0;">
                                         <div>
                                             <label style="display:block; margin-bottom:8px; color:var(--wsb-text-muted);">End
                                                 Time</label>
@@ -435,8 +452,30 @@ class Wsb_Admin_Bookings
         $view = isset($_GET['view']) ? $_GET['view'] : 'list';
         $page_url = "?page=wsb_main&tab=bookings";
         ?>
-        <div class="wrap wsb-admin-wrap">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="wrap wsb-admin-wrap wsb-bookings-list-wrapper">
+            <style>
+                /* List View Responsive Layouts */
+                .wsb-bookings-list-header { display: flex; justify-content: space-between; align-items: center; }
+                .wsb-bookings-filter-form { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; }
+                .wsb-bookings-meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 20px; margin-bottom: 20px; }
+                
+                @media (max-width: 1024px) {
+                    .wsb-bookings-meta-grid { grid-template-columns: repeat(2, 1fr); }
+                }
+                
+                @media (max-width: 768px) {
+                    .wsb-bookings-list-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+                    .wsb-bookings-list-header > div { width: 100%; display: flex; gap: 10px; }
+                    .wsb-bookings-list-wrapper .wsb-btn-primary { width: 100%; text-align: center; display: block; margin-left: 0 !important; margin-bottom: 0; flex: 1; }
+                    .wsb-bookings-filter-form > div { width: 100% !important; min-width: 100%; }
+                    .wsb-bookings-filter-form { flex-direction: column; align-items: stretch; }
+                    .wsb-bookings-filter-form .wsb-btn-primary { width: 100%; margin-bottom: 0; }
+                    .wsb-bookings-meta-grid { grid-template-columns: 1fr; }
+                    .wsb-bookings-table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                    .wsb-modern-table { min-width: 800px; }
+                }
+            </style>
+            <div class="wsb-bookings-list-header">
                 <h1 style="margin:0;">Manage Bookings</h1>
                 <div>
                     <a href="<?php echo $page_url; ?>&view=list&filter_status=<?php echo esc_attr($filter_status); ?>"
@@ -453,7 +492,7 @@ class Wsb_Admin_Bookings
             <!-- Advanced Filter Toolbar -->
             <div
                 style="background: var(--wsb-panel-dark); padding: 20px; border-radius: 12px; border: 1px solid var(--wsb-border); margin-top:20px;">
-                <form method="get" action="" style="display:flex; flex-wrap:wrap; gap:15px; align-items:flex-end;">
+                <form method="get" action="" class="wsb-bookings-filter-form">
                     <input type="hidden" name="page" value="wsb_main">
                     <input type="hidden" name="tab" value="bookings">
                     <input type="hidden" name="view" value="<?php echo esc_attr($view); ?>">
@@ -540,7 +579,7 @@ class Wsb_Admin_Bookings
                     border-color: var(--wsb-primary) !important;
                 }
             </style>
-            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top:20px; margin-bottom:20px;">
+            <div class="wsb-bookings-meta-grid">
                 <a href="<?php echo $page_url; ?>&view=<?php echo esc_attr($view); ?>&filter_status=all"
                     class="booking-filter-card <?php echo $filter_status === 'all' ? 'card-active' : ''; ?>">
                     <h3 style="margin-top:0; font-size:15px; color:var(--wsb-text-muted);">Total Bookings</h3>
@@ -669,7 +708,8 @@ class Wsb_Admin_Bookings
                 </style>
             <?php else: ?>
                 <!-- Modern SaaS List View -->
-                <table class="wsb-modern-table">
+                <div class="wsb-bookings-table-wrapper">
+                    <table class="wsb-modern-table">
                     <thead>
                         <tr>
                             <th>Booking REF</th>
@@ -783,6 +823,7 @@ class Wsb_Admin_Bookings
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
             <?php endif; ?>
         </div>
         <?php
