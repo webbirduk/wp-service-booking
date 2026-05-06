@@ -32,6 +32,9 @@ jQuery(document).ready(function($) {
                         $('#bc-ajax-response').html(response.data.content);
                         $(document).trigger('bc-tab-loaded', [tab]);
                         
+                        // Scroll to top so user sees notices
+                        $('.bc-master-content').scrollTop(0);
+
                         // Update URL without reload
                         var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?page=bc_main&tab=' + tab + extraParams;
                         window.history.pushState({path: newUrl}, '', newUrl);
@@ -151,6 +154,9 @@ jQuery(document).ready(function($) {
                     $('#bc-ajax-response').html(response.data.content);
                     $(document).trigger('bc-tab-loaded', [activeTab]);
                     
+                    // Scroll to top so user sees notices
+                    $('.bc-master-content').scrollTop(0);
+
                     // Update URL with filter params for shareability/refresh
                     var queryString = form.serialize();
                     var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?' + queryString;
@@ -246,7 +252,7 @@ jQuery(document).ready(function($) {
                 notice.append('<span class="bc-notice-close"><span class="dashicons dashicons-dismiss"></span></span>');
             }
 
-            // Automatic disappearance after 2 seconds (2000ms)
+            // Automatic disappearance after 5 seconds (5000ms)
             if (!notice.hasClass('bc-sticky-notice')) {
                 setTimeout(function() {
                     if (notice.length && notice.parent().length) {
@@ -254,7 +260,7 @@ jQuery(document).ready(function($) {
                             $(this).remove();
                         });
                     }
-                }, 2000);
+                }, 5000);
             }
         });
     }

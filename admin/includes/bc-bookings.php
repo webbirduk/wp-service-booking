@@ -38,13 +38,13 @@ class Bc_Bookings
                             'requested_time' => NULL,
                             'requested_staff_id' => NULL
                         ), array('id' => $booking_id));
-                        echo '<div class="notice notice-success is-dismissible"><p>' . __('Reschedule request approved and applied successfully.', 'boocommerce') . '</p></div>';
+                        echo '<div class="notice bc-custom-notice notice-success bc-custom-notice is-dismissible"><p>' . __('Reschedule request approved and applied successfully.', 'boocommerce') . '</p></div>';
                     } elseif ($booking_record->request_type === 'cancel') {
                         $wpdb->update($table_bookings, array(
                             'status' => 'cancelled',
                             'request_type' => NULL
                         ), array('id' => $booking_id));
-                        echo '<div class="notice notice-success is-dismissible"><p>' . __('Cancellation request approved successfully.', 'boocommerce') . '</p></div>';
+                        echo '<div class="notice bc-custom-notice notice-success bc-custom-notice is-dismissible"><p>' . __('Cancellation request approved successfully.', 'boocommerce') . '</p></div>';
                     }
                     $this->admin->bc_notify_status_change($booking_id, 'confirmed');
                 } elseif ($decision === 'reject') {
@@ -55,7 +55,7 @@ class Bc_Bookings
                         'requested_time' => NULL,
                         'requested_staff_id' => NULL
                     ), array('id' => $booking_id));
-                    echo '<div class="notice notice-warning is-dismissible"><p>' . __('Client request declined. Booking remains active.', 'boocommerce') . '</p></div>';
+                    echo '<div class="notice bc-custom-notice notice-warning bc-custom-notice is-dismissible"><p>' . __('Client request declined. Booking remains active.', 'boocommerce') . '</p></div>';
                     $this->admin->bc_notify_status_change($booking_id, 'confirmed');
                 }
             }
@@ -68,7 +68,7 @@ class Bc_Bookings
             if (in_array($new_status, ['confirmed', 'cancelled', 'pending', 'completed'])) {
                 $wpdb->update($table_bookings, array('status' => $new_status), array('id' => $booking_id));
                 $this->admin->bc_notify_status_change($booking_id, $new_status);
-                echo '<div class="notice notice-success is-dismissible"><p>' . __('Status updated cleanly.', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-success bc-custom-notice is-dismissible"><p>' . __('Status updated cleanly.', 'boocommerce') . '</p></div>';
             }
             $action = 'list';
         }
@@ -91,7 +91,7 @@ class Bc_Bookings
                 $result = $wpdb->update($table_bookings, $data, array('id' => $booking_id));
 
                 if ($result === false) {
-                    echo '<div class="notice notice-error is-dismissible"><p>' . __('Database Error: Could not update booking.', 'boocommerce') . ' ' . esc_html($wpdb->last_error) . '</p></div>';
+                    echo '<div class="notice bc-custom-notice notice-error bc-custom-notice is-dismissible"><p>' . __('Database Error: Could not update booking.', 'boocommerce') . ' ' . esc_html($wpdb->last_error) . '</p></div>';
                 } else {
                     // Identify what exactly changed for custom notifications
                     $changes = array();
@@ -110,10 +110,10 @@ class Bc_Bookings
                         $this->admin->bc_notify_booking_update($booking_id, $changes);
                     }
 
-                    echo '<div class="notice notice-success is-dismissible"><p>' . __('Booking information updated successfully.', 'boocommerce') . '</p></div>';
+                    echo '<div class="notice bc-custom-notice notice-success bc-custom-notice is-dismissible"><p>' . __('Booking information updated successfully.', 'boocommerce') . '</p></div>';
                 }
             } else {
-                echo '<div class="notice notice-error is-dismissible"><p>' . __('Security Check Failed: Nonce verification unsuccessful. Please refresh and try again.', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-error bc-custom-notice is-dismissible"><p>' . __('Security Check Failed: Nonce verification unsuccessful. Please refresh and try again.', 'boocommerce') . '</p></div>';
             }
         }
 

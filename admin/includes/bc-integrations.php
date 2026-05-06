@@ -18,7 +18,7 @@ class Bc_Integrations {
                 update_option('bc_enable_aura_luxe', isset($_POST['bc_enable_aura_luxe']) ? 'yes' : 'no');
 
                 do_action('bc_after_save_integrations', $_POST);
-                echo '<div class="notice notice-success is-dismissible"><p>' . __('Integrations and gateways securely updated!', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Integrations and gateways securely updated!', 'boocommerce') . '</p></div>';
             }
         }
 

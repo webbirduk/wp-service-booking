@@ -20,8 +20,8 @@ class Bc_Services {
 
         if ($action === 'delete' && $service_id) {
             $wpdb->delete($table_services, array('id' => $service_id));
-            if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
-            else echo '<div class="notice notice-success is-dismissible"><p>' . __('Service permanently deleted.', 'boocommerce') . '</p></div>';
+            if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+            else echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Service permanently deleted.', 'boocommerce') . '</p></div>';
             $action = 'list';
         }
 
@@ -44,15 +44,15 @@ class Bc_Services {
             if ($service_id) {
                 // Edit existing
                 $wpdb->update($table_services, $data, array('id' => $service_id));
-                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
-                else echo '<div class="notice notice-success is-dismissible"><p>' . __('Service updated successfully!', 'boocommerce') . '</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                else echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Service updated successfully!', 'boocommerce') . '</p></div>';
             } else {
                 // Add new
                 $wpdb->insert($table_services, $data);
-                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
                 else {
                     $service_id = $wpdb->insert_id;
-                    echo '<div class="notice notice-success is-dismissible"><p>' . __('Service created successfully!', 'boocommerce') . '</p></div>';
+                    echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Service created successfully!', 'boocommerce') . '</p></div>';
                 }
             }
 

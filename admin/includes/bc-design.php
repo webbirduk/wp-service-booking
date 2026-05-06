@@ -18,7 +18,7 @@ class Bc_Design {
                 delete_option('bc_menu_basket_text');
                 delete_option('bc_menu_basket_pos');
                 delete_option('bc_menu_basket_icon');
-                echo '<div class="notice notice-info is-dismissible bc-custom-notice"><p>' . __('Factory default settings restored successfully!', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-info is-dismissible bc-custom-notice"><p>' . __('Factory default settings restored successfully!', 'boocommerce') . '</p></div>';
             } else {
                 // Layout & Colors
                 update_option('bc_service_layout', sanitize_text_field($_POST['bc_service_layout']));
@@ -62,7 +62,7 @@ class Bc_Design {
                 update_option('bc_menu_basket_icon', sanitize_text_field($_POST['bc_menu_basket_icon']));
                 update_option('bc_showcase_layout', sanitize_text_field($_POST['bc_showcase_layout']));
 
-                echo '<div class="notice notice-success is-dismissible bc-custom-notice"><p>' . __('Advanced customization settings applied successfully!', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-success is-dismissible bc-custom-notice"><p>' . __('Advanced customization settings applied successfully!', 'boocommerce') . '</p></div>';
             }
         }
 

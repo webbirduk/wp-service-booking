@@ -25,7 +25,7 @@ class Bc_Staff {
         // Delete Handler
         if ($action === 'delete' && $staff_id && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_staff_' . $staff_id)) {
             $wpdb->delete($table_staff, array('id' => $staff_id));
-            echo '<div class="notice notice-success is-dismissible"><p>' . __('Staff record purged from the system.', 'boocommerce') . '</p></div>';
+            echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Staff record purged from the system.', 'boocommerce') . '</p></div>';
             $action = 'list';
         }
 
@@ -49,14 +49,14 @@ class Bc_Staff {
 
             if ($staff_id) {
                 $wpdb->update($table_staff, $data, array('id' => $staff_id));
-                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
-                else echo '<div class="notice notice-success is-dismissible"><p>' . __('Staff profile updated securely.', 'boocommerce') . '</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                else echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Staff profile updated securely.', 'boocommerce') . '</p></div>';
             } else {
                 $wpdb->insert($table_staff, $data);
-                if ($wpdb->last_error) echo '<div class="notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
+                if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
                 else {
                     $staff_id = $wpdb->insert_id;
-                    echo '<div class="notice notice-success is-dismissible"><p>' . __('New professional added to the roster.', 'boocommerce') . '</p></div>';
+                    echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('New professional added to the roster.', 'boocommerce') . '</p></div>';
                 }
             }
             $action = 'list';

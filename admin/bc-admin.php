@@ -201,13 +201,15 @@ class Bc_Admin
             
             // Fallback CSS to hide any notices that were injected directly or via JS
             echo '<style>
-                .notice:not(.bc-custom-notice), 
-                .update-nag, 
-                #message, 
-                .error, 
-                .updated,
-                .is-dismissible:not(.bc-custom-notice) { 
+                #wpbody-content > .notice, 
+                #wpbody-content > .updated, 
+                #wpbody-content > .error, 
+                #wpbody-content > .update-nag,
+                .wp-admin .notice:not(.bc-custom-notice):not(#bc-ajax-response .notice) { 
                     display: none !important; 
+                }
+                #bc-ajax-response .notice {
+                    display: block !important;
                 }
             </style>';
         }

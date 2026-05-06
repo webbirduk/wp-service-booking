@@ -25,7 +25,7 @@ class Bc_Settings
                 delete_option('bc_enable_notifications');
                 delete_option('bc_cancellation_policy');
                 
-                echo '<div class="notice notice-warning is-dismissible bc-custom-notice"><p>' . __('All settings have been restored to factory defaults.', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-warning is-dismissible bc-custom-notice"><p>' . __('All settings have been restored to factory defaults.', 'boocommerce') . '</p></div>';
             } elseif (isset($_POST['bc_settings_nonce']) && wp_verify_nonce($_POST['bc_settings_nonce'], 'bc_save_settings')) {
                 do_action('bc_before_save_settings', $_POST);
                 update_option('bc_currency', sanitize_text_field($_POST['bc_currency']));
@@ -44,7 +44,7 @@ class Bc_Settings
                 update_option('bc_cancellation_policy', sanitize_textarea_field($_POST['bc_cancellation_policy']));
 
                 do_action('bc_after_save_settings', $_POST);
-                echo '<div class="notice notice-success is-dismissible bc-custom-notice"><p>' . __('System Integration Settings securely saved!', 'boocommerce') . '</p></div>';
+                echo '<div class="notice bc-custom-notice notice-success is-dismissible bc-custom-notice"><p>' . __('System Integration Settings securely saved!', 'boocommerce') . '</p></div>';
             }
         }
 
