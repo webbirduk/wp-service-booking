@@ -1,27 +1,27 @@
 <?php
 /**
- * Plugin Name:       WordPress Service Booking (Advanced)
- * Plugin URI:        https://example.com/wp-service-booking
+ * Plugin Name:       BooCommerce
+ * Plugin URI:        https://example.com/boocommerce
  * Description:       A complete appointment and service booking system with staff management, payments, and analytics.
  * Version:           1.0.0
  * Author:            Antigravity
- * Text Domain:       wp-service-booking
+ * Text Domain:       boocommerce
  * Domain Path:       /languages
  * 
  * --- DEVELOPER SCALABILITY ENGINE ---
  * This plugin is designed to be fully extensible via WordPress Actions & Filters.
  * 
  * CORE FILTERS:
- * - wsb_admin_tabs: Add or override administrative modules.
- * - wsb_admin_nav_items: Customize the sidebar navigation menu.
- * - wsb_admin_bookings_query: Modify the booking list database query.
- * - wsb_admin_bookings_results: Post-process booking data objects.
+ * - bc_admin_tabs: Add or override administrative modules.
+ * - bc_admin_nav_items: Customize the sidebar navigation menu.
+ * - bc_admin_bookings_query: Modify the booking list database query.
+ * - bc_admin_bookings_results: Post-process booking data objects.
  * 
  * CORE ACTIONS:
- * - wsb_admin_tab_render_{tab}: Render custom tab content.
- * - wsb_admin_settings_payment_gateways: Inject custom payment gateway settings.
- * - wsb_before_save_settings: Hook into the start of the settings save cycle.
- * - wsb_after_save_settings: Hook into the completion of the settings save cycle.
+ * - bc_admin_tab_render_{tab}: Render custom tab content.
+ * - bc_admin_settings_payment_gateways: Inject custom payment gateway settings.
+ * - bc_before_save_settings: Hook into the start of the settings save cycle.
+ * - bc_after_save_settings: Hook into the completion of the settings save cycle.
  */
 
 // If this file is called directly, abort.
@@ -32,11 +32,11 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Currently plugin version.
  */
-define( 'WSB_VERSION', '1.0.0' );
-define( 'WSB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'WSB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'BC_VERSION', '1.0.0' );
+define( 'BC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'BC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-function wsb_get_currency_symbol($currency = 'USD') {
+function bc_get_currency_symbol($currency = 'USD') {
     $symbols = array(
         'USD' => '$',
         'EUR' => '€',
@@ -52,7 +52,7 @@ function wsb_get_currency_symbol($currency = 'USD') {
 /**
  * Sends a modern, responsive HTML email
  */
-function wsb_send_modern_email($to, $subject, $title, $intro, $content_html) {
+function bc_send_modern_email($to, $subject, $title, $intro, $content_html) {
     $headers = array('Content-Type: text/html; charset=UTF-8');
     $blog_name = get_bloginfo('name');
     
@@ -179,11 +179,11 @@ function wsb_send_modern_email($to, $subject, $title, $intro, $content_html) {
                 <div class="email-content-box">
                     ' . $content_html . '
                 </div>
-                <p style="margin-top:40px; font-size:14px; color:#94a3b8; font-weight:500;">' . sprintf(__('Sent via the %s secure scheduling engine.', 'wp-service-booking'), esc_html($blog_name)) . '</p>
+                <p style="margin-top:40px; font-size:14px; color:#94a3b8; font-weight:500;">' . sprintf(__('Sent via the %s secure scheduling engine.', 'boocommerce'), esc_html($blog_name)) . '</p>
             </div>
             <div class="email-footer">
-                &copy; ' . date('Y') . ' ' . esc_html($blog_name) . '. ' . __('All rights reserved.', 'wp-service-booking') . '
-                <div style="margin-top:10px;">' . __('Security Verified &bullet; GDPR Compliant', 'wp-service-booking') . '</div>
+                &copy; ' . date('Y') . ' ' . esc_html($blog_name) . '. ' . __('All rights reserved.', 'boocommerce') . '
+                <div style="margin-top:10px;">' . __('Security Verified &bullet; GDPR Compliant', 'boocommerce') . '</div>
             </div>
         </div>
     </body>
@@ -195,43 +195,43 @@ function wsb_send_modern_email($to, $subject, $title, $intro, $content_html) {
 /**
  * Load the plugin text domain for translation.
  */
-function wsb_load_textdomain() {
-    load_plugin_textdomain('wp-service-booking', false, dirname(plugin_basename(__FILE__)) . '/languages');
+function bc_load_textdomain() {
+    load_plugin_textdomain('boocommerce', false, dirname(plugin_basename(__FILE__)) . '/languages');
 }
-add_action('plugins_loaded', 'wsb_load_textdomain');
+add_action('plugins_loaded', 'bc_load_textdomain');
 
 /**
  * The code that runs during plugin activation.
- * This action is documented in includes/class-wsb-activator.php
+ * This action is documented in includes/class-bc-activator.php
  */
-function activate_wp_service_booking() {
-	require_once plugin_dir_path( __FILE__ ) . 'includes/class-wsb-activator.php';
-	Wsb_Activator::activate();
+function activate_boocommerce() {
+	require_once plugin_dir_path( __FILE__ ) . 'includes/class-bc-activator.php';
+	Bc_Activator::activate();
 }
 
 /**
  * The code that runs during plugin deactivation.
- * This action is documented in includes/class-wsb-deactivator.php
+ * This action is documented in includes/class-bc-deactivator.php
  */
-function deactivate_wp_service_booking() {
-	// require_once plugin_dir_path( __FILE__ ) . 'includes/class-wsb-deactivator.php';
-	// Wsb_Deactivator::deactivate();
+function deactivate_boocommerce() {
+	// require_once plugin_dir_path( __FILE__ ) . 'includes/class-bc-deactivator.php';
+	// Bc_Deactivator::deactivate();
 }
 
-register_activation_hook( __FILE__, 'activate_wp_service_booking' );
-register_deactivation_hook( __FILE__, 'deactivate_wp_service_booking' );
+register_activation_hook( __FILE__, 'activate_boocommerce' );
+register_deactivation_hook( __FILE__, 'deactivate_boocommerce' );
 
 /**
  * The core plugin class that is used to define internationalization,
  * admin-specific hooks, and public-facing site hooks.
  */
-require plugin_dir_path( __FILE__ ) . 'includes/class-wp-service-booking.php';
+require plugin_dir_path( __FILE__ ) . 'includes/class-boocommerce.php';
 
 /**
  * Begins execution of the plugin.
  */
-function run_wp_service_booking() {
-	$plugin = new Wp_Service_Booking();
+function run_boocommerce() {
+	$plugin = new Boocommerce();
 	$plugin->run();
 }
-run_wp_service_booking();
+run_boocommerce();

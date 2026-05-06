@@ -5,11 +5,11 @@
  * @link       https://example.com
  * @since      1.0.0
  *
- * @package    Wp_Service_Booking
- * @subpackage Wp_Service_Booking/includes
+ * @package    Boocommerce
+ * @subpackage Boocommerce/includes
  */
 
-class Wsb_Activator {
+class Bc_Activator {
 
 	/**
 	 * Short Description. (use period)
@@ -24,11 +24,11 @@ class Wsb_Activator {
 		$charset_collate = $wpdb->get_charset_collate();
 
 		// Custom tables
-		$table_bookings = $wpdb->prefix . 'wsb_bookings';
-		$table_services = $wpdb->prefix . 'wsb_services';
-		$table_staff = $wpdb->prefix . 'wsb_staff';
-		$table_payments = $wpdb->prefix . 'wsb_payments';
-		$table_customers = $wpdb->prefix . 'wsb_customers';
+		$table_bookings = $wpdb->prefix . 'bc_bookings';
+		$table_services = $wpdb->prefix . 'bc_services';
+		$table_staff = $wpdb->prefix . 'bc_staff';
+		$table_payments = $wpdb->prefix . 'bc_payments';
+		$table_customers = $wpdb->prefix . 'bc_customers';
 
 		$sql_customers = "CREATE TABLE IF NOT EXISTS $table_customers (
 			id bigint(20) NOT NULL AUTO_INCREMENT,
@@ -67,7 +67,7 @@ class Wsb_Activator {
 			PRIMARY KEY  (id)
 		) $charset_collate;";
 
-		$table_staff_services = $wpdb->prefix . 'wsb_staff_services';
+		$table_staff_services = $wpdb->prefix . 'bc_staff_services';
 		$sql_staff_services = "CREATE TABLE IF NOT EXISTS $table_staff_services (
 			id bigint(20) NOT NULL AUTO_INCREMENT,
 			staff_id bigint(20) NOT NULL,

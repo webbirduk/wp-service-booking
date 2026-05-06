@@ -1,39 +1,39 @@
 jQuery(document).ready(function($) {
     // 1. Master Tab Navigation (SPA)
-    $(document).on('click', '.wsb-nav-item[data-tab]', function() {
+    $(document).on('click', '.bc-nav-item[data-tab]', function() {
         var tab = $(this).data('tab');
         var sidebarItem = $(this);
 
         // UI Feedback
-        $('.wsb-nav-item').removeClass('active');
+        $('.bc-nav-item').removeClass('active');
         sidebarItem.addClass('active');
 
         loadTab(tab);
     });
 
     function loadTab(tab, extraParams = '') {
-        $('.wsb-loader').fadeIn('fast');
-        $('#wsb-ajax-response').css('opacity', '0.5');
+        $('.bc-loader').fadeIn('fast');
+        $('#bc-ajax-response').css('opacity', '0.5');
 
-        var targetUrl = wsb_admin_ajax.ajax_url;
+        var targetUrl = bc_admin_ajax.ajax_url;
         
         $.ajax({
             url: targetUrl,
             type: 'POST',
             data: {
-                action: 'wsb_load_admin_tab',
-                nonce: wsb_admin_ajax.nonce,
+                action: 'bc_load_admin_tab',
+                nonce: bc_admin_ajax.nonce,
                 tab: tab,
                 params: extraParams
             },
             success: function(response) {
                 if (response.success) {
                     try {
-                        $('#wsb-ajax-response').html(response.data.content);
-                        $(document).trigger('wsb-tab-loaded', [tab]);
+                        $('#bc-ajax-response').html(response.data.content);
+                        $(document).trigger('bc-tab-loaded', [tab]);
                         
                         // Update URL without reload
-                        var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?page=wsb_main&tab=' + tab + extraParams;
+                        var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?page=bc_main&tab=' + tab + extraParams;
                         window.history.pushState({path: newUrl}, '', newUrl);
                     } catch (e) {
                         console.error('WSB Render Error:', e);
@@ -47,16 +47,16 @@ jQuery(document).ready(function($) {
                 console.error('WSB AJAX Network Error:', status, error);
             },
             complete: function() {
-                $('.wsb-loader').fadeOut('fast');
-                $('#wsb-ajax-response').css('opacity', '1');
+                $('.bc-loader').fadeOut('fast');
+                $('#bc-ajax-response').css('opacity', '1');
             }
         });
     }
 
     // Intercept internal links for SPA feel
-    $(document).on('click', '.wsb-master-content a', function(e) {
+    $(document).on('click', '.bc-master-content a', function(e) {
         var href = $(this).attr('href');
-        if (href && (href.indexOf('page=wsb_main') !== -1 || href.indexOf('page=wp-service-booking') !== -1) && !$(this).hasClass('wsb-no-ajax')) {
+        if (href && (href.indexOf('page=bc_main') !== -1 || href.indexOf('page=boocommerce') !== -1) && !$(this).hasClass('bc-no-ajax')) {
             e.preventDefault();
             // Parse tab and other params
             var urlParams = new URLSearchParams(href.split('?')[1]);
@@ -79,18 +79,18 @@ jQuery(document).ready(function($) {
             });
 
             // Update sidebar UI
-            $('.wsb-nav-item').removeClass('active');
-            $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
+            $('.bc-nav-item').removeClass('active');
+            $('.bc-nav-item[data-tab="' + tab + '"]').addClass('active');
 
             loadTab(tab, extra);
         }
     });
 
     // 2. Featured Image & Gallery Logic
-    $(document).on('click', '.wsb-select-image, .wsb-select-gallery', function(e) {
+    $(document).on('click', '.bc-select-image, .bc-select-gallery', function(e) {
         e.preventDefault();
         var button = $(this);
-        var isMultiple = button.hasClass('wsb-select-gallery');
+        var isMultiple = button.hasClass('bc-select-gallery');
         var targetInput = $(button.data('target'));
         var previewContainer = $(button.data('preview'));
 
@@ -123,33 +123,33 @@ jQuery(document).ready(function($) {
     });
 
     // 3. Form Interceptor
-    $(document).on('submit', '.wsb-master-content form', function(e) {
-        if ($(this).hasClass('wsb-no-ajax')) return;
+    $(document).on('submit', '.bc-master-content form', function(e) {
+        if ($(this).hasClass('bc-no-ajax')) return;
         e.preventDefault();
         
         var form = $(this);
         var formData = new FormData(form[0]);
-        var activeTab = $('.wsb-nav-item.active').data('tab') || 'dashboard';
+        var activeTab = $('.bc-nav-item.active').data('tab') || 'dashboard';
         
         // Ensure action and nonce
-        if (!formData.has('action')) formData.append('action', 'wsb_load_admin_tab');
-        if (!formData.has('nonce')) formData.append('nonce', wsb_admin_ajax.nonce);
+        if (!formData.has('action')) formData.append('action', 'bc_load_admin_tab');
+        if (!formData.has('nonce')) formData.append('nonce', bc_admin_ajax.nonce);
         
         // Prioritize tab from form if it exists (e.g. filter forms), otherwise use active tab
         var tabToLoad = formData.get('tab') || activeTab;
         if (!formData.has('tab')) formData.append('tab', tabToLoad);
         
-        $('.wsb-loader').fadeIn('fast');
+        $('.bc-loader').fadeIn('fast');
         $.ajax({
-            url: wsb_admin_ajax.ajax_url,
+            url: bc_admin_ajax.ajax_url,
             type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
             success: function(response) {
                 if (response.success) {
-                    $('#wsb-ajax-response').html(response.data.content);
-                    $(document).trigger('wsb-tab-loaded', [activeTab]);
+                    $('#bc-ajax-response').html(response.data.content);
+                    $(document).trigger('bc-tab-loaded', [activeTab]);
                     
                     // Update URL with filter params for shareability/refresh
                     var queryString = form.serialize();
@@ -158,23 +158,23 @@ jQuery(document).ready(function($) {
 
                     handleWSBNotices(); // Handle notices after form submission
                 }
-                $('.wsb-loader').fadeOut('fast');
+                $('.bc-loader').fadeOut('fast');
             },
             error: function() {
                 console.error('WSB Error: Form submission failed.');
             },
             complete: function() {
-                $('.wsb-loader').fadeOut('fast');
+                $('.bc-loader').fadeOut('fast');
             }
         });
     });
     // Stripe Connection Tester
-    $(document).on('click', '#wsb-test-stripe-btn', function(e) {
+    $(document).on('click', '#bc-test-stripe-btn', function(e) {
         e.preventDefault();
         var btn = $(this);
-        var secretKey = $('#wsb_stripe_secret_key').val();
-        var spinner = $('#wsb-stripe-test-spinner');
-        var resultBox = $('#wsb-stripe-test-result');
+        var secretKey = $('#bc_stripe_secret_key').val();
+        var spinner = $('#bc-stripe-test-spinner');
+        var resultBox = $('#bc-stripe-test-result');
 
         if (!secretKey) {
             resultBox.css({'color': '#ef4444', 'display': 'block'}).text('Enter a Secret Key first!');
@@ -186,11 +186,11 @@ jQuery(document).ready(function($) {
         resultBox.hide();
 
         $.ajax({
-            url: wsb_admin_ajax.ajax_url,
+            url: bc_admin_ajax.ajax_url,
             type: 'POST',
             data: {
-                action: 'wsb_test_stripe_connection',
-                nonce: wsb_admin_ajax.nonce,
+                action: 'bc_test_stripe_connection',
+                nonce: bc_admin_ajax.nonce,
                 stripe_sk: secretKey
             },
             success: function(response) {
@@ -211,9 +211,9 @@ jQuery(document).ready(function($) {
         });
     });
     // 4. Clickable Rows (SPA Navigation)
-    $(document).on('click', '.wsb-clickable-row', function(e) {
+    $(document).on('click', '.bc-clickable-row', function(e) {
         // Don't trigger if clicking an actual link, button, or the action container
-        if ($(e.target).closest('.wsb-row-actions, a, button, input, select').length) return;
+        if ($(e.target).closest('.bc-row-actions, a, button, input, select').length) return;
         
         var href = $(this).data('href');
         if (href) {
@@ -229,8 +229,8 @@ jQuery(document).ready(function($) {
             });
 
             // Update Sidebar UI
-            $('.wsb-nav-item').removeClass('active');
-            $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
+            $('.bc-nav-item').removeClass('active');
+            $('.bc-nav-item[data-tab="' + tab + '"]').addClass('active');
 
             loadTab(tab, extra);
         }
@@ -238,16 +238,16 @@ jQuery(document).ready(function($) {
 
     // 5. Notice Handler (Close Icon + Auto-disappear)
     function handleWSBNotices() {
-        $('.wsb-master-wrapper .notice').each(function() {
+        $('.bc-master-wrapper .notice').each(function() {
             var notice = $(this);
             
             // Add close icon if not already present
-            if (notice.find('.wsb-notice-close').length === 0) {
-                notice.append('<span class="wsb-notice-close"><span class="dashicons dashicons-dismiss"></span></span>');
+            if (notice.find('.bc-notice-close').length === 0) {
+                notice.append('<span class="bc-notice-close"><span class="dashicons dashicons-dismiss"></span></span>');
             }
 
             // Automatic disappearance after 2 seconds (2000ms)
-            if (!notice.hasClass('wsb-sticky-notice')) {
+            if (!notice.hasClass('bc-sticky-notice')) {
                 setTimeout(function() {
                     if (notice.length && notice.parent().length) {
                         notice.fadeOut(400, function() {
@@ -259,7 +259,7 @@ jQuery(document).ready(function($) {
         });
     }
 
-    $(document).on('click', '.wsb-notice-close', function() {
+    $(document).on('click', '.bc-notice-close', function() {
         $(this).closest('.notice').fadeOut(200, function() {
             $(this).remove();
         });
@@ -269,7 +269,7 @@ jQuery(document).ready(function($) {
     handleWSBNotices();
 
     // Re-check after tab loads or forms submit (handled via triggers or callbacks)
-    $(document).on('wsb-tab-loaded', function() {
+    $(document).on('bc-tab-loaded', function() {
         handleWSBNotices();
     });
 
@@ -277,8 +277,8 @@ jQuery(document).ready(function($) {
     window.onpopstate = function(event) {
         var params = new URLSearchParams(window.location.search);
         var tab = params.get('tab') || 'dashboard';
-        $('.wsb-nav-item').removeClass('active');
-        $('.wsb-nav-item[data-tab="' + tab + '"]').addClass('active');
+        $('.bc-nav-item').removeClass('active');
+        $('.bc-nav-item[data-tab="' + tab + '"]').addClass('active');
         loadTab(tab);
         handleWSBNotices();
     };
@@ -287,14 +287,14 @@ jQuery(document).ready(function($) {
     function wsbConfirm(title, msg) {
         return new Promise((resolve) => {
             const modal = $(`
-                <div class="wsb-admin-modal-overlay">
-                    <div class="wsb-admin-modal">
-                        <div class="wsb-admin-modal-badge">System Integrity Warning</div>
-                        <h3 id="wsb-modal-title">${title}</h3>
-                        <div class="wsb-admin-modal-body" id="wsb-modal-msg">${msg}</div>
-                        <div class="wsb-admin-modal-footer">
-                            <button class="wsb-modal-btn wsb-modal-cancel">Keep Enabled</button>
-                            <button class="wsb-modal-btn wsb-modal-confirm">Confirm Deactivation</button>
+                <div class="bc-admin-modal-overlay">
+                    <div class="bc-admin-modal">
+                        <div class="bc-admin-modal-badge">System Integrity Warning</div>
+                        <h3 id="bc-modal-title">${title}</h3>
+                        <div class="bc-admin-modal-body" id="bc-modal-msg">${msg}</div>
+                        <div class="bc-admin-modal-footer">
+                            <button class="bc-modal-btn bc-modal-cancel">Keep Enabled</button>
+                            <button class="bc-modal-btn bc-modal-confirm">Confirm Deactivation</button>
                         </div>
                     </div>
                 </div>
@@ -302,41 +302,41 @@ jQuery(document).ready(function($) {
             
             $('body').append(modal);
             
-            modal.find('.wsb-modal-confirm').on('click', function() {
+            modal.find('.bc-modal-confirm').on('click', function() {
                 modal.fadeOut(200, function() { modal.remove(); });
                 resolve(true);
             });
             
-            modal.find('.wsb-modal-cancel').on('click', function() {
+            modal.find('.bc-modal-cancel').on('click', function() {
                 modal.fadeOut(200, function() { modal.remove(); });
                 resolve(false);
             });
         });
     }
 
-    $(document).on('change', '.wsb-master-content .wsb-switch input', async function(e) {
+    $(document).on('change', '.bc-master-content .bc-switch input', async function(e) {
         var checkbox = $(this);
         var name = checkbox.attr('name');
         var isChecked = checkbox.is(':checked');
         
         // Impact messages for disabling critical features
         const impacts = {
-            'wsb_skip_professional_step': {
+            'bc_skip_professional_step': {
                 'title': 'Bypassing Team Selection',
                 'msg': 'Enabling this will automatically skip the professional selection step for customers. Bookings will be assigned to any available staff member.',
                 'triggerOn': 'check'
             },
-            'wsb_skip_payment_step': {
+            'bc_skip_payment_step': {
                 'title': 'Deactivating Online Checkout',
                 'msg': 'Enabling this will allow customers to book without paying upfront. Your Stripe/PayPal integrations will be bypassed.',
                 'triggerOn': 'check'
             },
-            'wsb_filter_staff_by_service': {
+            'bc_filter_staff_by_service': {
                 'title': 'Deactivating Expertise Filtering',
                 'msg': 'All staff members will now be visible for every service. The system will no longer restrict selection based on your specialist-to-service mapping.',
                 'triggerOn': 'uncheck'
             },
-            'wsb_enable_split_scheduling': {
+            'bc_enable_split_scheduling': {
                 'title': 'Disabling Multi-Pro Scheduling',
                 'msg': 'Customers will lose the ability to pick different specialists for multi-service bundles. All selected services will be booked as a single consolidated session.',
                 'triggerOn': 'uncheck'
@@ -365,7 +365,7 @@ jQuery(document).ready(function($) {
     });
 
     // 7. Restore Defaults Confirmation
-    $(document).on('click', '#wsb-restore-defaults-btn', async function(e) {
+    $(document).on('click', '#bc-restore-defaults-btn', async function(e) {
         e.preventDefault();
         const confirmed = await wsbConfirm(
             'Restore Factory Defaults?', 
@@ -376,7 +376,7 @@ jQuery(document).ready(function($) {
             // Create a hidden input to submit the action and trigger the form
             $('<input>').attr({
                 type: 'hidden',
-                name: 'wsb_restore_defaults',
+                name: 'bc_restore_defaults',
                 value: '1'
             }).appendTo($(this).closest('form'));
             
@@ -455,7 +455,7 @@ function initWSBRevenueChart() {
 }
 
 // Hook into tab loading
-jQuery(document).on('wsb-tab-loaded', function() {
+jQuery(document).on('bc-tab-loaded', function() {
     initWSBRevenueChart();
 });
 
