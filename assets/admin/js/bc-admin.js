@@ -131,6 +131,12 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         
         var form = $(this);
+        
+        // Sync TinyMCE editors before gathering form data
+        if (typeof tinymce !== 'undefined') {
+            tinymce.triggerSave();
+        }
+
         var formData = new FormData(form[0]);
         var activeTab = $('.bc-nav-item.active').data('tab') || 'dashboard';
         

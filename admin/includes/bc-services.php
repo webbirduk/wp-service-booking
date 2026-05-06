@@ -192,10 +192,46 @@ class Bc_Services {
                                     });
                                 </script>
                             </div>
-                            <div style="margin-bottom: 15px;">
-                                <label style="display:block; margin-bottom:5px; color:var(--bc-text-muted);"><?php _e('Description', 'boocommerce'); ?></label>
-                                <textarea name="service_description" rows="4"
-                                    style="width:100%; border:1px solid var(--bc-border); border-radius:6px; padding:10px; background:#0f172a; color:white;"><?php echo $service ? esc_textarea($service->description) : ''; ?></textarea>
+                            <div style="margin-bottom: 25px;">
+                                <label style="display:block; margin-bottom:10px; color:var(--bc-text-muted); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:0.05em;"><?php _e('Service Description', 'boocommerce'); ?></label>
+                                <div class="bc-editor-container" style="background:#0f172a; border-radius:12px; border:1px solid var(--bc-border); overflow:hidden;">
+                                    <?php 
+                                    $content = $service ? $service->description : '';
+                                    wp_editor($content, 'bc_service_description', array(
+                                        'textarea_name' => 'service_description',
+                                        'media_buttons' => true,
+                                        'textarea_rows' => 8,
+                                        'teeny'         => false,
+                                        'quicktags'     => true,
+                                        'tinymce'       => array(
+                                            'theme_advanced_buttons1' => 'bold,italic,underline,strikethrough,|,bullist,numlist,|,blockquote,|,justifyleft,justifycenter,justifyright,|,link,unlink,|,spellchecker,fullscreen,wp_adv',
+                                        ),
+                                    )); 
+                                    ?>
+                                </div>
+                                <style>
+                                    /* Customizing WP Editor for Midnight Theme */
+                                    .bc-editor-container .wp-editor-tools { background: #1e293b !important; border-bottom: 1px solid var(--bc-border) !important; padding: 10px !important; }
+                                    .bc-editor-container .wp-switch-editor { background: #0f172a !important; color: #94a3b8 !important; border: 1px solid var(--bc-border) !important; }
+                                    .bc-editor-container .wp-switch-editor.switch-tmce { background: var(--bc-primary) !important; color: #fff !important; border-color: var(--bc-primary) !important; }
+                                    .bc-editor-container .mce-toolbar-grp { background: #1e293b !important; border-bottom: 1px solid var(--bc-border) !important; }
+                                    .bc-editor-container .mce-edit-area { border-top: none !important; }
+                                    .bc-editor-container iframe { background: #fff !important; } /* Keep editor background white for readability while typing */
+                                </style>
+                                <script>
+                                    // Re-initialize TinyMCE if loaded via AJAX
+                                    if (typeof tinymce !== 'undefined') {
+                                        tinymce.execCommand('mceRemoveEditor', true, 'bc_service_description');
+                                        tinymce.init({
+                                            selector: '#bc_service_description',
+                                            height: 250,
+                                            menubar: false,
+                                            plugins: 'lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
+                                            toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+                                            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }'
+                                        });
+                                    }
+                                </script>
                             </div>
                             <div style="margin-bottom: 15px;">
                                 <label style="display:block; margin-bottom:5px; color:var(--bc-text-muted);"><?php _e('Featured Image', 'boocommerce'); ?></label>

@@ -150,7 +150,7 @@ class Bc_Public
                             <span style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 8px 16px; border-radius: 20px; font-size: 15px; font-weight: 700;">💰 <?php echo bc_get_currency_symbol(get_option('bc_currency', 'USD')) . esc_html($s->price); ?></span>
                         </div>
                         <div style="color: #475569; line-height: 1.8; font-size: 16px; margin-bottom: 40px;">
-                            <?php echo wpautop(esc_html($s->description)); ?>
+                            <?php echo wp_kses_post($s->description); ?>
                         </div>
                         <a href="<?php echo esc_url(add_query_arg(['bc_select_service' => $s->id, 'bc_jump_to_staff' => '1'], $back_url)); ?>" class="bc-btn" style="display: block; text-align: center; background: var(--bc-gradient); color: #fff; padding: 18px; border-radius: 16px; font-weight: 800; font-size: 18px; text-decoration: none; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);"><?php _e('Book This Service Now', 'boocommerce'); ?></a>
                     </div>
