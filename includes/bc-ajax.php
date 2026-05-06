@@ -173,12 +173,11 @@ class Bc_Ajax {
         if ($customer) {
             $customer_id = $customer->id;
         } else {
-            $wpdb->insert($customer_table, array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email));
+            $wpdb->insert("{$wpdb->prefix}bc_customers", array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email));
             $customer_id = $wpdb->insert_id;
         }
 
         // Create booking
-        $booking_table = $wpdb->prefix . 'bc_bookings';
         $service_ids    = isset($data['service_id']) ? sanitize_text_field($data['service_id']) : '';
         $staff_id       = isset($data['staff_id']) ? sanitize_text_field($data['staff_id']) : 'any';
         $booking_date   = isset($data['booking_date']) ? sanitize_text_field($data['booking_date']) : date('Y-m-d');
@@ -207,19 +206,13 @@ class Bc_Ajax {
                     "SELECT staff_id FROM {$wpdb->prefix}bc_staff_services WHERE service_id IN ($placeholders) GROUP BY staff_id HAVING COUNT(*) = %d LIMIT 1",
                     array_merge($ids, array($count))
                 ));
-                $staff_id = $any_staff ? intval($any_staff) : $wpdb->get_var("SELECT id FROM {$wpdb->prefix}bc_staff WHERE status = 'active' LIMIT 1");
+                $staff_id = $any_staff ? intval($any_staff) : $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}bc_staff WHERE status = %s LIMIT 1", 'active'));
             } else {
-                $any_staff = $wpdb->get_var("SELECT id FROM {$wpdb->prefix}bc_staff WHERE status = 'active' LIMIT 1");
+                $any_staff = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}bc_staff WHERE status = %s LIMIT 1", 'active'));
                 $staff_id = $any_staff ? intval($any_staff) : 1;
             }
         } else {
             $staff_id = intval($staff_id);
-        }
-        if ($customer) {
-            $customer_id = $customer->id;
-        } else {
-            $wpdb->insert($customer_table, array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email));
-            $customer_id = $wpdb->insert_id;
         }
 
         // Send Welcome Email immediately if account was created (Guest -> User)
@@ -261,8 +254,7 @@ class Bc_Ajax {
         
         $end_time = date('H:i:s', strtotime($start_time) + ($total_duration * 60));
 
-        $booking_table = $wpdb->prefix . 'bc_bookings';
-        $wpdb->insert($booking_table, array(
+        $wpdb->insert("{$wpdb->prefix}bc_bookings", array(
             'customer_id' => $customer_id,
             'service_id' => $service_ids,
             'staff_id' => $staff_id,
@@ -277,9 +269,8 @@ class Bc_Ajax {
         if ($booking_id) {
             // Log Payment if confirmed
             if ($status === 'confirmed') {
-                $payment_table = $wpdb->prefix . 'bc_payments';
                 $transaction_id = isset($data['transaction_id']) ? sanitize_text_field($data['transaction_id']) : null;
-                $wpdb->insert($payment_table, array(
+                $wpdb->insert("{$wpdb->prefix}bc_payments", array(
                     'booking_id' => $booking_id,
                     'amount' => $total_price,
                     'gateway' => $payment_method,

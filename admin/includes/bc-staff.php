@@ -17,11 +17,11 @@ class Bc_Staff {
 
         // Auto-patch schema for advanced fields
         $wpdb->hide_errors();
-        $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN schedule_config text AFTER description");
-        $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN holidays text AFTER schedule_config");
-        $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN image_url text AFTER holidays");
-        $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN qualification text AFTER image_url");
-        $wpdb->query("ALTER TABLE {$table_staff} ADD COLUMN address text AFTER qualification");
+        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_staff ADD COLUMN IF NOT EXISTS schedule_config text AFTER description");
+        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_staff ADD COLUMN IF NOT EXISTS holidays text AFTER schedule_config");
+        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_staff ADD COLUMN IF NOT EXISTS image_url text AFTER holidays");
+        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_staff ADD COLUMN IF NOT EXISTS qualification text AFTER image_url");
+        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_staff ADD COLUMN IF NOT EXISTS address text AFTER qualification");
         $wpdb->show_errors();
 
         $action = isset($_REQUEST['bc_action']) ? sanitize_text_field($_REQUEST['bc_action']) : (isset($_GET['action']) ? $_GET['action'] : 'list');
@@ -29,7 +29,7 @@ class Bc_Staff {
 
         // Delete Handler
         if ($action === 'delete' && $staff_id && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_staff_' . $staff_id)) {
-            $wpdb->delete($table_staff, array('id' => $staff_id));
+            $wpdb->delete("{$wpdb->prefix}bc_staff", array('id' => $staff_id));
             echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Staff record purged from the system.', 'boocommerce') . '</p></div>';
             $action = 'list';
         }
@@ -53,11 +53,11 @@ class Bc_Staff {
             );
 
             if ($staff_id) {
-                $wpdb->update($table_staff, $data, array('id' => $staff_id));
+                $wpdb->update("{$wpdb->prefix}bc_staff", $data, array('id' => $staff_id));
                 if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
                 else echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Staff profile updated securely.', 'boocommerce') . '</p></div>';
             } else {
-                $wpdb->insert($table_staff, $data);
+                $wpdb->insert("{$wpdb->prefix}bc_staff", $data);
                 if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
                 else {
                     $staff_id = $wpdb->insert_id;
@@ -71,7 +71,7 @@ class Bc_Staff {
             $s = null;
             $schedule = array();
             if ($action === 'edit' && $staff_id) {
-                $s = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table_staff} WHERE id = %d", $staff_id));
+                $s = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_staff WHERE id = %d", $staff_id));
                 $schedule = json_decode($s->schedule_config, true) ?: array();
 
                 // Fetch Performance Data for this provider
@@ -328,25 +328,32 @@ class Bc_Staff {
             <?php
         } else {
             // View: List Filter Logic
-            $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : 'all';
             $where_clause = "WHERE 1=1";
+            $query_params = array();
             if (in_array($filter_status, ['active', 'inactive'])) {
-                $where_clause .= " AND s.status = '{$filter_status}'";
+                $where_clause .= " AND s.status = %s";
+                $query_params[] = $filter_status;
             }
 
-            $staff = $wpdb->get_results("
+            $sql = "
                 SELECT s.*, 
                        COUNT(b.id) as booking_count,
                        IFNULL(SUM(b.total_amount), 0) as total_revenue
-                FROM {$table_staff} s
+                FROM {$wpdb->prefix}bc_staff s
                 LEFT JOIN {$wpdb->prefix}bc_bookings b ON s.id = b.staff_id AND (b.status = 'confirmed' OR b.status = 'completed')
                 {$where_clause}
                 GROUP BY s.id
                 ORDER BY total_revenue DESC, s.created_at DESC
-            ");
-            $total_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$table_staff}");
-            $active_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$table_staff} WHERE status='active'");
-            $inactive_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$table_staff} WHERE status='inactive'");
+            ";
+
+            if (!empty($query_params)) {
+                $staff = $wpdb->get_results($wpdb->prepare($sql, ...$query_params));
+            } else {
+                $staff = $wpdb->get_results($sql);
+            }
+            $total_staff = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_staff");
+            $active_staff = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}bc_staff WHERE status=%s", 'active'));
+            $inactive_staff = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}bc_staff WHERE status=%s", 'inactive'));
 
             $page_url = "?page=bc_main&tab=staff";
             ?>
