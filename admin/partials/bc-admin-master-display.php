@@ -47,16 +47,27 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
 }
 
 .bc-sidebar-header {
-    padding: 30px;
+    padding: 25px;
     border-bottom: 1px solid #1e293b;
     margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bc-sidebar-header img {
+    max-width: 40px;
+    height: auto;
+    display: block;
+    flex-shrink: 0;
 }
 
 .bc-sidebar-header h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 800;
-    background: linear-gradient(135deg, #818cf8, #c084fc);
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -152,6 +163,7 @@ $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
     <!-- Main Sidebar Navigation -->
     <div class="bc-master-sidebar">
         <div class="bc-sidebar-header">
+            <img src="<?php echo BC_PLUGIN_URL; ?>assets/images/boocommerce.png" alt="Logo">
             <h2>BooCommerce</h2>
         </div>
         
