@@ -1,6 +1,6 @@
-=== BooCommerce - Ultimate Appointment Booking & Service Scheduling Plugin ===
+=== BooCommerce - Appointment Booking & Service Scheduling ===
 Contributors: arafatrahmanbd, webbird
-Tags: booking, appointments, scheduling, services, checkout, stripe, staff management, crm, scheduler, reservation, salon booking, medical booking, spa booking, multi-service, developer-friendly
+Tags: booking, appointments, scheduling, salon booking, reservation
 Requires at least: 5.8
 Tested up to: 6.9
 Stable tag: 1.0.0

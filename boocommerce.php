@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       BooCommerce
+ * Plugin Name:       BooCommerce - Appointment Booking & Service Scheduling
  * Plugin URI:        https://webbird.co.uk/boocommerce
  * Description:       A complete appointment and service booking system with staff management, payments, and analytics.
  * Version:           1.0.0
