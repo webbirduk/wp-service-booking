@@ -368,7 +368,11 @@ class Bc_Public
                                         <div class="bc-service-image"
                                             style="background: #f8fafc <?php echo $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
                                         </div>
-                                        <a href="<?php echo esc_url(add_query_arg('bc_service_id', $s->id)); ?>" class="bc-view-service-btn" title="View Product Details">
+                                        <?php 
+                                        $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[bc_booking_widget]%' AND post_status = 'publish' LIMIT 1");
+                                        $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
+                                        ?>
+                                        <a href="<?php echo esc_url(add_query_arg('bc_service_id', $s->id, $booking_url)); ?>" class="bc-view-service-btn" title="View Product Details">
                                             <span class="<?php echo Bc_Public::get_icon_class(get_option('bc_icon_view_details', 'dashicons-visibility')); ?>"></span>
                                         </a>
                                     </div>
@@ -1184,11 +1188,19 @@ class Bc_Public
     public function virtual_booking_route()
     {
         $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $path = trim($request_uri, '/');
-        $parts = explode('/', $path);
-        $slug = end($parts);
+        $request_path = trim($request_uri, '/');
+        
+        $is_booking = preg_match('/(^|\/)booking\/?$/', $request_path);
+        $is_dashboard = preg_match('/(^|\/)booking-dashboard\/?$/', $request_path);
 
-        if ($slug === 'booking' || $slug === 'booking-dashboard') {
+        if ($is_booking || $is_dashboard) {
+            global $wp_query;
+            $slug = $is_dashboard ? 'booking-dashboard' : 'booking';
+            
+            // Force 200 OK status
+            status_header(200);
+            $wp_query->is_404 = false;
+            
             get_header();
             $brand_color = get_option('bc_brand_color', '#6366f1');
             $brand_color_end = get_option('bc_brand_color_end', '#a855f7');
