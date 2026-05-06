@@ -138,8 +138,8 @@ class Bc_Admin
         
         $booking = $wpdb->get_row($wpdb->prepare(
             "SELECT b.*, c.email, c.first_name, c.last_name 
-             FROM $booking_table b 
-             JOIN $customer_table c ON b.customer_id = c.id 
+             FROM {$wpdb->prefix}bc_bookings b 
+             JOIN {$wpdb->prefix}bc_customers c ON b.customer_id = c.id 
              WHERE b.id = %d", 
              $booking_id
         ));
@@ -157,7 +157,7 @@ class Bc_Admin
                 $subject_parts[] = __('Time', 'boocommerce');
             }
             if (isset($changes['staff_id'])) {
-                $staff_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM $staff_table WHERE id = %d", $changes['staff_id']));
+                $staff_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}bc_staff WHERE id = %d", $changes['staff_id']));
                 $change_details .= '<div style="margin-bottom:10px;">👤 <strong>' . __('Professional Reassigned:', 'boocommerce') . '</strong> ' . esc_html($staff_name) . '</div>';
                 $subject_parts[] = __('Professional', 'boocommerce');
             }

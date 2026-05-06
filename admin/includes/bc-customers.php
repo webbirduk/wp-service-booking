@@ -167,7 +167,7 @@ class Bc_Customers {
         $query = "SELECT c.*, 
                          COUNT(b.id) as booking_count,
                          IFNULL(SUM(b.total_amount), 0) as total_spent
-                  FROM {$table_customers} c
+                  FROM {$wpdb->prefix}bc_customers c
                   LEFT JOIN {$wpdb->prefix}bc_bookings b ON c.id = b.customer_id
                   {$where_clause}
                   GROUP BY c.id
@@ -177,12 +177,12 @@ class Bc_Customers {
         $customers = $wpdb->get_results($query);
 
         // Core Dashboard Metrics
-        $total_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$table_customers}");
-        $recent_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$table_customers} WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+        $total_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_customers");
+        $recent_customers = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_customers WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
 
         $vip_customers = $wpdb->get_var("
             SELECT COUNT(*) FROM (
-                SELECT c.id FROM {$table_customers} c
+                SELECT c.id FROM {$wpdb->prefix}bc_customers c
                 LEFT JOIN {$wpdb->prefix}bc_bookings b ON c.id = b.customer_id
                 GROUP BY c.id
                 HAVING SUM(b.total_amount) >= 10 OR COUNT(b.id) >= 1

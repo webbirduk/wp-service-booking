@@ -16,7 +16,7 @@ class Bc_Dashboard {
         $table_bookings = $wpdb->prefix . 'bc_bookings';
 
         // Self-Healing Schema Patching
-        $columns = $wpdb->get_col("DESCRIBE {$table_bookings}");
+        $columns = $wpdb->get_col("DESCRIBE {$wpdb->prefix}bc_bookings");
         if (!in_array('request_type', $columns)) {
             $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN request_type VARCHAR(50) DEFAULT NULL");
             $wpdb->query("ALTER TABLE {$table_bookings} ADD COLUMN requested_date DATE DEFAULT NULL");

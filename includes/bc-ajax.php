@@ -56,8 +56,7 @@ class Bc_Ajax {
         ));
 
         // 2. Fetch existing bookings for this staff and date
-        $booking_table = $wpdb->prefix . 'bc_bookings';
-        $query = "SELECT start_time FROM $booking_table WHERE booking_date = %s AND status IN ('confirmed', 'completed')";
+        $query = "SELECT start_time FROM {$wpdb->prefix}bc_bookings WHERE booking_date = %s AND status IN ('confirmed', 'completed')";
         $params = array($date);
 
         if ($staff_id !== 'any') {
@@ -76,11 +75,15 @@ class Bc_Ajax {
             ));
             
             if (!empty($eligible_staff)) {
-                $query .= " AND staff_id IN (" . implode(',', array_map('intval', $eligible_staff)) . ")";
+                $eligible_placeholders = implode(',', array_fill(0, count($eligible_staff), '%d'));
+                $query .= " AND staff_id IN ($eligible_placeholders)";
+                foreach ($eligible_staff as $es_id) {
+                    $params[] = intval($es_id);
+                }
             }
         }
 
-        $booked_slots = $wpdb->get_col($wpdb->prepare($query, ...$params));
+        $booked_slots = $wpdb->get_col($wpdb->prepare($query, $params));
 
         // 3. Filter out booked slots (Account for total duration)
         $available_slots = array();
@@ -167,13 +170,12 @@ class Bc_Ajax {
         }
 
         // Check if customer exists
-        $customer_table = $wpdb->prefix . 'bc_customers';
-        $customer = $wpdb->get_row($wpdb->prepare("SELECT id FROM $customer_table WHERE email = %s", $email));
+        $customer = $wpdb->get_row($wpdb->prepare("SELECT id FROM {$wpdb->prefix}bc_customers WHERE email = %s", $email));
         
         if ($customer) {
             $customer_id = $customer->id;
         } else {
-            $wpdb->insert($customer_table, array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email));
+            $wpdb->insert("{$wpdb->prefix}bc_customers", array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email));
             $customer_id = $wpdb->insert_id;
         }
 
@@ -261,8 +263,7 @@ class Bc_Ajax {
         
         $end_time = date('H:i:s', strtotime($start_time) + ($total_duration * 60));
 
-        $booking_table = $wpdb->prefix . 'bc_bookings';
-        $wpdb->insert($booking_table, array(
+        $wpdb->insert("{$wpdb->prefix}bc_bookings", array(
             'customer_id' => $customer_id,
             'service_id' => $service_ids,
             'staff_id' => $staff_id,
@@ -277,9 +278,8 @@ class Bc_Ajax {
         if ($booking_id) {
             // Log Payment if confirmed
             if ($status === 'confirmed') {
-                $payment_table = $wpdb->prefix . 'bc_payments';
                 $transaction_id = isset($data['transaction_id']) ? sanitize_text_field($data['transaction_id']) : null;
-                $wpdb->insert($payment_table, array(
+                $wpdb->insert("{$wpdb->prefix}bc_payments", array(
                     'booking_id' => $booking_id,
                     'amount' => $total_price,
                     'gateway' => $payment_method,
@@ -359,10 +359,9 @@ class Bc_Ajax {
             wp_send_json_error(array('message' => __('Invalid request parameters.', 'boocommerce')));
         }
         
-        $booking_table = $wpdb->prefix . 'bc_bookings';
-        $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS request_type VARCHAR(50) DEFAULT NULL");
+        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS request_type VARCHAR(50) DEFAULT NULL");
         
-        $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $booking_table WHERE id = %d", $booking_id));
+        $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_bookings WHERE id = %d", $booking_id));
         
         if(!$booking) {
             wp_send_json_error(array('message' => __('Booking record not found.', 'boocommerce')));
@@ -372,7 +371,7 @@ class Bc_Ajax {
         $current_user = wp_get_current_user();
         
         if ($client_action === 'cancel') {
-            $wpdb->update($booking_table, array('status' => 'pending', 'request_type' => 'cancel'), array('id' => $booking_id));
+            $wpdb->update("{$wpdb->prefix}bc_bookings", array('status' => 'pending', 'request_type' => 'cancel'), array('id' => $booking_id));
             
             // Admin Notification
             $admin_subject = sprintf(__('[Action Required] Cancellation Request: #%d', 'boocommerce'), $booking_id);
@@ -397,11 +396,11 @@ class Bc_Ajax {
                 wp_send_json_error(array('message' => __('Please fill all fields correctly.', 'boocommerce')));
             }
             
-            $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_date DATE DEFAULT NULL");
-            $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_time TIME DEFAULT NULL");
-            $wpdb->query("ALTER TABLE {$booking_table} ADD COLUMN IF NOT EXISTS requested_staff_id INT DEFAULT NULL");
-
-            $wpdb->update($booking_table, array(
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS requested_date DATE DEFAULT NULL");
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS requested_time TIME DEFAULT NULL");
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS requested_staff_id INT DEFAULT NULL");
+ 
+            $wpdb->update("{$wpdb->prefix}bc_bookings", array(
                 'status' => 'pending',
                 'request_type' => 'reschedule',
                 'requested_date' => $reschedule_date,
@@ -467,9 +466,8 @@ class Bc_Ajax {
             wp_set_password($password, $current_user->ID);
         }
         
-        $customer_table = $wpdb->prefix . 'bc_customers';
         $wpdb->update(
-            $customer_table, 
+            "{$wpdb->prefix}bc_customers", 
             array('first_name' => $first_name, 'last_name' => $last_name, 'phone' => $phone), 
             array('email' => $current_user->user_email)
         );

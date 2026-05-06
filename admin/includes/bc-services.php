@@ -24,7 +24,7 @@ class Bc_Services {
         $service_id = isset($_REQUEST['service_id']) ? intval($_REQUEST['service_id']) : (isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0);
 
         if ($action === 'delete' && $service_id) {
-            $wpdb->delete($table_services, array('id' => $service_id));
+            $wpdb->delete("{$wpdb->prefix}bc_services", array('id' => $service_id));
             if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
             else echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Service permanently deleted.', 'boocommerce') . '</p></div>';
             $action = 'list';
@@ -48,12 +48,12 @@ class Bc_Services {
 
             if ($service_id) {
                 // Edit existing
-                $wpdb->update($table_services, $data, array('id' => $service_id));
+                $wpdb->update("{$wpdb->prefix}bc_services", $data, array('id' => $service_id));
                 if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
                 else echo '<div class="notice bc-custom-notice notice-success is-dismissible"><p>' . __('Service updated successfully!', 'boocommerce') . '</p></div>';
             } else {
                 // Add new
-                $wpdb->insert($table_services, $data);
+                $wpdb->insert("{$wpdb->prefix}bc_services", $data);
                 if ($wpdb->last_error) echo '<div class="notice bc-custom-notice notice-error"><p>' . esc_html($wpdb->last_error) . '</p></div>';
                 else {
                     $service_id = $wpdb->insert_id;
@@ -64,22 +64,22 @@ class Bc_Services {
             // Sync staff
             $assigned_staff = isset($_POST['assigned_staff']) ? array_map('intval', $_POST['assigned_staff']) : [];
             $table_staff_services = $wpdb->prefix . 'bc_staff_services';
-            $wpdb->delete($table_staff_services, array('service_id' => $service_id));
+            $wpdb->delete("{$wpdb->prefix}bc_staff_services", array('service_id' => $service_id));
             foreach ($assigned_staff as $staff_id) {
-                $wpdb->insert($table_staff_services, array('staff_id' => $staff_id, 'service_id' => $service_id, 'custom_price' => $data['price']));
+                $wpdb->insert("{$wpdb->prefix}bc_staff_services", array('staff_id' => $staff_id, 'service_id' => $service_id, 'custom_price' => $data['price']));
             }
 
             $action = 'list';
         }
 
         if ($action === 'add' || $action === 'edit') {
-            $staff_members = $wpdb->get_results("SELECT id, name FROM $table_staff");
-            $existing_categories = $wpdb->get_col("SELECT DISTINCT category FROM $table_services WHERE category != ''");
+            $staff_members = $wpdb->get_results("SELECT id, name FROM {$wpdb->prefix}bc_staff");
+            $existing_categories = $wpdb->get_col("SELECT DISTINCT category FROM {$wpdb->prefix}bc_services WHERE category != ''");
             $service = null;
             $assigned_staff_ids = [];
 
             if ($action === 'edit' && $service_id) {
-                $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_services WHERE id = %d", $service_id));
+                $service = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_services WHERE id = %d", $service_id));
                 $staff_relations = $wpdb->get_results($wpdb->prepare("SELECT staff_id FROM {$wpdb->prefix}bc_staff_services WHERE service_id = %d", $service_id));
                 foreach ($staff_relations as $sr)
                     $assigned_staff_ids[] = $sr->staff_id;
@@ -349,7 +349,7 @@ class Bc_Services {
             $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : (isset($_POST['s']) ? $_POST['s'] : '');
             $filter = isset($_GET['cat']) ? sanitize_text_field($_GET['cat']) : (isset($_POST['cat']) ? $_POST['cat'] : '');
 
-            $query = "SELECT * FROM $table_services WHERE 1=1";
+            $query = "SELECT * FROM {$wpdb->prefix}bc_services WHERE 1=1";
             if ($search)
                 $query .= $wpdb->prepare(" AND name LIKE %s", '%' . $wpdb->esc_like($search) . '%');
             if ($filter)
@@ -361,12 +361,12 @@ class Bc_Services {
             $query .= " ORDER BY created_at DESC";
 
             $services = $wpdb->get_results($query);
-            $categories = $wpdb->get_col("SELECT DISTINCT category FROM $table_services WHERE category != ''");
+            $categories = $wpdb->get_col("SELECT DISTINCT category FROM {$wpdb->prefix}bc_services WHERE category != ''");
 
             // Meta Card Metrics
-            $total_services = $wpdb->get_var("SELECT COUNT(*) FROM {$table_services}");
-            $active_services = $wpdb->get_var("SELECT COUNT(*) FROM {$table_services} WHERE status='active'");
-            $inactive_services = $wpdb->get_var("SELECT COUNT(*) FROM {$table_services} WHERE status='inactive'");
+            $total_services = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_services");
+            $active_services = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_services WHERE status='active'");
+            $inactive_services = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_services WHERE status='inactive'");
             $page_url = "?page=bc_main&tab=services";
             ?>
             <div class="wrap bc-admin-wrap bc-services-list-wrapper">

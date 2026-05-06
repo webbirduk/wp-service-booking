@@ -1,5 +1,10 @@
+<<<<<<< Updated upstream
 === BooCommerce ===
 Contributors: webbird
+=======
+=== BooCommerce - Ultimate Appointment Booking & Service Scheduling ===
+Contributors: arafatrahmanbd, webbird
+>>>>>>> Stashed changes
 Tags: booking, appointments, scheduling, services, checkout
 Requires at least: 5.8
 Tested up to: 6.9

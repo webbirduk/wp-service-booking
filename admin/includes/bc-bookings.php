@@ -28,12 +28,12 @@ class Bc_Bookings
         // Quick Action Decisions for Client Requests (Reschedule / Cancel)
         if ($action === 'request_action' && $booking_id) {
             $decision = isset($_GET['decision']) ? sanitize_text_field($_GET['decision']) : '';
-            $booking_record = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_bookings WHERE id = %d", $booking_id));
+            $booking_record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_bookings WHERE id = %d", $booking_id));
 
             if ($booking_record) {
                 if ($decision === 'approve') {
                     if ($booking_record->request_type === 'reschedule') {
-                        $wpdb->update($table_bookings, array(
+                        $wpdb->update("{$wpdb->prefix}bc_bookings", array(
                             'status' => 'confirmed',
                             'booking_date' => $booking_record->requested_date,
                             'start_time' => $booking_record->requested_time,
@@ -45,7 +45,7 @@ class Bc_Bookings
                         ), array('id' => $booking_id));
                         echo '<div class="notice bc-custom-notice notice-success bc-custom-notice is-dismissible"><p>' . __('Reschedule request approved and applied successfully.', 'boocommerce') . '</p></div>';
                     } elseif ($booking_record->request_type === 'cancel') {
-                        $wpdb->update($table_bookings, array(
+                        $wpdb->update("{$wpdb->prefix}bc_bookings", array(
                             'status' => 'cancelled',
                             'request_type' => NULL
                         ), array('id' => $booking_id));
@@ -53,7 +53,7 @@ class Bc_Bookings
                     }
                     $this->admin->bc_notify_status_change($booking_id, 'confirmed');
                 } elseif ($decision === 'reject') {
-                    $wpdb->update($table_bookings, array(
+                    $wpdb->update("{$wpdb->prefix}bc_bookings", array(
                         'status' => 'confirmed',
                         'request_type' => NULL,
                         'requested_date' => NULL,
@@ -71,7 +71,7 @@ class Bc_Bookings
         if ($action === 'status' && $booking_id) {
             $new_status = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
             if (in_array($new_status, ['confirmed', 'cancelled', 'pending', 'completed'])) {
-                $wpdb->update($table_bookings, array('status' => $new_status), array('id' => $booking_id));
+                $wpdb->update("{$wpdb->prefix}bc_bookings", array('status' => $new_status), array('id' => $booking_id));
                 $this->admin->bc_notify_status_change($booking_id, $new_status);
                 echo '<div class="notice bc-custom-notice notice-success bc-custom-notice is-dismissible"><p>' . __('Status updated cleanly.', 'boocommerce') . '</p></div>';
             }
@@ -82,7 +82,7 @@ class Bc_Bookings
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bc_edit_booking_nonce'])) {
             if (wp_verify_nonce($_POST['bc_edit_booking_nonce'], 'bc_edit_booking')) {
                 // Fetch current state for intelligent change detection
-                $old_booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_bookings WHERE id = %d", $booking_id));
+                $old_booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_bookings WHERE id = %d", $booking_id));
 
                 $data = array(
                     'booking_date' => sanitize_text_field($_POST['booking_date']),
@@ -93,7 +93,7 @@ class Bc_Bookings
                     'staff_id' => isset($_POST['staff_id']) ? intval($_POST['staff_id']) : ($old_booking ? $old_booking->staff_id : 0)
                 );
 
-                $result = $wpdb->update($table_bookings, $data, array('id' => $booking_id));
+                $result = $wpdb->update("{$wpdb->prefix}bc_bookings", $data, array('id' => $booking_id));
 
                 if ($result === false) {
                     echo '<div class="notice bc-custom-notice notice-error bc-custom-notice is-dismissible"><p>' . __('Database Error: Could not update booking.', 'boocommerce') . ' ' . esc_html($wpdb->last_error) . '</p></div>';
@@ -125,7 +125,7 @@ class Bc_Bookings
         if ($action === 'edit' && $booking_id) {
             $booking = $wpdb->get_row($wpdb->prepare("
                 SELECT b.*, c.first_name, c.last_name, c.email as customer_email, c.phone as customer_phone, st.name as staff_name
-                FROM $table_bookings b
+                FROM {$wpdb->prefix}bc_bookings b
                 LEFT JOIN {$wpdb->prefix}bc_customers c ON b.customer_id = c.id
                 LEFT JOIN {$wpdb->prefix}bc_staff st ON b.staff_id = st.id
                 WHERE b.id = %d
@@ -391,7 +391,7 @@ class Bc_Bookings
         $where_clause = "WHERE 1=1";
 
         if (in_array($filter_status, ['pending', 'confirmed', 'completed', 'cancelled'])) {
-            $where_clause .= " AND b.status = '{$filter_status}'";
+            $where_clause .= $wpdb->prepare(" AND b.status = %s", $filter_status);
         } elseif ($filter_status === 'pending_requests') {
             $where_clause .= " AND b.status = 'pending' AND b.request_type IN ('cancel', 'reschedule')";
         }
@@ -418,10 +418,10 @@ class Bc_Bookings
         }
 
         // Metrics for Top Cards
-        $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings}");
-        $pending_count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings} WHERE status='pending'");
-        $confirmed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings} WHERE status='confirmed' OR status='completed'");
-        $client_requests_count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_bookings} WHERE status='pending' AND request_type IN ('cancel', 'reschedule')");
+        $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_bookings");
+        $pending_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_bookings WHERE status='pending'");
+        $confirmed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_bookings WHERE status='confirmed' OR status='completed'");
+        $client_requests_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bc_bookings WHERE status='pending' AND request_type IN ('cancel', 'reschedule')");
 
         // Joined query to get names instead of raw IDs for a professional look
         $query = "SELECT b.*, 

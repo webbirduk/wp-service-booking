@@ -45,15 +45,14 @@ class Bc_Public
         }
 
         $booking_table = $wpdb->prefix . 'bc_bookings';
-        $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $booking_table WHERE id = %d AND status = 'pending'", $booking_id));
+        $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_bookings WHERE id = %d AND status = 'pending'", $booking_id));
 
         if ($booking) {
             // Confirm the booking
-            $wpdb->update($booking_table, array('status' => 'confirmed'), array('id' => $booking_id));
+            $wpdb->update("{$wpdb->prefix}bc_bookings", array('status' => 'confirmed'), array('id' => $booking_id));
 
             // Create payment record
-            $payment_table = $wpdb->prefix . 'bc_payments';
-            $wpdb->insert($payment_table, array(
+            $wpdb->insert("{$wpdb->prefix}bc_payments", array(
                 'booking_id' => $booking_id,
                 'amount' => $booking->total_amount,
                 'gateway' => 'stripe',
@@ -87,7 +86,7 @@ class Bc_Public
             // Redirect to dashboard with success message
             // Try to find the dashboard page dynamically
             global $wpdb;
-            $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[bc_client_dashboard]%' AND post_status = 'publish' LIMIT 1");
+            $page_id = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status = 'publish' LIMIT 1", '%[bc_client_dashboard]%'));
             $dash_url = $page_id ? get_permalink($page_id) : home_url('/booking-dashboard');
 
             wp_redirect(add_query_arg('bc_payment_confirmed', '1', $dash_url));
@@ -368,7 +367,15 @@ class Bc_Public
                                         <div class="bc-service-image"
                                             style="background: #f8fafc <?php echo $s->image_url ? 'url(' . esc_url($s->image_url) . ') center/cover' : ''; ?>;">
                                         </div>
+<<<<<<< Updated upstream
                                         <a href="<?php echo esc_url(add_query_arg('bc_service_id', $s->id)); ?>" class="bc-view-service-btn" title="View Product Details">
+=======
+                                        <?php 
+                                        $page_id = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status = 'publish' LIMIT 1", '%[bc_booking_widget]%'));
+                                        $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
+                                        ?>
+                                        <a href="<?php echo esc_url(add_query_arg('bc_service_id', $s->id, $booking_url)); ?>" class="bc-view-service-btn" title="View Product Details">
+>>>>>>> Stashed changes
                                             <span class="<?php echo Bc_Public::get_icon_class(get_option('bc_icon_view_details', 'dashicons-visibility')); ?>"></span>
                                         </a>
                                     </div>
@@ -787,12 +794,12 @@ class Bc_Public
         $services_table = $wpdb->prefix . 'bc_services';
         $staff_table = $wpdb->prefix . 'bc_staff';
 
-        $all_staff = $wpdb->get_results("SELECT * FROM $staff_table ORDER BY name ASC");
+        $all_staff = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}bc_staff ORDER BY name ASC");
 
         $bookings = $wpdb->get_results($wpdb->prepare(
             "SELECT b.*, st.name as staff_name 
-             FROM $booking_table b 
-             JOIN $customer_table c ON b.customer_id = c.id
+             FROM {$wpdb->prefix}bc_bookings b 
+             JOIN {$wpdb->prefix}bc_customers c ON b.customer_id = c.id
              LEFT JOIN {$wpdb->prefix}bc_staff st ON b.staff_id = st.id
              WHERE c.email = %s 
              ORDER BY b.booking_date DESC, b.start_time DESC",
@@ -805,7 +812,7 @@ class Bc_Public
             if (!empty($b->service_id)) {
                 $ids = array_map('intval', explode(',', $b->service_id));
                 $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-                $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM $services_table WHERE id IN ($placeholders)", $ids));
+                $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM {$wpdb->prefix}bc_services WHERE id IN ($placeholders)", $ids));
                 if ($services) {
                     $names = array_map(function($s) { return $s->name; }, $services);
                     $b->service_name = implode(', ', $names);
@@ -1256,19 +1263,25 @@ class Bc_Public
         ), $atts, 'bc_services');
 
         global $wpdb;
-        $query = "SELECT * FROM {$wpdb->prefix}bc_services WHERE status = 'active'";
+        $params = array('active');
+        $query = "SELECT * FROM {$wpdb->prefix}bc_services WHERE status = %s";
         
         if (!empty($atts['category'])) {
-            $query .= $wpdb->prepare(" AND category = %s", $atts['category']);
+            $query .= " AND category = %s";
+            $params[] = $atts['category'];
         }
         
         if (!empty($atts['ids'])) {
             $ids = explode(',', $atts['ids']);
             $ids = array_map('intval', $ids);
-            $query .= " AND id IN (" . implode(',', $ids) . ")";
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $query .= " AND id IN ($placeholders)";
+            foreach ($ids as $id) {
+                $params[] = $id;
+            }
         }
 
-        $services = $wpdb->get_results($query);
+        $services = $wpdb->get_results($wpdb->prepare($query, $params));
 
         if (empty($services)) {
             return '<p style="text-align:center; color:var(--bc-text-muted);">' . __('No services found matching your criteria.', 'boocommerce') . '</p>';
@@ -1660,7 +1673,7 @@ class Bc_Public
                             </div>
                             <?php
                             global $wpdb;
-                            $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[bc_booking_widget]%' AND post_status = 'publish' LIMIT 1");
+                            $page_id = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status = 'publish' LIMIT 1", '%[bc_booking_widget]%'));
                             $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
                             ?>
                             <a href="<?php echo esc_url(add_query_arg(['bc_select_service' => $s->id, 'bc_jump_to_staff' => '1'], $booking_url)); ?>" class="bc-showcase-btn">Book Appointment</a>
@@ -1707,7 +1720,7 @@ class Bc_Public
                         </div>
                         <?php
                         global $wpdb;
-                        $page_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content LIKE '%[bc_booking_widget]%' AND post_status = 'publish' LIMIT 1");
+                        $page_id = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_content LIKE %s AND post_status = 'publish' LIMIT 1", '%[bc_booking_widget]%'));
                         $booking_url = $page_id ? get_permalink($page_id) : home_url('/booking');
                         ?>
                         <a href="<?php echo esc_url(add_query_arg('bc_jump_to_staff', '1', $booking_url)); ?>" class="bc-btn bc-next-btn bc-basket-checkout-btn" style="width:100%; padding:12px; text-decoration:none; text-align:center;"><?php _e('Continue Booking', 'boocommerce'); ?></a>
