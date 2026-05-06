@@ -8,6 +8,8 @@
  * Author URI:        https://webbird.co.uk
  * Text Domain:       boocommerce
  * Domain Path:       /languages
+ * License:           GPLv2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * 
  * --- DEVELOPER SCALABILITY ENGINE ---
  * This plugin is designed to be fully extensible via WordPress Actions & Filters.
@@ -26,8 +28,8 @@
  */
 
 // If this file is called directly, abort.
-if ( ! defined( 'WPINC' ) ) {
-	die;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**

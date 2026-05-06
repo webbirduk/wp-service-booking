@@ -1,4 +1,9 @@
 <?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Master Admin Layout for Service Booking
  * High-performance, full-width, professional UI

@@ -1,4 +1,9 @@
 <?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 class Bc_Public
 {
     private $plugin_name;
@@ -11,6 +16,7 @@ class Bc_Public
     }
 
     public static function get_icon_class($icon) {
+        $icon = apply_filters('bc_public_icon_class_raw', $icon);
         if (strpos($icon, 'fa-') !== false || strpos($icon, 'fas ') !== false || strpos($icon, 'fab ') !== false || strpos($icon, 'far ') !== false) {
             return esc_attr($icon);
         }
@@ -119,6 +125,8 @@ class Bc_Public
 
     public function render_booking_widget($atts)
     {
+        $atts = apply_filters('bc_public_booking_widget_atts', $atts);
+        do_action('bc_public_before_booking_widget', $atts);
         global $wpdb;
 
         if (isset($_GET['bc_service_id'])) {
@@ -384,6 +392,7 @@ class Bc_Public
                         <p><?php _e('No services available yet.', 'boocommerce'); ?></p>
                     <?php endif; ?>
                 </div>
+                <?php do_action('bc_public_after_service_list', $services); ?>
                 <div class="bc-actions">
                     <div></div>
                     <button class="bc-next-btn bc-btn" data-next="bc-step-staff" disabled><?php echo esc_html($l_next); ?></button>
@@ -708,9 +717,8 @@ class Bc_Public
                 </div>
             </div>
 
-            <div class="bc-actions" style="margin-top: 30px;">
-
-        </div>
+            </div>
+        <?php do_action('bc_public_after_booking_widget'); ?>
         </div>
         <?php
         return ob_get_clean();

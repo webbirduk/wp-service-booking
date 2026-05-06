@@ -1,13 +1,18 @@
 <?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 class Bc_Ajax {
     public function get_time_slots() {
         check_ajax_referer('bc_nonce', 'nonce');
         global $wpdb;
 
-        $staff_id = isset($_POST['staff_id']) ? sanitize_text_field($_POST['staff_id']) : 'any';
-        $date     = isset($_POST['date']) ? sanitize_text_field($_POST['date']) : date('Y-m-d');
-        $service_ids = isset($_POST['service_id']) ? sanitize_text_field($_POST['service_id']) : '';
-        $booking_id  = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
+        $staff_id = apply_filters('bc_ajax_get_slots_staff_id', isset($_POST['staff_id']) ? sanitize_text_field($_POST['staff_id']) : 'any');
+        $date     = apply_filters('bc_ajax_get_slots_date', isset($_POST['date']) ? sanitize_text_field($_POST['date']) : date('Y-m-d'));
+        $service_ids = apply_filters('bc_ajax_get_slots_service_ids', isset($_POST['service_id']) ? sanitize_text_field($_POST['service_id']) : '');
+        $booking_id  = apply_filters('bc_ajax_get_slots_booking_id', isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0);
 
         if (empty($service_ids) && $booking_id) {
             $service_ids = $wpdb->get_var($wpdb->prepare("SELECT service_id FROM {$wpdb->prefix}bc_bookings WHERE id = %d", $booking_id));
@@ -44,11 +49,11 @@ class Bc_Ajax {
 
         // 1. Define all possible slots (e.g., 09:00 to 17:00 every 30 mins)
         // In a real app, these might come from staff working hours.
-        $all_slots = array(
+        $all_slots = apply_filters('bc_get_available_slots_base', array(
             '09:00:00', '09:30:00', '10:00:00', '10:30:00', '11:00:00', '11:30:00',
             '12:00:00', '12:30:00', '13:00:00', '13:30:00', '14:00:00', '14:30:00',
             '15:00:00', '15:30:00', '16:00:00', '16:30:00', '17:00:00'
-        );
+        ));
 
         // 2. Fetch existing bookings for this staff and date
         $booking_table = $wpdb->prefix . 'bc_bookings';
@@ -105,19 +110,24 @@ class Bc_Ajax {
             }
         }
 
+        $available_slots = apply_filters('bc_ajax_get_slots_output', $available_slots, $staff_id, $date, $service_ids);
         wp_send_json_success(array('slots' => $available_slots));
     }
 
     public function create_booking() {
+        do_action('bc_before_ajax_create_booking', $_POST);
         $booking_id = $this->internal_create_booking($_POST);
         if ($booking_id) {
+            do_action('bc_after_ajax_create_booking_success', $booking_id, $_POST);
             wp_send_json_success(array('message' => sprintf(__('Booking #%d confirmed & saved!', 'boocommerce'), $booking_id), 'booking_id' => $booking_id));
         } else {
+            do_action('bc_after_ajax_create_booking_failed', $_POST);
             wp_send_json_error(array('message' => __('Failed to create booking.', 'boocommerce')));
         }
     }
 
     public function internal_create_booking($data) {
+        $data = apply_filters('bc_internal_create_booking_data', $data);
         global $wpdb;
         $first_name = sanitize_text_field($data['first_name']);
         $last_name = sanitize_text_field($data['last_name']);
@@ -301,7 +311,15 @@ class Bc_Ajax {
                     <div style="font-size:13px; color:#9f1239; line-height:1.5;">' . wp_kses_post($cancellation_policy) . '</div>
                 </div>';
 
-            bc_send_modern_email($email, $subject, $email_title, $intro_text, $details_html);
+            $email_params = apply_filters('bc_booking_confirmation_email_params', array(
+                'to' => $email,
+                'subject' => $subject,
+                'title' => $email_title,
+                'intro' => $intro_text,
+                'content' => $details_html
+            ), $booking_id);
+
+            bc_send_modern_email($email_params['to'], $email_params['subject'], $email_params['title'], $email_params['intro'], $email_params['content']);
             
             // Notify Admin
             $admin_email = get_option('admin_email');
