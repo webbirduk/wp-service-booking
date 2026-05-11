@@ -40,7 +40,8 @@ class Boocommerce {
         add_shortcode( 'bc_services', array( $plugin_public, 'render_services_widget' ) );
         add_shortcode( 'bc_client_dashboard', array( $plugin_public, 'render_client_dashboard' ) );
         add_shortcode( 'bc_basket', array( $plugin_public, 'render_basket_shortcode' ) );
-        add_action( 'template_redirect', array( $plugin_public, 'virtual_booking_route' ) );
+        add_shortcode( 'bc_booking_page', array( $plugin_public, 'render_booking_page_shortcode' ) );
+        add_shortcode( 'bc_dashboard_page', array( $plugin_public, 'render_dashboard_page_shortcode' ) );
         add_action( 'init', array( $plugin_public, 'handle_stripe_return' ) );
         add_filter( 'login_redirect', array( $plugin_public, 'bc_login_redirect' ), 10, 3 );
         add_filter( 'logout_redirect', array( $plugin_public, 'bc_logout_redirect' ), 10, 3 );

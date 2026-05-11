@@ -127,7 +127,8 @@ class Bc_Public
             'enable_split_scheduling' => get_option('bc_enable_split_scheduling', 'no'),
             'staff_service_mapping' => $mapping,
             'currency_symbol' => bc_get_currency_symbol(get_option('bc_currency', 'USD')),
-            'basket_mode' => get_option('bc_basket_mode', 'hover')
+            'basket_mode' => get_option('bc_basket_mode', 'hover'),
+            'allow_skip_prof' => get_option('bc_allow_user_skip_prof', 'no')
         ));
     }
 
@@ -466,6 +467,9 @@ class Bc_Public
                 </div>
                 <div class="bc-actions">
                     <button class="bc-prev-btn bc-btn" data-prev="bc-step-service"><?php echo esc_html($l_prev); ?></button>
+                    <?php if (get_option('bc_allow_user_skip_prof', 'no') === 'yes'): ?>
+                        <button class="bc-skip-staff-btn bc-btn" data-next="bc-step-time" style="background:rgba(0,0,0,0.05); color:var(--bc-text-muted); border:1.5px solid var(--bc-border);"><?php _e('Skip & Use Any', 'boocommerce'); ?></button>
+                    <?php endif; ?>
                     <button class="bc-next-btn bc-btn" data-next="bc-step-time" disabled><?php echo esc_html($l_next); ?></button>
                 </div>
             </div>
@@ -1193,46 +1197,39 @@ class Bc_Public
     /**
      * Virtual route for /booking
      */
-    public function virtual_booking_route()
+    public function render_booking_page_shortcode($atts)
     {
-        $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $request_path = trim($request_uri, '/');
-        
-        $is_booking = preg_match('/(^|\/)booking\/?$/', $request_path);
-        $is_dashboard = preg_match('/(^|\/)booking-dashboard\/?$/', $request_path);
-
-        if ($is_booking || $is_dashboard) {
-            global $wp_query;
-            $slug = $is_dashboard ? 'booking-dashboard' : 'booking';
-            
-            // Force 200 OK status
-            status_header(200);
-            $wp_query->is_404 = false;
-            
-            get_header();
-            $brand_color = get_option('bc_brand_color', '#6366f1');
-            $brand_color_end = get_option('bc_brand_color_end', '#a855f7');
-            $virtual_bg_color = get_option('bc_virtual_bg_color', '#f8fafc');
-            ?>
-            <div class="bc-virtual-wrapper" style="padding: 60px 20px; background: #f1f5f9; min-height: 80vh; display: flex; justify-content: center; align-items: flex-start;">
-                <div class="bc-virtual-page" style="width: 100%; max-width: 900px; background: <?php echo esc_attr($virtual_bg_color); ?>; padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.05);">
-                    <style>
-                        #bc-booking-wizard-container { margin: 0; padding: 0; background: transparent; border: none; box-shadow: none; }
-                        @media (max-width: 768px) { .bc-virtual-wrapper { padding: 20px 10px; } .bc-virtual-page { padding: 20px; } }
-                    </style>
-                    <?php
-                    if ($slug === 'booking-dashboard') {
-                        echo $this->render_client_dashboard();
-                    } else {
-                        echo $this->render_booking_widget(array());
-                    }
-                    ?>
-                </div>
+        $virtual_bg_color = get_option('bc_virtual_bg_color', '#f8fafc');
+        ob_start();
+        ?>
+        <div class="bc-virtual-wrapper" style="padding: 60px 20px; background: #f1f5f9; min-height: 80vh; display: flex; justify-content: center; align-items: flex-start;">
+            <div class="bc-virtual-page" style="width: 100%; max-width: 900px; background: <?php echo esc_attr($virtual_bg_color); ?>; padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.05);">
+                <style>
+                    #bc-booking-wizard-container { margin: 0; padding: 0; background: transparent; border: none; box-shadow: none; }
+                    @media (max-width: 768px) { .bc-virtual-wrapper { padding: 20px 10px; } .bc-virtual-page { padding: 20px; } }
+                </style>
+                <?php echo $this->render_booking_widget(array()); ?>
             </div>
-            <?php
-            get_footer();
-            exit;
-        }
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    public function render_dashboard_page_shortcode($atts)
+    {
+        $virtual_bg_color = get_option('bc_virtual_bg_color', '#f8fafc');
+        ob_start();
+        ?>
+        <div class="bc-virtual-wrapper" style="padding: 60px 20px; background: #f1f5f9; min-height: 80vh; display: flex; justify-content: center; align-items: flex-start;">
+            <div class="bc-virtual-page" style="width: 100%; max-width: 900px; background: <?php echo esc_attr($virtual_bg_color); ?>; padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.05);">
+                <style>
+                    @media (max-width: 768px) { .bc-virtual-wrapper { padding: 20px 10px; } .bc-virtual-page { padding: 20px; } }
+                </style>
+                <?php echo $this->render_client_dashboard(); ?>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
     }
     public function bc_login_redirect($redirect_to, $request, $user)
     {

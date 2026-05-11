@@ -204,6 +204,14 @@ jQuery(document).ready(function($) {
         }
     });
 
+    $(document).on('click', '.bc-skip-staff-btn', function(e) {
+        e.preventDefault();
+        // Select 'any' staff card
+        $('.bc-staff-card[data-staff-id="any"]').trigger('click');
+        // Trigger next button click
+        $(this).closest('.bc-wizard-step').find('.bc-next-btn').trigger('click');
+    });
+
     // Step Navigation
     $(document).on('click', '.bc-next-btn', function(e) {
         e.preventDefault();

@@ -29,6 +29,7 @@ class Bc_Settings
                 delete_option('bc_instant_confirm');
                 delete_option('bc_enable_notifications');
                 delete_option('bc_cancellation_policy');
+                delete_option('bc_allow_user_skip_prof');
                 
                 echo '<div class="notice bc-custom-notice notice-warning is-dismissible bc-custom-notice"><p>' . __('All settings have been restored to factory defaults.', 'boocommerce') . '</p></div>';
             } elseif (isset($_POST['bc_settings_nonce']) && wp_verify_nonce($_POST['bc_settings_nonce'], 'bc_save_settings')) {
@@ -40,6 +41,7 @@ class Bc_Settings
                 update_option('bc_skip_payment_step', isset($_POST['bc_skip_payment_step']) ? 'yes' : 'no');
                 update_option('bc_filter_staff_by_service', isset($_POST['bc_filter_staff_by_service']) ? 'yes' : 'no');
                 update_option('bc_enable_split_scheduling', isset($_POST['bc_enable_split_scheduling']) ? 'yes' : 'no');
+                update_option('bc_allow_user_skip_prof', isset($_POST['bc_allow_user_skip_prof']) ? 'yes' : 'no');
 
                 // Advanced Rules
                 update_option('bc_booking_buffer', intval($_POST['bc_booking_buffer']));
@@ -58,6 +60,7 @@ class Bc_Settings
         $skip_pay = get_option('bc_skip_payment_step', 'no');
         $filter_staff = get_option('bc_filter_staff_by_service', 'yes');
         $enable_split = get_option('bc_enable_split_scheduling', 'yes');
+        $allow_user_skip_prof = get_option('bc_allow_user_skip_prof', 'no');
         $buffer = get_option('bc_booking_buffer', '15');
         $min_notice = get_option('bc_min_notice', '2');
         $instant_confirm = get_option('bc_instant_confirm', 'yes');
@@ -219,6 +222,19 @@ class Bc_Settings
                                             </div>
                                             <label class="bc-switch">
                                                 <input type="checkbox" name="bc_enable_split_scheduling" value="yes" <?php checked($enable_split, 'yes'); ?>>
+                                                <span class="bc-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="bc-settings-row">
+                                            <div>
+                                                <label style="display:block; color:#fff; font-weight:700; font-size:15px; margin-bottom:4px;">
+                                                    <?php _e('Allow User to Skip Professional', 'boocommerce'); ?>
+                                                    <span class="bc-info-icon" data-tooltip="<?php esc_attr_e('If enabled, a Skip button will appear on the professional selection step, allowing customers to proceed without choosing a specific team member.', 'boocommerce'); ?>">?</span>
+                                                </label>
+                                                <span style="color:var(--bc-text-muted); font-size:12px;"><?php _e('Adds a "Skip" button to the staff selection step.', 'boocommerce'); ?></span>
+                                            </div>
+                                            <label class="bc-switch">
+                                                <input type="checkbox" name="bc_allow_user_skip_prof" value="yes" <?php checked($allow_user_skip_prof, 'yes'); ?>>
                                                 <span class="bc-slider"></span>
                                             </label>
                                         </div>
