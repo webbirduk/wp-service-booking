@@ -18,9 +18,16 @@ class Bc_Public
     public static function get_icon_class($icon) {
         $icon = apply_filters('bc_public_icon_class_raw', $icon);
         
+        // Phosphor Icons Detection
+        if (strpos($icon, 'ph-') !== false) {
+            if (strpos($icon, 'ph ') === false) {
+                return 'ph ' . esc_attr($icon);
+            }
+            return esc_attr($icon);
+        }
+
         // Font Awesome Detection
         if (strpos($icon, 'fa-') !== false) {
-            // If user only provided the icon name like 'fa-user', prepend the solid weight class
             if (strpos($icon, 'fas ') === false && strpos($icon, 'fab ') === false && strpos($icon, 'far ') === false && strpos($icon, 'fa-solid') === false) {
                 return 'fa-solid ' . esc_attr($icon);
             }
@@ -35,6 +42,7 @@ class Bc_Public
     {
         wp_enqueue_style('dashicons');
         wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css', array(), '6.5.1', 'all');
+        wp_enqueue_style('phosphor-icons', 'https://unpkg.com/@phosphor-icons/web@2.1.1/src/strict/style.css', array(), '2.1.1', 'all');
         wp_enqueue_style($this->plugin_name, plugin_dir_url(dirname(__FILE__)) . 'assets/public/css/bc-public.css', array(), time(), 'all');
     }
 
@@ -746,442 +754,716 @@ class Bc_Public
         $brand_color_end = get_option('bc_brand_color_end', '#a855f7');
         $accent_color = get_option('bc_accent_color', '#4f46e5');
 
-        if (!is_user_logged_in()) {
-            ob_start();
-            ?>
-            <style>
-                :root {
-                    --bc-brand:
-                        <?php echo esc_attr($brand_color); ?>
-                    ;
-                    --bc-brand-alt:
-                        <?php echo esc_attr($accent_color); ?>
-                    ;
-                    --bc-gradient: linear-gradient(135deg,
-                            <?php echo esc_attr($brand_color); ?>
-                            0%,
-                            <?php echo esc_attr($brand_color_end); ?>
-                            100%);
-                    --bc-ring:
-                        <?php echo esc_attr($brand_color); ?>
-                        33;
-                }
-            </style>
-            <div class="bc-client-login-container"
-                style="max-width:480px; margin: 80px auto; padding: 45px 35px; background:#fff; border-radius:24px; border:1px solid var(--bc-border); box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1); text-align:center; position:relative; overflow:hidden;">
-
-                <div
-                    style="position:absolute; top:-50px; left:-50px; width:120px; height:120px; background:var(--bc-ring); border-radius:50%; filter:blur(30px); z-index:0;">
-                </div>
-                <div
-                    style="position:absolute; bottom:-50px; right:-50px; width:120px; height:120px; background:var(--bc-ring); border-radius:50%; filter:blur(30px); z-index:0;">
-                </div>
-
-                <div style="position:relative; z-index:1;">
-                    <div
-                        style="width: 70px; height: 70px; background:var(--bc-ring); color:var(--bc-brand); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 25px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                        🔐</div>
-                    <h3
-                        style="margin:0 0 10px; font-size:26px; font-weight:800; color:var(--bc-text-main); letter-spacing:-0.5px;">
-                        <?php _e('Client Dashboard', 'boocommerce'); ?></h3>
-                    <p style="color:var(--bc-text-muted); font-size:15px; line-height:1.6; margin:0 0 35px; padding: 0 10px;">
-                        <?php _e('Welcome back! Please sign in securely below to track, modify, or review upcoming appointments.', 'boocommerce'); ?></p>
-                    <a href="<?php echo wp_login_url(home_url('/booking-dashboard')); ?>" class="bc-btn"
-                        style="display:inline-block; text-decoration:none; padding: 14px 35px; border-radius: 14px; background:var(--bc-gradient); color:#fff; font-weight:700; font-size:15px; box-shadow:var(--bc-shadow-md); transition: transform 0.2s, box-shadow 0.2s; border:none; width:100%; box-sizing:border-box;"><?php _e('Sign In to My Dashboard', 'boocommerce'); ?></a>
-                </div>
-            </div>
-            <?php
-            return ob_get_clean();
-        }
-
-        global $wpdb;
-        $current_user = wp_get_current_user();
-        $email = $current_user->user_email;
-
-        $customer_table = $wpdb->prefix . 'bc_customers';
-        $booking_table = $wpdb->prefix . 'bc_bookings';
-        $services_table = $wpdb->prefix . 'bc_services';
-        $staff_table = $wpdb->prefix . 'bc_staff';
-
-        $all_staff = $wpdb->get_results("SELECT * FROM $staff_table ORDER BY name ASC");
-
-        $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT b.*, st.name as staff_name 
-             FROM $booking_table b 
-             JOIN $customer_table c ON b.customer_id = c.id
-             LEFT JOIN {$wpdb->prefix}bc_staff st ON b.staff_id = st.id
-             WHERE c.email = %s 
-             ORDER BY b.booking_date DESC, b.start_time DESC",
-            $email
-        ));
-
-        // Enqueue service names for bookings
-        foreach ($bookings as &$b) {
-            $b->service_name = 'Unknown Service';
-            if (!empty($b->service_id)) {
-                $ids = array_map('intval', explode(',', $b->service_id));
-                $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-                $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM $services_table WHERE id IN ($placeholders)", $ids));
-                if ($services) {
-                    $names = array_map(function($s) { return $s->name; }, $services);
-                    $b->service_name = implode(', ', $names);
-                }
-            }
-        }
-        unset($b);
-
         ob_start();
-        $brand_color = get_option('bc_brand_color', '#6366f1');
-        $brand_color_end = get_option('bc_brand_color_end', '#a855f7');
-        $accent_color = get_option('bc_accent_color', '#4f46e5');
         ?>
         <style>
             :root {
-                --bc-brand:
-                    <?php echo esc_attr($brand_color); ?>
-                ;
-                --bc-brand-alt:
-                    <?php echo esc_attr($accent_color); ?>
-                ;
-                --bc-gradient: linear-gradient(135deg,
-                        <?php echo esc_attr($brand_color); ?>
-                        0%,
-                        <?php echo esc_attr($brand_color_end); ?>
-                        100%);
-                --bc-ring:
-                    <?php echo esc_attr($brand_color); ?>
-                    33;
+                --bc-brand: <?php echo esc_attr($brand_color); ?>;
+                --bc-brand-alt: <?php echo esc_attr($accent_color); ?>;
+                --bc-gradient: linear-gradient(135deg, <?php echo esc_attr($brand_color); ?> 0%, <?php echo esc_attr($brand_color_end); ?> 100%);
+                --bc-ring: <?php echo esc_attr($brand_color); ?>33;
+                --bc-bg: #f8fafc;
+                --bc-card-bg: #ffffff;
+                --bc-border: #e2e8f0;
+                --bc-text-main: #1e293b;
+                --bc-text-muted: #64748b;
+                --bc-success: #10b981;
+                --bc-error: #ef4444;
+                --bc-warning: #f59e0b;
+                --bc-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+                --bc-shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+            }
+
+            .bc-dash-wrapper {
+                font-family: 'Inter', sans-serif;
+                color: var(--bc-text-main);
+                line-height: 1.6;
+            }
+
+            .bc-dash-wrapper h1, .bc-dash-wrapper h2, .bc-dash-wrapper h3, .bc-dash-wrapper h4 {
+                font-family: 'Outfit', sans-serif;
+                font-weight: 700;
+            }
+
+            /* Phosphor Icon Fix */
+            .ph {
+                display: inline-block;
+                line-height: 1;
+                vertical-align: middle;
+            }
+
+            /* Login Container */
+            .bc-login-card {
+                max-width: 480px;
+                margin: 60px auto;
+                padding: 50px 40px;
+                background: var(--bc-card-bg);
+                border-radius: 32px;
+                box-shadow: var(--bc-shadow-lg);
+                text-align: center;
+                border: 1px solid var(--bc-border);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .bc-login-icon {
+                width: 80px;
+                height: 80px;
+                background: var(--bc-ring);
+                color: var(--bc-brand);
+                border-radius: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 32px;
+                margin: 0 auto 30px;
+            }
+
+            /* Dashboard Main */
+            .bc-dashboard-main {
+                max-width: 1000px;
+                margin: 40px auto;
+                background: var(--bc-card-bg);
+                border-radius: 32px;
+                box-shadow: var(--bc-shadow-lg);
+                border: 1px solid var(--bc-border);
+                overflow: hidden;
+            }
+
+            .bc-dash-header {
+                padding: 40px 50px;
+                border-bottom: 1px solid var(--bc-border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: linear-gradient(to right, #ffffff, #f8fafc);
+            }
+
+            .bc-dash-nav {
+                display: flex;
+                gap: 10px;
+                padding: 20px 50px;
+                background: #fcfcfd;
+                border-bottom: 1px solid var(--bc-border);
+            }
+
+            .bc-nav-link {
+                padding: 10px 24px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 14px;
+                color: var(--bc-text-muted);
+                cursor: pointer;
+                transition: all 0.3s ease;
+                border: 1px solid transparent;
+            }
+
+            .bc-nav-link.active {
+                background: #ffffff;
+                color: var(--bc-brand);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+                border-color: var(--bc-border);
+            }
+
+            .bc-dash-body {
+                padding: 40px 50px;
+            }
+
+            /* List View Redesign */
+            .bc-booking-list {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .bc-appointment-card {
+                background: #ffffff;
+                border: 1px solid var(--bc-border);
+                border-radius: 20px;
+                padding: 24px 30px;
+                display: grid;
+                grid-template-columns: 80px 1.5fr 1.2fr 1fr 140px;
+                align-items: center;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .bc-appointment-card:hover {
+                transform: translateY(-3px);
+                border-color: var(--bc-brand);
+                box-shadow: var(--bc-shadow);
+            }
+
+            .bc-appointment-card::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 4px;
+                background: var(--bc-brand);
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .bc-appointment-card:hover::before {
+                opacity: 1;
+            }
+
+            .bc-app-ref {
+                font-size: 13px;
+                font-weight: 800;
+                color: var(--bc-brand);
+                background: var(--bc-ring);
+                padding: 4px 10px;
+                border-radius: 8px;
+                width: fit-content;
+            }
+
+            .bc-app-info h4 {
+                margin: 0;
+                font-size: 16px;
+                color: var(--bc-text-main);
+            }
+
+            .bc-app-info p {
+                margin: 4px 0 0;
+                font-size: 13px;
+                color: var(--bc-text-muted);
+            }
+
+            .bc-app-meta {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .bc-meta-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+                color: var(--bc-text-muted);
+                font-weight: 600;
+            }
+
+            .bc-meta-item i {
+                color: var(--bc-brand);
+                font-size: 16px;
+            }
+
+            /* Status Badges */
+            .bc-status-pill {
+                padding: 8px 16px;
+                border-radius: 100px;
+                font-size: 11px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                width: fit-content;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .bc-status-pill::before {
+                content: '';
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+            }
+
+            .status-confirmed { background: #ecfdf5; color: #059669; }
+            .status-confirmed::before { background: #059669; }
+            
+            .status-pending { background: #fffbeb; color: #d97706; }
+            .status-pending::before { background: #d97706; }
+            
+            .status-cancelled { background: #fef2f2; color: #dc2626; }
+            .status-cancelled::before { background: #dc2626; }
+
+            /* Action Buttons Group */
+            .bc-app-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+            }
+
+            .bc-btn-icon {
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid var(--bc-border);
+                background: #fff;
+                color: var(--bc-text-muted);
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 18px;
+            }
+
+            .bc-btn-icon:hover {
+                border-color: var(--bc-brand);
+                color: var(--bc-brand);
+                background: var(--bc-ring);
+                transform: scale(1.05);
+            }
+
+            .bc-btn-icon.btn-danger:hover {
+                border-color: var(--bc-error);
+                color: var(--bc-error);
+                background: #fef2f2;
+            }
+
+            /* Buttons */
+            .bc-action-btn {
+                padding: 8px 16px;
+                border-radius: 10px;
+                font-weight: 700;
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                border: 1px solid transparent;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .btn-reschedule { background: rgba(99, 102, 241, 0.08); color: var(--bc-brand); }
+            .btn-cancel { background: rgba(239, 68, 68, 0.05); color: var(--bc-error); }
+
+            .bc-action-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            }
+
+            /* Form Styles */
+            .bc-form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 25px;
+                margin-bottom: 25px;
+            }
+
+            /* Sectioned Form Layout */
+            .bc-form-section {
+                background: #fcfcfd;
+                border: 1px solid var(--bc-border);
+                border-radius: 24px;
+                padding: 30px;
+                margin-bottom: 30px;
+                transition: all 0.3s ease;
+            }
+
+            .bc-form-section:hover {
+                background: #ffffff;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+                border-color: var(--bc-brand);
+            }
+
+            .bc-section-title {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 25px;
+                padding-bottom: 15px;
+                border-bottom: 1px dashed var(--bc-border);
+            }
+
+            .bc-section-title i {
+                width: 36px;
+                height: 36px;
+                background: var(--bc-ring);
+                color: var(--bc-brand);
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+            }
+
+            .bc-section-title h5 {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 800;
+                color: var(--bc-text-main);
+                letter-spacing: -0.2px;
+            }
+
+            .bc-input-group {
+                margin-bottom: 0;
+            }
+
+            .bc-field-wrapper {
+                position: relative;
+                display: flex;
+                align-items: center;
+                background: #fff;
+                border: 1.5px solid var(--bc-border);
+                border-radius: 18px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                padding: 5px;
+            }
+
+            .bc-field-wrapper:focus-within {
+                border-color: var(--bc-brand);
+                box-shadow: 0 0 0 4px var(--bc-ring);
+                transform: translateY(-1px);
+            }
+
+            .bc-field-icon {
+                width: 46px;
+                height: 46px;
+                background: #f8fafc;
+                color: var(--bc-text-muted);
+                border-radius: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                transition: all 0.3s;
+            }
+
+            .bc-field-wrapper:focus-within .bc-field-icon {
+                background: var(--bc-brand);
+                color: #fff;
+            }
+
+            .bc-input {
+                border: none !important;
+                background: transparent !important;
+                padding: 12px 15px !important;
+                box-shadow: none !important;
+                font-weight: 600;
+                color: var(--bc-text-main);
+            }
+
+            .bc-input::placeholder {
+                color: #cbd5e1;
+                font-weight: 400;
+            }
+
+            .bc-input:disabled {
+                opacity: 0.6;
+            }
+
+            .bc-form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+
+            /* Mobile Stack */
+            @media (max-width: 768px) {
+                .bc-dash-header { flex-direction: column; text-align: center; gap: 20px; padding: 30px; }
+                .bc-dash-nav { padding: 15px; overflow-x: auto; }
+                .bc-dash-body { padding: 30px 20px; }
+                .bc-form-row { grid-template-columns: 1fr; }
+                .bc-table thead { display: none; }
+                .bc-row td { display: block; padding: 10px 20px; border: none !important; text-align: right; }
+                .bc-row td:first-child { padding-top: 20px; }
+                .bc-row td:last-child { padding-bottom: 20px; border-radius: 16px !important; }
+                .bc-row td::before { content: attr(data-label); float: left; font-weight: 800; color: var(--bc-text-muted); font-size: 12px; }
             }
         </style>
 
+        <div class="bc-dash-wrapper">
+            <?php if (!is_user_logged_in()): ?>
+                <div class="bc-login-card">
+                    <div class="bc-login-icon">
+                        <svg width="32" height="32" viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-80-56a12,12,0,1,1-12-12A12,12,0,0,1,128,152Z"></path></svg>
+                    </div>
+                    <h3 style="font-size: 28px; margin-bottom: 10px;"><?php _e('Patient Portal', 'boocommerce'); ?></h3>
+                    <p style="color: var(--bc-text-muted); margin-bottom: 35px;"><?php _e('Please sign in to manage your appointments, view medical history, and update your clinical profile.', 'boocommerce'); ?></p>
+                    <a href="<?php echo home_url('/patient-login'); ?>" class="bc-btn" style="display: block; text-decoration: none; background: var(--bc-gradient); color: #fff; padding: 16px; border-radius: 16px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3); text-align: center;"><?php _e('Access My Portal', 'boocommerce'); ?></a>
+                </div>
+            <?php else: 
+                $current_user = wp_get_current_user();
+                $email = $current_user->user_email;
+                global $wpdb;
 
+                $customer_table = $wpdb->prefix . 'bc_customers';
+                $booking_table = $wpdb->prefix . 'bc_bookings';
+                $services_table = $wpdb->prefix . 'bc_services';
+                $staff_table = $wpdb->prefix . 'bc_staff';
 
-        <div class="bc-client-dash"
-            style="max-width: 900px; margin: 40px auto; padding: 35px; background:#fff; border-radius:20px; border:1.5px solid var(--bc-border); box-shadow:var(--bc-shadow-md);">
+                $bookings = $wpdb->get_results($wpdb->prepare(
+                    "SELECT b.*, st.name as staff_name 
+                     FROM $booking_table b 
+                     JOIN $customer_table c ON b.customer_id = c.id
+                     LEFT JOIN $staff_table st ON b.staff_id = st.id
+                     WHERE c.email = %s 
+                     ORDER BY b.booking_date DESC, b.start_time DESC",
+                    $email
+                ));
 
-            <?php if (isset($_GET['bc_payment_confirmed'])): ?>
-                <div id="bc-success-overlay"
-                    style="background: #ffffff; border: 1.5px solid #10b981; padding: 40px; border-radius: 24px; margin-bottom: 40px; text-align: center; box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.15); position: relative; overflow: hidden;">
-                    <button onclick="bcCloseSuccess()"
-                        style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #10b981; font-size: 24px; cursor: pointer; opacity: 0.5; font-weight: 800;">&times;</button>
-                    <div
-                        style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(16, 185, 129, 0.05); border-radius: 50%;">
+                foreach ($bookings as &$b) {
+                    $b->service_name = __('Treatment Session', 'boocommerce');
+                    if (!empty($b->service_id)) {
+                        $ids = array_map('intval', explode(',', $b->service_id));
+                        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                        $services = $wpdb->get_results($wpdb->prepare("SELECT name FROM $services_table WHERE id IN ($placeholders)", $ids));
+                        if ($services) {
+                            $names = array_map(function($s) { return $s->name; }, $services);
+                            $b->service_name = implode(', ', $names);
+                        }
+                    }
+                }
+                unset($b);
+                ?>
+                <div class="bc-dashboard-main">
+                    <div class="bc-dash-header">
+                        <div>
+                            <h3 style="margin: 0; font-size: 24px;"><?php printf(__('Welcome back, %s', 'boocommerce'), esc_html($current_user->first_name)); ?></h3>
+                            <p style="margin: 5px 0 0; color: var(--bc-text-muted); font-size: 14px;"><?php _e('Managing your health, simplified.', 'boocommerce'); ?></p>
+                        </div>
+                        <a href="<?php echo wp_logout_url(get_permalink()); ?>" style="color: var(--bc-error); font-weight: 700; text-decoration: none; font-size: 14px; padding: 10px 20px; background: rgba(239, 68, 68, 0.05); border-radius: 12px;"><?php _e('Secure Logout', 'boocommerce'); ?></a>
                     </div>
 
-                    <div
-                        style="width: 80px; height: 80px; background: #10b981; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 25px; animation: bcPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-                        ✓</div>
+                    <div class="bc-dash-nav">
+                        <div class="bc-nav-link active" data-target="bc-dash-bookings">
+                            <i class="ph ph-calendar-check" style="margin-right: 8px;"></i> <?php _e('My Appointments', 'boocommerce'); ?>
+                        </div>
+                        <div class="bc-nav-link" data-target="bc-dash-account">
+                            <i class="ph ph-user-gear" style="margin-right: 8px;"></i> <?php _e('Profile & Security', 'boocommerce'); ?>
+                        </div>
+                    </div>
 
-                    <h2 style="margin: 0 0 10px; font-size: 28px; font-weight: 800; color: #064e3b;"><?php _e('Payment Successful!', 'boocommerce'); ?></h2>
-                    <p
-                        style="color: #065f46; font-size: 16px; margin: 0 0 30px; line-height: 1.6; max-width: 500px; margin-left: auto; margin-right: auto;">
-                        <?php _e('Your secure transaction was confirmed. Your appointment has been successfully scheduled and added to your dashboard.', 'boocommerce'); ?></p>
+                    <div class="bc-dash-body">
+                        <!-- Bookings Tab -->
+                        <div id="bc-dash-bookings" class="bc-dash-content-panel">
+                            <?php if (empty($bookings)): ?>
+                                <div style="text-align: center; padding: 60px 0;">
+                                    <div style="font-size: 48px; color: #e2e8f0; margin-bottom: 20px;"><i class="ph ph-calendar-plus"></i></div>
+                                    <p style="color: var(--bc-text-muted); font-size: 16px;"><?php _e('You have no appointments scheduled at this time.', 'boocommerce'); ?></p>
+                                    <a href="<?php echo home_url('/booking'); ?>" style="display: inline-block; margin-top: 20px; color: var(--bc-brand); font-weight: 700; text-decoration: none;"><?php _e('Schedule a Treatment', 'boocommerce'); ?> →</a>
+                                </div>
+                            <?php else: ?>
+                                <div class="bc-booking-list">
+                                    <?php foreach ($bookings as $b): ?>
+                                        <div class="bc-appointment-card bc-booking-row" 
+                                            data-id="<?php echo esc_attr($b->id); ?>"
+                                            data-service="<?php echo esc_attr($b->service_name); ?>"
+                                            data-staff="<?php echo esc_attr($b->staff_name ?: __('ENT Specialist', 'boocommerce')); ?>"
+                                            data-date="<?php echo esc_attr(date('M d, Y', strtotime($b->booking_date))); ?>"
+                                            data-time="<?php echo esc_attr(date('h:i A', strtotime($b->start_time))); ?>"
+                                            data-amount="<?php echo bc_get_currency_symbol(get_option('bc_currency', 'USD')) . esc_attr($b->total_amount); ?>"
+                                            data-status="<?php echo esc_attr(ucfirst($b->status)); ?>">
+                                            
+                                            <div class="bc-app-ref">#<?php echo esc_html($b->id); ?></div>
+                                            
+                                            <div class="bc-app-info">
+                                                <h4><?php echo esc_html($b->service_name); ?></h4>
+                                                <p><?php echo esc_html($b->staff_name ?: __('ENT Specialist', 'boocommerce')); ?></p>
+                                            </div>
+                                            
+                                            <div class="bc-app-meta">
+                                                <div class="bc-meta-item">
+                                                    <i class="ph ph-calendar-blank"></i>
+                                                    <span><?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?></span>
+                                                </div>
+                                                <div class="bc-meta-item">
+                                                    <i class="ph ph-clock"></i>
+                                                    <span><?php echo esc_html(date('h:i A', strtotime($b->start_time))); ?></span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="bc-app-status">
+                                                <span class="bc-status-pill status-<?php echo esc_attr($b->status); ?>"><?php echo esc_html($b->status); ?></span>
+                                            </div>
+                                            
+                                            <div class="bc-app-actions">
+                                                <?php if ($b->status !== 'cancelled'): ?>
+                                                    <button class="bc-btn-icon bc-client-action-btn" data-action="reschedule" data-id="<?php echo esc_attr($b->id); ?>" title="<?php _e('Reschedule', 'boocommerce'); ?>">
+                                                        <i class="ph ph-calendar-check"></i>
+                                                    </button>
+                                                    <button class="bc-btn-icon btn-danger bc-client-action-btn" data-action="cancel" data-id="<?php echo esc_attr($b->id); ?>" title="<?php _e('Cancel Request', 'boocommerce'); ?>">
+                                                        <i class="ph ph-trash"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
 
-                    <div style="display: flex; gap: 15px; justify-content: center;">
-                        <button onclick="bcCloseSuccess()" class="bc-btn"
-                            style="background: #10b981; border: none; color: #fff; padding: 12px 30px; border-radius: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"><?php _e('Manage My Bookings', 'boocommerce'); ?></button>
+                        <!-- Account Tab -->
+                        <div id="bc-dash-account" class="bc-dash-content-panel" style="display: none;">
+                            <form id="bc-client-account-form">
+                                <!-- Section 1: Personal Identity -->
+                                <div class="bc-form-section">
+                                    <div class="bc-section-title">
+                                        <i class="ph ph-user"></i>
+                                        <h5><?php _e('Personal Identity', 'boocommerce'); ?></h5>
+                                    </div>
+                                    <div class="bc-form-row">
+                                        <div class="bc-input-group">
+                                            <label><?php _e('First Name', 'boocommerce'); ?></label>
+                                            <div class="bc-field-wrapper">
+                                                <div class="bc-field-icon"><i class="ph ph-identification-card"></i></div>
+                                                <input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>" required class="bc-input">
+                                            </div>
+                                        </div>
+                                        <div class="bc-input-group">
+                                            <label><?php _e('Last Name', 'boocommerce'); ?></label>
+                                            <div class="bc-field-wrapper">
+                                                <div class="bc-field-icon"><i class="ph ph-identification-card"></i></div>
+                                                <input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>" required class="bc-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section 2: Clinical Communication -->
+                                <div class="bc-form-section">
+                                    <div class="bc-section-title">
+                                        <i class="ph ph-broadcast"></i>
+                                        <h5><?php _e('Clinical Communication', 'boocommerce'); ?></h5>
+                                    </div>
+                                    <div class="bc-form-row">
+                                        <div class="bc-input-group">
+                                            <label><?php _e('Verified Email', 'boocommerce'); ?></label>
+                                            <div class="bc-field-wrapper">
+                                                <div class="bc-field-icon"><i class="ph ph-envelope-simple-open"></i></div>
+                                                <input type="email" value="<?php echo esc_attr($current_user->user_email); ?>" disabled class="bc-input">
+                                            </div>
+                                        </div>
+                                        <div class="bc-input-group">
+                                            <label><?php _e('Primary Contact', 'boocommerce'); ?></label>
+                                            <div class="bc-field-wrapper">
+                                                <div class="bc-field-icon"><i class="ph ph-phone"></i></div>
+                                                <input type="text" name="phone" value="<?php echo esc_attr(get_user_meta($current_user->ID, 'bc_client_phone', true)); ?>" class="bc-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bc-input-group" style="margin-top: 20px;">
+                                        <label><?php _e('Residential Address', 'boocommerce'); ?></label>
+                                        <div class="bc-field-wrapper">
+                                            <div class="bc-field-icon"><i class="ph ph-map-pin"></i></div>
+                                            <textarea name="address" rows="2" class="bc-input" style="resize: none;"><?php echo esc_textarea(get_user_meta($current_user->ID, 'bc_client_address', true)); ?></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section 3: Portal Security -->
+                                <div class="bc-form-section">
+                                    <div class="bc-section-title">
+                                        <i class="ph ph-shield-check"></i>
+                                        <h5><?php _e('Portal Security', 'boocommerce'); ?></h5>
+                                    </div>
+                                    <div class="bc-input-group">
+                                        <label><?php _e('Access Password', 'boocommerce'); ?> <small style="font-weight:400; opacity:0.7;">(Leave blank to keep current)</small></label>
+                                        <div class="bc-field-wrapper">
+                                            <div class="bc-field-icon"><i class="ph ph-key"></i></div>
+                                            <input type="password" name="password" placeholder="••••••••••••" class="bc-input">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 10px;">
+                                    <button type="submit" class="bc-btn" style="background: var(--bc-gradient); color: #fff; border: none; padding: 18px 50px; border-radius: 20px; font-weight: 800; cursor: pointer; box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3); font-size: 16px;"><?php _e('Sync Profile Changes', 'boocommerce'); ?></button>
+                                    <div id="bc-account-msg" style="font-weight: 800; font-size: 14px;"></div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
-
-            <div
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 35px; padding-bottom: 20px; border-bottom: 1px solid var(--bc-border);">
-                <h3 style="margin:0; font-size: 24px; font-weight:800;"><?php printf(__('Welcome Back, %s!', 'boocommerce'), esc_html($current_user->display_name)); ?></h3>
-                <a href="<?php echo wp_logout_url(get_permalink()); ?>"
-                    style="font-size:14px; color:#ef4444; font-weight:600; text-decoration:none;"><?php _e('Logout', 'boocommerce'); ?></a>
-            </div>
-
-            <div class="bc-dash-tabs"
-                style="display:flex; gap:15px; border-bottom:1.5px solid var(--bc-border); margin-bottom: 30px; padding-bottom: 1px;">
-                <button class="bc-dash-tab active" data-target="bc-dash-bookings"
-                    style="background:none; border:none; border-bottom:3px solid var(--bc-brand); padding: 10px 20px; font-size:16px; font-weight:700; color:var(--bc-brand); cursor:pointer;">📅
-                    <?php _e('My Bookings', 'boocommerce'); ?></button>
-                <button class="bc-dash-tab" data-target="bc-dash-account"
-                    style="background:none; border:none; border-bottom:3px solid transparent; padding: 10px 20px; font-size:16px; font-weight:700; color:var(--bc-text-muted); cursor:pointer;">⚙️
-                    <?php _e('Account Details', 'boocommerce'); ?></button>
-            </div>
-
-            <div id="bc-dash-bookings" class="bc-dash-content-panel">
-
-                <?php if (empty($bookings)): ?>
-                    <div style="text-align:center; padding:40px 0; color:var(--bc-text-muted);">
-                        <p><?php _e('You haven\'t made any appointments yet.', 'boocommerce'); ?></p>
-                    </div>
-                <?php else: ?>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%; border-collapse:collapse; text-align:left;">
-                            <thead>
-                                <tr
-                                    style="border-bottom:2px solid var(--bc-border); color:var(--bc-text-muted); font-size:14px; font-weight:700;">
-                                    <th style="padding:12px 15px;"><?php _e('Booking ID', 'boocommerce'); ?></th>
-                                    <th style="padding:12px 15px;"><?php _e('Service', 'boocommerce'); ?></th>
-                                    <th style="padding:12px 15px;"><?php _e('Date & Time', 'boocommerce'); ?></th>
-                                    <th style="padding:12px 15px;"><?php _e('Amount', 'boocommerce'); ?></th>
-                                    <th style="padding:12px 15px;"><?php _e('Status', 'boocommerce'); ?></th>
-                                    <th style="padding:12px 15px; text-align:right;"><?php _e('Actions', 'boocommerce'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($bookings as $b): ?>
-                                    <tr class="bc-booking-row" data-id="<?php echo esc_attr($b->id); ?>"
-                                        data-service="<?php echo esc_attr($b->service_name ?: 'Custom Service'); ?>"
-                                        data-staff="<?php echo esc_attr($b->staff_name ?: 'Assigned Professional'); ?>"
-                                        data-date="<?php echo esc_attr(date('M d, Y', strtotime($b->booking_date))); ?>"
-                                        data-time="<?php echo esc_attr(date('h:i A', strtotime($b->start_time))); ?>"
-                                        data-amount="<?php echo bc_get_currency_symbol(get_option('bc_currency', 'USD')) . esc_attr($b->total_amount); ?>"
-                                        data-status="<?php echo esc_attr(ucfirst($b->status)); ?>"
-                                        style="border-bottom:1px solid var(--bc-border); font-size:15px; color:var(--bc-text-main); cursor:pointer;">
-                                        <td data-label="<?php esc_attr_e('Booking ID', 'boocommerce'); ?>" style="padding:15px; font-weight:700;">
-                                            #<?php echo esc_html($b->id); ?></td>
-                                        <td data-label="<?php esc_attr_e('Service', 'boocommerce'); ?>" style="padding:15px; font-weight:600;">
-                                            <?php echo esc_html($b->service_name ?: __('Custom Service', 'boocommerce')); ?></td>
-                                        <td data-label="<?php esc_attr_e('Date & Time', 'boocommerce'); ?>" style="padding:15px; color:var(--bc-text-muted);">
-                                            <?php echo esc_html(date('M d, Y', strtotime($b->booking_date))); ?> @
-                                            <?php echo esc_html(date('h:i A', strtotime($b->start_time))); ?></td>
-                                        <td data-label="<?php esc_attr_e('Amount', 'boocommerce'); ?>" style="padding:15px; font-weight:600;">
-                                            <?php echo bc_get_currency_symbol(get_option('bc_currency', 'USD')); ?>                <?php echo esc_html($b->total_amount); ?>
-                                        </td>
-                                        <td data-label="<?php esc_attr_e('Status', 'boocommerce'); ?>" style="padding:15px;">
-                                            <span style="padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; 
-                                        <?php
-                                        if ($b->status === 'confirmed' || $b->status === 'completed')
-                                            echo 'background:rgba(16, 185, 129, 0.1); color:#10b981;';
-                                        elseif ($b->status === 'cancelled')
-                                            echo 'background:rgba(239, 68, 68, 0.1); color:#ef4444;';
-                                        else
-                                            echo 'background:rgba(245, 158, 11, 0.1); color:#f59e0b;';
-                                        ?>">
-                                                <?php echo esc_html($b->status); ?>
-                                            </span>
-                                        </td>
-                                        <td style="padding:15px; text-align:right;">
-                                            <div style="display:flex; justify-content:flex-end; gap:8px; align-items:center;">
-                                                <?php if ($b->status !== 'cancelled'): ?>
-                                                    <button class="bc-client-action-btn" data-action="reschedule"
-                                                        data-id="<?php echo esc_attr($b->id); ?>"
-                                                        style="background:rgba(99, 102, 241, 0.08); color:var(--bc-brand); border:1px solid rgba(99, 102, 241, 0.2); padding:8px 15px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.2s ease;"><?php _e('Reschedule', 'boocommerce'); ?></button>
-                                                    <button class="bc-client-action-btn" data-action="cancel"
-                                                        data-id="<?php echo esc_attr($b->id); ?>"
-                                                        style="background:rgba(239, 68, 68, 0.05); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2); padding:8px 15px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.2s ease;"><?php _e('Cancel', 'boocommerce'); ?></button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div> <!-- Close bc-dash-bookings -->
-
-            <div id="bc-dash-account" class="bc-dash-content-panel" style="display:none;">
-                <h4 style="margin:0 0 25px; font-size:18px; color:var(--bc-text-main);">⚙️ <?php _e('Manage Account Details', 'boocommerce'); ?></h4>
-                <form id="bc-client-account-form">
-                    <div class="bc-form-grid"
-                        style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        <div class="bc-form-group">
-                            <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;"><?php _e('First Name', 'boocommerce'); ?> <span
-                                    style="color:#ef4444;">*</span></label>
-                            <input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>"
-                                required
-                                style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:10px; font-size:15px;">
-                        </div>
-                        <div class="bc-form-group">
-                            <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;"><?php _e('Last Name', 'boocommerce'); ?> <span
-                                    style="color:#ef4444;">*</span></label>
-                            <input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>"
-                                required
-                                style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:10px; font-size:15px;">
-                        </div>
-                    </div>
-
-                    <div class="bc-form-grid"
-                        style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                        <div class="bc-form-group">
-                            <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;"><?php _e('Email', 'boocommerce'); ?> <span
-                                    style="color:#ef4444;">*</span></label>
-                            <input type="email" name="email" value="<?php echo esc_attr($current_user->user_email); ?>" disabled
-                                style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:10px; font-size:15px; background:#f8fafc; cursor:not-allowed;">
-                        </div>
-                        <div class="bc-form-group">
-                            <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;"><?php _e('Phone Number', 'boocommerce'); ?></label>
-                            <input type="text" name="phone"
-                                value="<?php echo esc_attr(get_user_meta($current_user->ID, 'bc_client_phone', true)); ?>"
-                                style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:10px; font-size:15px;">
-                        </div>
-                    </div>
-
-                    <div class="bc-form-group" style="margin-bottom: 20px;">
-                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;"><?php _e('Residential Address', 'boocommerce'); ?></label>
-                        <textarea name="address" rows="3"
-                            style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:10px; font-size:15px; resize:vertical;"><?php echo esc_textarea(get_user_meta($current_user->ID, 'bc_client_address', true)); ?></textarea>
-                    </div>
-
-                    <div class="bc-form-group" style="margin-bottom: 25px;">
-                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:14px;"><?php _e('Change Password', 'boocommerce'); ?> <span
-                                style="color:var(--bc-text-muted); font-weight:normal; font-size:13px;"><?php _e('(Leave blank to keep current)', 'boocommerce'); ?></span></label>
-                        <input type="password" name="password" placeholder="••••••••"
-                            style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:10px; font-size:15px;">
-                    </div>
-
-                    <button type="submit" class="bc-btn bc-next-btn"
-                        style="padding: 12px 30px; border-radius:10px; border:none; font-weight:700; cursor:pointer; background:var(--bc-gradient); color:#fff;"><?php _e('Save Changes', 'boocommerce'); ?></button>
-                    <div id="bc-account-msg" style="margin-top: 15px; font-size:14px; display:none; font-weight:600;"></div>
-                </form>
-            </div>
         </div>
 
-        <!-- Booking Details Modal -->
-        <div id="bc-details-modal"
-            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.5); backdrop-filter:blur(8px); z-index:99999; align-items:center; justify-content:center;">
-            <div
-                style="background:#fff; padding:40px; border-radius:24px; width:100%; max-width:520px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); margin: auto 20px;">
-                <span class="bc-modal-close"
-                    style="position:absolute; top:25px; right:25px; font-size:28px; font-weight:bold; color:var(--bc-text-muted); cursor:pointer; line-height:1; transition:color 0.2s;">&times;</span>
-
-                <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
-                    <div
-                        style="width:50px; height:50px; background:var(--bc-ring); color:var(--bc-brand); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px;">
-                        📋</div>
-                    <h3 style="margin:0; font-size:22px; font-weight:800; color:var(--bc-text-main);"><?php _e('Booking Details', 'boocommerce'); ?></h3>
+        <!-- Details Modal Redesign -->
+        <div id="bc-details-modal" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(12px); z-index:99999; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:50px; border-radius:32px; width:100%; max-width:560px; position:relative; box-shadow: var(--bc-shadow-lg); margin: 20px;">
+                <span class="bc-modal-close" style="position:absolute; top:30px; right:30px; font-size:24px; color:var(--bc-text-muted); cursor:pointer;"><i class="ph ph-x"></i></span>
+                <div style="display:flex; align-items:center; gap:20px; margin-bottom:40px;">
+                    <div style="width:60px; height:60px; background:var(--bc-ring); color:var(--bc-brand); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:28px;"><i class="ph ph-file-medical"></i></div>
+                    <h3 style="margin:0; font-size:24px;"><?php _e('Appointment Dossier', 'boocommerce'); ?></h3>
                 </div>
-
-                <div
-                    style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; padding-bottom:20px; border-bottom:1px solid var(--bc-border);">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px; margin-bottom:30px; padding-bottom:30px; border-bottom:1px solid var(--bc-border);">
                     <div>
-                        <label
-                            style="font-size:12px; color:var(--bc-text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;"><?php _e('Booking ID', 'boocommerce'); ?></label>
-                        <div id="bc-modal-id" style="font-size:18px; font-weight:800; margin-top:5px; color:var(--bc-brand);">
-                        </div>
+                        <label style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px;"><?php _e('Reference', 'boocommerce'); ?></label>
+                        <div id="bc-modal-id" style="font-size:20px; font-weight:800; color:var(--bc-brand); margin-top:5px;"></div>
                     </div>
                     <div>
-                        <label
-                            style="font-size:12px; color:var(--bc-text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;"><?php _e('Amount', 'boocommerce'); ?></label>
-                        <div id="bc-modal-amount"
-                            style="font-size:18px; font-weight:800; margin-top:5px; color:var(--bc-text-main);"></div>
+                        <label style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px;"><?php _e('Total Fee', 'boocommerce'); ?></label>
+                        <div id="bc-modal-amount" style="font-size:20px; font-weight:800; color:var(--bc-text-main); margin-top:5px;"></div>
                     </div>
                 </div>
-
-                <div style="margin-bottom: 25px;">
-                    <label
-                        style="font-size:12px; color:var(--bc-text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;"><?php _e('Service', 'boocommerce'); ?></label>
-                    <div id="bc-modal-service"
-                        style="font-size:16px; font-weight:700; margin-top:5px; color:var(--bc-text-main);"></div>
+                <div style="margin-bottom:25px;">
+                    <label style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px;"><?php _e('Procedure', 'boocommerce'); ?></label>
+                    <div id="bc-modal-service" style="font-size:16px; font-weight:700; margin-top:5px;"></div>
                 </div>
-
-                <div style="margin-bottom: 25px;">
-                    <label
-                        style="font-size:12px; color:var(--bc-text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;"><?php _e('Assigned Professional', 'boocommerce'); ?></label>
-                    <div id="bc-modal-staff"
-                        style="font-size:16px; font-weight:600; margin-top:5px; color:var(--bc-text-main);"></div>
+                <div style="margin-bottom:25px;">
+                    <label style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px;"><?php _e('Assigned Specialist', 'boocommerce'); ?></label>
+                    <div id="bc-modal-staff" style="font-size:16px; font-weight:700; margin-top:5px;"></div>
                 </div>
-
-                <div style="margin-bottom: 25px;">
-                    <label
-                        style="font-size:12px; color:var(--bc-text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;"><?php _e('Date & Time', 'boocommerce'); ?></label>
-                    <div id="bc-modal-datetime"
-                        style="font-size:16px; font-weight:600; margin-top:5px; color:var(--bc-text-main);"></div>
+                <div style="margin-bottom:25px;">
+                    <label style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px;"><?php _e('Scheduled Time', 'boocommerce'); ?></label>
+                    <div id="bc-modal-datetime" style="font-size:16px; font-weight:700; margin-top:5px;"></div>
                 </div>
-
                 <div>
-                    <label
-                        style="font-size:12px; color:var(--bc-text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;"><?php _e('Status', 'boocommerce'); ?></label>
-                    <div style="margin-top:8px;">
-                        <span id="bc-modal-status"
-                            style="padding:6px 14px; border-radius:20px; font-size:13px; font-weight:700; text-transform:uppercase;"></span>
-                    </div>
+                    <label style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px;"><?php _e('Current Status', 'boocommerce'); ?></label>
+                    <div style="margin-top:10px;"><span id="bc-modal-status" class="bc-status"></span></div>
                 </div>
             </div>
         </div>
 
-        <!-- Reschedule Request Modal -->
-        <div id="bc-reschedule-modal"
-            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.5); backdrop-filter:blur(8px); z-index:99999; align-items:center; justify-content:center;">
-            <div
-                style="background:#fff; padding:40px; border-radius:24px; width:100%; max-width:520px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); margin: auto 20px;">
-                <span class="bc-reschedule-close"
-                    style="position:absolute; top:25px; right:25px; font-size:28px; font-weight:bold; color:var(--bc-text-muted); cursor:pointer; line-height:1; transition:color 0.2s;">&times;</span>
-
-                <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px;">
-                    <div
-                        style="width:50px; height:50px; background:var(--bc-ring); color:var(--bc-brand); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px;">
-                        📅</div>
-                    <h3 style="margin:0; font-size:22px; font-weight:800; color:var(--bc-text-main);"><?php _e('Reschedule Appointment', 'boocommerce'); ?>
-                    </h3>
+        <!-- Reschedule Modal Redesign -->
+        <div id="bc-reschedule-modal" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(12px); z-index:99999; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:50px; border-radius:32px; width:100%; max-width:560px; position:relative; box-shadow: var(--bc-shadow-lg); margin: 20px;">
+                <span class="bc-reschedule-close" style="position:absolute; top:30px; right:30px; font-size:24px; color:var(--bc-text-muted); cursor:pointer;"><i class="ph ph-x"></i></span>
+                <div style="display:flex; align-items:center; gap:20px; margin-bottom:40px;">
+                    <div style="width:60px; height:60px; background:var(--bc-ring); color:var(--bc-brand); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:28px;"><i class="ph ph-calendar-blank"></i></div>
+                    <h3 style="margin:0; font-size:24px;"><?php _e('Reschedule Treatment', 'boocommerce'); ?></h3>
                 </div>
-
                 <form id="bc-reschedule-form">
                     <input type="hidden" name="booking_id" id="bc-reschedule-id">
-
-                    <div style="margin-bottom:20px;">
-                        <label
-                            style="display:block; margin-bottom:8px; font-weight:700; font-size:13px; text-transform:uppercase; color:var(--bc-text-muted); letter-spacing:0.5px;"><?php _e('Choose a Professional', 'boocommerce'); ?></label>
-                        <select name="reschedule_staff" id="bc-reschedule-staff"
-                            style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:12px; font-size:15px; background:#fff;"
-                            required>
-                            <option value=""><?php _e('-- Select Professional --', 'boocommerce'); ?></option>
+                    <div style="margin-bottom:25px;">
+                        <label style="display:block; margin-bottom:10px; font-weight:800; font-size:12px; text-transform:uppercase; color:var(--bc-text-muted); letter-spacing:1px;"><?php _e('Select Professional', 'boocommerce'); ?></label>
+                        <?php 
+                        $all_staff = $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "bc_staff WHERE status = 'active' ORDER BY name ASC");
+                        ?>
+                        <select name="reschedule_staff" id="bc-reschedule-staff" class="bc-input" style="width:100%;" required>
+                            <option value=""><?php _e('-- Select Specialist --', 'boocommerce'); ?></option>
                             <?php foreach ($all_staff as $staff): ?>
                                 <option value="<?php echo esc_attr($staff->id); ?>"><?php echo esc_html($staff->name); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-
-                    <div style="margin-bottom:20px;">
-                        <label
-                            style="display:block; margin-bottom:8px; font-weight:700; font-size:13px; text-transform:uppercase; color:var(--bc-text-muted); letter-spacing:0.5px;"><?php _e('Pick a Date', 'boocommerce'); ?></label>
-                        <input type="date" name="reschedule_date" id="bc-reschedule-date" min="<?php echo date('Y-m-d'); ?>"
-                            style="width:100%; padding:12px; border:1.5px solid var(--bc-border); border-radius:12px; font-size:15px;"
-                            required>
+                    <div style="margin-bottom:25px;">
+                        <label style="display:block; margin-bottom:10px; font-weight:800; font-size:12px; text-transform:uppercase; color:var(--bc-text-muted); letter-spacing:1px;"><?php _e('Proposed Date', 'boocommerce'); ?></label>
+                        <input type="date" name="reschedule_date" id="bc-reschedule-date" min="<?php echo date('Y-m-d'); ?>" class="bc-input" style="width:100%;" required>
                     </div>
-
-                    <div id="bc-reschedule-slots-container" style="display:none; margin-bottom:30px;">
-                        <label
-                            style="display:block; margin-bottom:8px; font-weight:700; font-size:13px; text-transform:uppercase; color:var(--bc-text-muted); letter-spacing:0.5px;"><?php _e('Available Time Slots', 'boocommerce'); ?></label>
-                        <div class="bc-reschedule-slots"
-                            style="display:grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap:10px; max-height: 150px; overflow-y: auto; padding: 5px;">
-                            <!-- Loaded via AJAX -->
-                        </div>
+                    <div id="bc-reschedule-slots-container" style="display:none; margin-bottom:35px;">
+                        <label style="display:block; margin-bottom:10px; font-weight:800; font-size:12px; text-transform:uppercase; color:var(--bc-text-muted); letter-spacing:1px;"><?php _e('Available Clinical Slots', 'boocommerce'); ?></label>
+                        <div class="bc-reschedule-slots" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:12px; max-height:180px; overflow-y:auto; padding:5px;"></div>
                         <input type="hidden" name="reschedule_time" id="bc-reschedule-time-input" required>
-                        <div id="bc-reschedule-time-error"
-                            style="color:#ef4444; font-size:13px; margin-top:5px; display:none;"><?php _e('Please select a time slot.', 'boocommerce'); ?>
-                        </div>
                     </div>
-
-                    <div id="bc-reschedule-msg" style="margin-bottom:15px; font-size:14px; font-weight:600; display:none;">
-                    </div>
-
-                    <button type="submit" class="bc-btn"
-                        style="display:block; width:100%; padding:14px; border:none; border-radius:14px; background:var(--bc-gradient); color:#fff; font-weight:700; font-size:16px; cursor:pointer; box-shadow:var(--bc-shadow-md);"><?php _e('Request Reschedule', 'boocommerce'); ?></button>
+                    <button type="submit" class="bc-btn" style="width:100%; background: var(--bc-gradient); color: #fff; border: none; padding: 16px; border-radius: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);"><?php _e('Confirm Reschedule Request', 'boocommerce'); ?></button>
+                    <div id="bc-reschedule-msg" style="margin-top:20px; font-weight:700; font-size:14px; text-align:center;"></div>
                 </form>
             </div>
         </div>
 
-        <!-- Cancel Booking Modal -->
-        <div id="bc-cancel-modal"
-            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.5); backdrop-filter:blur(8px); z-index:99999; align-items:center; justify-content:center;">
-            <div
-                style="background:#fff; padding:40px; border-radius:24px; width:100%; max-width:450px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); margin: auto 20px; text-align:center;">
-                <span class="bc-cancel-close"
-                    style="position:absolute; top:25px; right:25px; font-size:28px; font-weight:bold; color:var(--bc-text-muted); cursor:pointer; line-height:1;">&times;</span>
-
-                <div
-                    style="width:70px; height:70px; background:rgba(239, 68, 68, 0.1); color:#ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 25px;">
-                    ⚠️</div>
-
-                <h3 style="margin:0 0 10px; font-size:22px; font-weight:800; color:var(--bc-text-main);"><?php _e('Request Cancellation', 'boocommerce'); ?>
-                </h3>
-                <p style="color:var(--bc-text-muted); font-size:15px; line-height:1.6; margin:0 0 30px;"><?php printf(__('Are you sure you want to request cancellation for appointment %s? This request is subject to administrative review.', 'boocommerce'), '<strong id="bc-cancel-title-id" style="color:var(--bc-text-main);"></strong>'); ?></p>
-
+        <!-- Cancel Modal Redesign -->
+        <div id="bc-cancel-modal" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(12px); z-index:99999; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:50px; border-radius:32px; width:100%; max-width:480px; position:relative; box-shadow: var(--bc-shadow-lg); margin: 20px; text-align:center;">
+                <span class="bc-cancel-close" style="position:absolute; top:30px; right:30px; font-size:24px; color:var(--bc-text-muted); cursor:pointer;"><i class="ph ph-x"></i></span>
+                <div style="width:80px; height:80px; background:rgba(239, 68, 68, 0.1); color:var(--bc-error); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 30px;"><i class="ph ph-warning-octagon"></i></div>
+                <h3 style="margin:0 0 10px; font-size:24px;"><?php _e('Request Cancellation', 'boocommerce'); ?></h3>
+                <p style="color:var(--bc-text-muted); margin-bottom:35px;"><?php printf(__('Are you sure you want to request cancellation for appointment %s? This request is subject to clinical review.', 'boocommerce'), '<strong id="bc-cancel-title-id"></strong>'); ?></p>
                 <form id="bc-cancel-form">
                     <input type="hidden" name="booking_id" id="bc-cancel-id">
-                    <div id="bc-cancel-msg" style="margin-bottom:15px; font-size:14px; font-weight:600; display:none;"></div>
-
-                    <div style="display:flex; gap:15px; justify-content:center;">
-                        <button type="button" class="bc-cancel-close"
-                            style="flex:1; padding:14px; border:1.5px solid var(--bc-border); border-radius:12px; background:#fff; color:var(--bc-text-main); font-weight:700; font-size:15px; cursor:pointer; transition:all 0.2s;"><?php _e('Keep Booking', 'boocommerce'); ?></button>
-                        <button type="submit" class="bc-btn"
-                            style="flex:1; padding:14px; border:none; border-radius:12px; background:#ef4444; color:#fff; font-weight:700; font-size:15px; cursor:pointer; box-shadow:var(--bc-shadow-sm);"><?php _e('Request Cancellation', 'boocommerce'); ?></button>
+                    <div style="display:flex; gap:15px;">
+                        <button type="button" class="bc-cancel-close" style="flex:1; padding:16px; border-radius:14px; border:1.5px solid var(--bc-border); background:#fff; font-weight:700; cursor:pointer;"><?php _e('Dismiss', 'boocommerce'); ?></button>
+                        <button type="submit" class="bc-btn" style="flex:1; padding:16px; border-radius:14px; border:none; background:var(--bc-error); color:#fff; font-weight:700; cursor:pointer; box-shadow: 0 10px 20px rgba(239, 68, 68, 0.2);"><?php _e('Confirm', 'boocommerce'); ?></button>
                     </div>
+                    <div id="bc-cancel-msg" style="margin-top:20px; font-weight:700; font-size:14px;"></div>
                 </form>
             </div>
         </div>
@@ -1230,6 +1512,153 @@ class Bc_Public
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    public function render_login_page_shortcode($atts)
+    {
+        ob_start();
+        ?>
+        <div class="bc-virtual-wrapper" style="padding: 80px 20px; background: #f1f5f9; min-height: 100vh; display: flex; justify-content: center; align-items: center;">
+            <div class="bc-virtual-page" style="width: 100%; max-width: 480px; background: #fff; padding: 50px; border-radius: 32px; box-shadow: 0 30px 60px -12px rgba(15, 23, 42, 0.15); border: 1px solid rgba(0, 0, 0, 0.05);">
+                <div style="text-align: center; margin-bottom: 40px;">
+                    <div style="width: 80px; height: 80px; background: var(--bc-ring); color: var(--bc-brand); border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 25px;">
+                        <svg width="40" height="40" viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-80-56a12,12,0,1,1-12-12A12,12,0,0,1,128,152Z"></path></svg>
+                    </div>
+                    <h2 style="font-size: 28px; margin-bottom: 10px; color: var(--bc-text-main);"><?php _e('Clinical Login', 'boocommerce'); ?></h2>
+                    <p style="color: var(--bc-text-muted); font-size: 15px;"><?php _e('Enter your credentials to access the portal.', 'boocommerce'); ?></p>
+                </div>
+
+                <?php 
+                if (isset($_GET['login']) && $_GET['login'] === 'failed') {
+                    echo '<div class="bc-login-error" style="background:#fef2f2; color:#dc2626; padding:15px; border-radius:12px; border:1px solid #fee2e2; margin-bottom:25px; font-size:14px; font-weight:700; text-align:center;"><i class="ph ph-warning-circle" style="margin-right:8px;"></i>' . __('Invalid credentials. Please try again.', 'boocommerce') . '</div>';
+                }
+                ?>
+                <div id="bc-js-login-error" style="display:none; background:#fffbeb; color:#d97706; padding:15px; border-radius:12px; border:1px solid #fef3c7; margin-bottom:25px; font-size:14px; font-weight:700; text-align:center;"><i class="ph ph-info" style="margin-right:8px;"></i><?php _e('Please fill in all fields.', 'boocommerce'); ?></div>
+
+                <?php 
+                $args = array(
+                    'echo'           => true,
+                    'redirect'       => home_url('/booking-dashboard'), 
+                    'form_id'        => 'bc-login-form',
+                    'label_username' => __('Registered Email', 'boocommerce'),
+                    'label_password' => __('Secure Password', 'boocommerce'),
+                    'label_log_in'   => __('Enter My Portal', 'boocommerce'),
+                    'remember'       => true,
+                    'value_remember' => true
+                );
+                wp_login_form($args); 
+                ?>
+
+                <div style="margin-top: 30px; text-align: center; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                    <a href="javascript:void(0)" id="bc-forgot-password-trigger" style="color: var(--bc-brand); font-weight: 700; text-decoration: none; font-size: 14px;"><?php _e('Lost Clinical Access?', 'boocommerce'); ?></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forgot Password Modal -->
+        <div id="bc-forgot-modal" style="display:none; position:fixed; inset:0; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(12px); z-index:99999; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:50px; border-radius:32px; width:100%; max-width:480px; position:relative; box-shadow: var(--bc-shadow-lg); margin: 20px; text-align:center;">
+                <span class="bc-forgot-close" style="position:absolute; top:30px; right:30px; font-size:24px; color:var(--bc-text-muted); cursor:pointer;"><i class="ph ph-x"></i></span>
+                <div style="width:80px; height:80px; background:var(--bc-ring); color:var(--bc-brand); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 30px;"><i class="ph ph-shield-warning"></i></div>
+                <h3 style="margin:0 0 10px; font-size:24px;"><?php _e('Credential Reset', 'boocommerce'); ?></h3>
+                <p style="color:var(--bc-text-muted); margin-bottom:25px;"><?php _e('For security reasons, digital password resets are disabled. Please contact our clinical support team to verify your identity and reset your portal access.', 'boocommerce'); ?></p>
+                
+                <div style="background:#f8fafc; padding:20px; border-radius:16px; border:1px solid #e2e8f0; margin-bottom:30px;">
+                    <div style="font-size:11px; font-weight:800; color:var(--bc-text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;"><?php _e('Primary Support Contact', 'boocommerce'); ?></div>
+                    <a href="mailto:<?php echo get_option('admin_email'); ?>" style="font-size:18px; font-weight:800; color:var(--bc-brand); text-decoration:none;"><?php echo get_option('admin_email'); ?></a>
+                </div>
+
+                <button type="button" class="bc-forgot-close" style="width:100%; background: var(--bc-gradient); color: #fff; border: none; padding: 16px; border-radius: 16px; font-weight: 700; cursor: pointer;"><?php _e('I Understand', 'boocommerce'); ?></button>
+            </div>
+        </div>
+
+        <script>
+            jQuery(document).ready(function($) {
+                $('#bc-login-form').on('submit', function(e) {
+                    const user = $('#user_login').val();
+                    const pass = $('#user_pass').val();
+                    if (!user || !pass) {
+                        e.preventDefault();
+                        $('#bc-js-login-error').fadeIn();
+                        setTimeout(() => $('#bc-js-login-error').fadeOut(), 3000);
+                    }
+                });
+            });
+        </script>
+
+        <style>
+            #bc-login-form p { margin-bottom: 20px; }
+            #bc-login-form label { display: block; margin-bottom: 8px; font-weight: 800; font-size: 12px; text-transform: uppercase; color: var(--bc-text-muted); letter-spacing: 1px; }
+            #bc-login-form .input { width: 100%; padding: 16px; border: 1.5px solid #e2e8f0; border-radius: 16px; font-size: 15px; font-family: 'Inter', sans-serif; outline: none; transition: all 0.3s; color: var(--bc-text-main) !important; }
+            #bc-login-form .input:focus { border-color: var(--bc-brand); box-shadow: 0 0 0 4px var(--bc-ring); }
+            #bc-login-form .login-submit { margin-top: 30px; }
+            #bc-login-form input#wp-submit { 
+                all: unset !important;
+                width: 100% !important; 
+                box-sizing: border-box !important;
+                background: var(--bc-gradient) !important; 
+                color: #ffffff !important; 
+                -webkit-text-fill-color: #ffffff !important;
+                padding: 18px 20px !important; 
+                border-radius: 18px !important; 
+                font-weight: 800 !important; 
+                cursor: pointer !important; 
+                box-shadow: 0 12px 30px rgba(99, 102, 241, 0.3) !important; 
+                font-size: 16px !important;
+                font-family: 'Inter', sans-serif !important;
+                text-align: center !important;
+                display: block !important;
+                transition: all 0.3s ease !important;
+                -webkit-appearance: none !important;
+                appearance: none !important;
+                text-transform: none !important;
+                letter-spacing: normal !important;
+                text-indent: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            #bc-login-form input#wp-submit:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4) !important;
+                opacity: 0.9;
+            }
+            #bc-login-form .login-remember { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--bc-text-muted); }
+        </style>
+        <?php
+        return ob_get_clean();
+    }
+
+    public function bc_handle_login_failed($username) {
+        $referrer = wp_get_referer();
+        if ($referrer && strpos($referrer, 'patient-login') !== false) {
+            wp_redirect(add_query_arg('login', 'failed', $referrer));
+            exit;
+        }
+    }
+    public function bc_override_login_template($template)
+    {
+        if (is_page('patient-login')) {
+            ?>
+            <!DOCTYPE html>
+            <html <?php language_attributes(); ?>>
+            <head>
+                <meta charset="<?php bloginfo( 'charset' ); ?>">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <?php wp_head(); ?>
+                <style>
+                    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; }
+                    .bc-virtual-wrapper { min-height: 100vh !important; width: 100vw !important; padding: 0 !important; margin: 0 !important; }
+                </style>
+            </head>
+            <body <?php body_class(); ?>>
+                <?php echo $this->render_login_page_shortcode(array()); ?>
+                <?php wp_footer(); ?>
+            </body>
+            </html>
+            <?php
+            exit;
+        }
+        return $template;
     }
     public function bc_login_redirect($redirect_to, $request, $user)
     {
@@ -1670,7 +2099,7 @@ class Bc_Public
                             <div>
                                 <h4 class="bc-showcase-title"><?php echo esc_html($s->name); ?></h4>
                                 <div class="bc-showcase-meta">
-                                    <span><span class="dashicons dashicons-clock" style="font-size:14px; width:14px; height:14px; vertical-align:middle; margin-right:4px;"></span> <?php echo esc_html($s->duration); ?> min</span>
+                                    <span><i class="ph ph-clock" style="font-size:14px; vertical-align:middle; margin-right:4px;"></i> <?php echo esc_html($s->duration); ?> min</span>
                                     <span class="bc-showcase-price"><?php echo bc_get_currency_symbol(get_option('bc_currency', 'USD')); ?><?php echo esc_html($s->price); ?></span>
                                 </div>
                                 <p class="bc-showcase-desc"><?php echo esc_html(wp_trim_words($s->description, 15)); ?></p>

@@ -332,112 +332,113 @@ class Bc_Ajax {
         return $booking_id;
     }
 
-    public function bc_client_booking_action() {
+    public function client_reschedule() {
         global $wpdb;
+        check_ajax_referer('bc_nonce', 'nonce');
         
-        if(!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'bc_nonce')){
-            wp_send_json_error(array('message' => __('Security verification failed.', 'boocommerce')));
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('Please login to reschedule.', 'boocommerce')));
         }
         
-        if(!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Access Denied. Please login.', 'boocommerce')));
-        }
+        $booking_id = intval($_POST['booking_id']);
+        $new_date   = sanitize_text_field($_POST['date']);
+        $new_time   = sanitize_text_field($_POST['time']);
+        $staff_id   = intval($_POST['staff_id']);
         
-        $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
-        $client_action = isset($_POST['client_action']) ? sanitize_text_field($_POST['client_action']) : '';
-        
-        if(!$booking_id || !in_array($client_action, array('cancel', 'reschedule'))) {
-            wp_send_json_error(array('message' => __('Invalid request parameters.', 'boocommerce')));
-        }
-        
-        $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS request_type VARCHAR(50) DEFAULT NULL");
-        
+        $current_user = wp_get_current_user();
         $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_bookings WHERE id = %d", $booking_id));
         
-        if(!$booking) {
-            wp_send_json_error(array('message' => __('Booking record not found.', 'boocommerce')));
+        if (!$booking) {
+            wp_send_json_error(array('message' => __('Booking not found.', 'boocommerce')));
         }
+
+        // Logic to ensure the booking belongs to this user (via customer table)
+        $customer = $wpdb->get_row($wpdb->prepare("SELECT email FROM {$wpdb->prefix}bc_customers WHERE id = %d", $booking->customer_id));
+        if (!$customer || $customer->email !== $current_user->user_email) {
+            wp_send_json_error(array('message' => __('Access denied.', 'boocommerce')));
+        }
+
+        // Update booking with "Pending Reschedule" status or just record the request
+        // In a premium clinic, we might move it to pending for admin approval
+        $wpdb->update("{$wpdb->prefix}bc_bookings", array(
+            'status' => 'pending',
+            'requested_date' => $new_date,
+            'requested_time' => $new_time,
+            'requested_staff_id' => $staff_id,
+            'request_type' => 'reschedule'
+        ), array('id' => $booking_id));
         
+        // Notify Admin
         $admin_email = get_option('admin_email');
-        $current_user = wp_get_current_user();
+        $admin_subject = sprintf(__('[ACTION] Reschedule Request for #%d', 'boocommerce'), $booking_id);
+        $admin_details = '<div style="background:#f0f9ff; padding:20px; border-radius:12px; border:1px solid #e0f2fe;">
+            <strong>' . __('Patient:', 'boocommerce') . '</strong> ' . $current_user->display_name . '<br>
+            <strong>' . __('Proposed Date:', 'boocommerce') . '</strong> ' . $new_date . '<br>
+            <strong>' . __('Proposed Time:', 'boocommerce') . '</strong> ' . $new_time . '
+        </div>';
+        bc_send_modern_email($admin_email, $admin_subject, __('Reschedule Requested', 'boocommerce'), __('A patient has requested to move their appointment.', 'boocommerce'), $admin_details);
         
-        if ($client_action === 'cancel') {
-            $wpdb->update("{$wpdb->prefix}bc_bookings", array('status' => 'pending', 'request_type' => 'cancel'), array('id' => $booking_id));
-            
-            // Admin Notification
-            $admin_subject = sprintf(__('[Action Required] Cancellation Request: #%d', 'boocommerce'), $booking_id);
-            $admin_details = '<div style="background:#fef2f2; padding:20px; border-radius:12px; border:1px solid #fee2e2;">
-                <strong>' . __('Client Name:', 'boocommerce') . '</strong> ' . $current_user->display_name . '<br>
-                <strong>' . __('Booking ID:', 'boocommerce') . '</strong> #' . $booking_id . '
-            </div>';
-            bc_send_modern_email($admin_email, $admin_subject, __('Cancellation Request', 'boocommerce'), __('A client has requested to cancel their scheduled appointment.', 'boocommerce'), $admin_details);
-            
-            // Client Notification
-            $client_subject = sprintf(__('Cancellation Request Logged: #%d', 'boocommerce'), $booking_id);
-            $client_content = '<p>' . sprintf(__('Your request to cancel appointment #%d has been logged. Our team will review this shortly and update your status.', 'boocommerce'), $booking_id) . '</p>';
-            bc_send_modern_email($current_user->user_email, $client_subject, __('Request Received', 'boocommerce'), sprintf(__('Hello %s,', 'boocommerce'), $current_user->display_name), $client_content);
-            
-            wp_send_json_success(array('message' => __('Cancellation request submitted successfully!', 'boocommerce')));
-        } else {
-            $reschedule_staff = isset($_POST['reschedule_staff']) ? intval($_POST['reschedule_staff']) : 0;
-            $reschedule_date  = isset($_POST['reschedule_date']) ? sanitize_text_field($_POST['reschedule_date']) : '';
-            $reschedule_time  = isset($_POST['reschedule_time']) ? sanitize_text_field($_POST['reschedule_time']) : '';
-            
-            if (!$reschedule_staff || !$reschedule_date || !$reschedule_time) {
-                wp_send_json_error(array('message' => __('Please fill all fields correctly.', 'boocommerce')));
-            }
-            
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS requested_date DATE DEFAULT NULL");
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS requested_time TIME DEFAULT NULL");
-            $wpdb->query("ALTER TABLE {$wpdb->prefix}bc_bookings ADD COLUMN IF NOT EXISTS requested_staff_id INT DEFAULT NULL");
-
-            $wpdb->update("{$wpdb->prefix}bc_bookings", array(
-                'status' => 'pending',
-                'request_type' => 'reschedule',
-                'requested_date' => $reschedule_date,
-                'requested_time' => $reschedule_time,
-                'requested_staff_id' => $reschedule_staff
-            ), array('id' => $booking_id));
-            
-            // Admin Notification
-            $admin_subject = sprintf(__('[Action Required] Reschedule Request: #%d', 'boocommerce'), $booking_id);
-            $admin_details = '<div style="background:#f0f9ff; padding:20px; border-radius:12px; border:1px solid #e0f2fe;">
-                <strong>' . __('Client:', 'boocommerce') . '</strong> ' . $current_user->display_name . '<br>
-                <strong>' . __('Requested Date:', 'boocommerce') . '</strong> ' . $reschedule_date . '<br>
-                <strong>' . __('Requested Time:', 'boocommerce') . '</strong> ' . $reschedule_time . '
-            </div>';
-            bc_send_modern_email($admin_email, $admin_subject, __('Reschedule Requested', 'boocommerce'), __('A client has requested to move their appointment.', 'boocommerce'), $admin_details);
-            
-            // Client Notification
-            $client_subject = sprintf(__('Reschedule Request Logged: #%d', 'boocommerce'), $booking_id);
-            $client_content = '<p>' . sprintf(__('We have received your request to reschedule appointment #%d. Our team will check availability and confirm the change shortly.', 'boocommerce'), $booking_id) . '</p>';
-            bc_send_modern_email($current_user->user_email, $client_subject, __('Request Received', 'boocommerce'), sprintf(__('Hello %s,', 'boocommerce'), $current_user->display_name), $client_content);
-
-            wp_send_json_success(array('message' => __('Reschedule request submitted successfully!', 'boocommerce')));
-        }
+        wp_send_json_success(array('message' => __('Reschedule request sent for review.', 'boocommerce')));
     }
 
-    public function bc_update_account_details() {
+    public function client_cancel_request() {
         global $wpdb;
+        check_ajax_referer('bc_nonce', 'nonce');
         
-        if(!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'bc_nonce')){
-            wp_send_json_error(array('message' => __('Security verification failed.', 'boocommerce')));
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('Please login.', 'boocommerce')));
         }
         
-        if(!is_user_logged_in()) {
-            wp_send_json_error(array('message' => __('Access Denied. Please login.', 'boocommerce')));
-        }
-        
+        $booking_id = intval($_POST['booking_id']);
         $current_user = wp_get_current_user();
         
-        $first_name = sanitize_text_field($_POST['first_name']);
-        $last_name  = sanitize_text_field($_POST['last_name']);
-        $phone      = sanitize_text_field($_POST['phone']);
-        $address    = sanitize_textarea_field($_POST['address']);
-        $password   = sanitize_text_field($_POST['password']);
+        $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}bc_bookings WHERE id = %d", $booking_id));
+        if (!$booking) {
+            wp_send_json_error(array('message' => __('Booking not found.', 'boocommerce')));
+        }
+
+        $customer = $wpdb->get_row($wpdb->prepare("SELECT email FROM {$wpdb->prefix}bc_customers WHERE id = %d", $booking->customer_id));
+        if (!$customer || $customer->email !== $current_user->user_email) {
+            wp_send_json_error(array('message' => __('Access denied.', 'boocommerce')));
+        }
+
+        $wpdb->update("{$wpdb->prefix}bc_bookings", array(
+            'status' => 'pending',
+            'request_type' => 'cancel'
+        ), array('id' => $booking_id));
+        
+        // Notify Admin
+        $admin_email = get_option('admin_email');
+        $admin_subject = sprintf(__('[CRITICAL] Cancellation Request for #%d', 'boocommerce'), $booking_id);
+        $admin_details = '<div style="background:#fff1f2; padding:20px; border-radius:12px; border:1px solid #fee2e2;">
+            <strong>' . __('Patient:', 'boocommerce') . '</strong> ' . $current_user->display_name . '<br>
+            <strong>' . __('Booking ID:', 'boocommerce') . '</strong> #' . $booking_id . '
+        </div>';
+        bc_send_modern_email($admin_email, $admin_subject, __('Cancellation Requested', 'boocommerce'), __('A patient has requested to cancel their appointment.', 'boocommerce'), $admin_details);
+
+        wp_send_json_success(array('message' => __('Cancellation request sent for review.', 'boocommerce')));
+    }
+
+    public function update_client_profile() {
+        global $wpdb;
+        check_ajax_referer('bc_nonce', 'nonce');
+        
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('Access denied.', 'boocommerce')));
+        }
+        
+        $params = array();
+        parse_str($_POST['form_data'], $params);
+        
+        $current_user = wp_get_current_user();
+        $first_name = sanitize_text_field($params['first_name']);
+        $last_name  = sanitize_text_field($params['last_name']);
+        $phone      = sanitize_text_field($params['phone']);
+        $address    = sanitize_textarea_field($params['address']);
+        $password   = sanitize_text_field($params['password']);
         
         if (empty($first_name) || empty($last_name)) {
-            wp_send_json_error(array('message' => __('First and Last name are required fields.', 'boocommerce')));
+            wp_send_json_error(array('message' => __('First and Last name are required.', 'boocommerce')));
         }
         
         wp_update_user(array(
@@ -451,8 +452,8 @@ class Bc_Ajax {
         update_user_meta($current_user->ID, 'bc_client_address', $address);
         
         if (!empty($password)) {
-            if (strlen($password) < 6) {
-                wp_send_json_error(array('message' => __('Password must be at least 6 characters long.', 'boocommerce')));
+            if (strlen($password) < 8) {
+                wp_send_json_error(array('message' => __('Password must be at least 8 characters.', 'boocommerce')));
             }
             wp_set_password($password, $current_user->ID);
         }
@@ -463,7 +464,7 @@ class Bc_Ajax {
             array('email' => $current_user->user_email)
         );
         
-        wp_send_json_success(array('message' => __('Account details successfully updated!', 'boocommerce')));
+        wp_send_json_success(array('message' => __('Profile updated successfully.', 'boocommerce')));
     }
 
     public function create_checkout_session() {

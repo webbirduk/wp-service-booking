@@ -42,13 +42,16 @@ class Boocommerce {
         add_shortcode( 'bc_basket', array( $plugin_public, 'render_basket_shortcode' ) );
         add_shortcode( 'bc_booking_page', array( $plugin_public, 'render_booking_page_shortcode' ) );
         add_shortcode( 'bc_dashboard_page', array( $plugin_public, 'render_dashboard_page_shortcode' ) );
+        add_shortcode( 'bc_login_page', array( $plugin_public, 'render_login_page_shortcode' ) );
         add_action( 'init', array( $plugin_public, 'handle_stripe_return' ) );
         add_filter( 'login_redirect', array( $plugin_public, 'bc_login_redirect' ), 10, 3 );
         add_filter( 'logout_redirect', array( $plugin_public, 'bc_logout_redirect' ), 10, 3 );
         add_action( 'admin_init', array( $plugin_public, 'bc_restrict_admin_access' ) );
         add_filter( 'wp_nav_menu_items', array( $plugin_public, 'add_basket_to_menu' ), 10, 2 );
         add_action( 'wp_footer', array( $plugin_public, 'render_floating_booking_btn' ) );
-	}
+        add_filter( 'template_include', array( $plugin_public, 'bc_override_login_template' ) );
+        add_action( 'wp_login_failed', array( $plugin_public, 'bc_handle_login_failed' ) );
+    }
 
     private function define_ajax_hooks() {
         $plugin_ajax = new Bc_Ajax();
@@ -58,8 +61,10 @@ class Boocommerce {
         add_action('wp_ajax_bc_create_booking', array($plugin_ajax, 'create_booking'));
         add_action('wp_ajax_nopriv_bc_create_booking', array($plugin_ajax, 'create_booking'));
         
-        add_action('wp_ajax_bc_client_booking_action', array($plugin_ajax, 'bc_client_booking_action'));
-        add_action('wp_ajax_bc_update_account_details', array($plugin_ajax, 'bc_update_account_details'));
+        add_action('wp_ajax_bc_client_reschedule', array($plugin_ajax, 'client_reschedule'));
+        add_action('wp_ajax_bc_client_cancel_request', array($plugin_ajax, 'client_cancel_request'));
+        add_action('wp_ajax_bc_update_client_profile', array($plugin_ajax, 'update_client_profile'));
+        
         add_action('wp_ajax_bc_test_stripe_connection', array($plugin_ajax, 'test_stripe_connection'));
         
         add_action('wp_ajax_bc_create_stripe_intent', array($plugin_ajax, 'create_stripe_intent'));

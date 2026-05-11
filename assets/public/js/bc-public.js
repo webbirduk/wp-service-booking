@@ -1334,7 +1334,224 @@ jQuery(document).ready(function($) {
             }
         }
     }
+    // --- Dashboard Interactions ---
+    
+    // Tab Switching
+    $(document).on('click', '.bc-nav-link', function() {
+        $('.bc-nav-link').removeClass('active');
+        $(this).addClass('active');
+        
+        const target = $(this).data('target');
+        $('.bc-dash-content-panel').hide();
+        $('#' + target).fadeIn(300);
+    });
+
+    // Modal Handlers
+    $(document).on('click', '.bc-booking-row', function(e) {
+        if ($(e.target).closest('.bc-client-action-btn').length) return;
+        
+        const data = $(this).data();
+        $('#bc-modal-id').text('#' + data.id);
+        $('#bc-modal-service').text(data.service);
+        $('#bc-modal-staff').text(data.staff);
+        $('#bc-modal-datetime').text(data.date + ' at ' + data.time);
+        $('#bc-modal-amount').text(data.amount);
+        
+        const $status = $('#bc-modal-status');
+        $status.text(data.status).removeClass().addClass('bc-status status-' + data.status.toLowerCase());
+        
+        $('#bc-details-modal').css('display', 'flex').hide().fadeIn(300);
+    });
+
+    $(document).on('click', '.bc-modal-close, #bc-details-modal', function(e) {
+        if (e.target !== this && !$(e.target).closest('.bc-modal-close').length) return;
+        $('#bc-details-modal').fadeOut(200);
+    });
+
+    // Action Buttons (Reschedule/Cancel)
+    $(document).on('click', '.bc-client-action-btn', function(e) {
+        e.stopPropagation();
+        const action = $(this).data('action');
+        const id = $(this).data('id');
+        
+        if (action === 'reschedule') {
+            $('#bc-reschedule-id').val(id);
+            $('#bc-reschedule-msg').text('');
+            $('#bc-reschedule-modal').css('display', 'flex').hide().fadeIn(300);
+        } else if (action === 'cancel') {
+            $('#bc-cancel-id').val(id);
+            $('#bc-cancel-title-id').text('#' + id);
+            $('#bc-cancel-msg').text('');
+            $('#bc-cancel-modal').css('display', 'flex').hide().fadeIn(300);
+        }
+    });
+
+    $('.bc-reschedule-close, #bc-reschedule-modal').on('click', function(e) {
+        if (e.target !== this && !$(e.target).closest('.bc-reschedule-close').length) return;
+        $('#bc-reschedule-modal').fadeOut(200);
+    });
+
+    $('.bc-cancel-close, #bc-cancel-modal').on('click', function(e) {
+        if (e.target !== this && !$(e.target).closest('.bc-cancel-close').length) return;
+        $('#bc-cancel-modal').fadeOut(200);
+    });
+
+    // Reschedule Slot Loading
+    $('#bc-reschedule-date, #bc-reschedule-staff').on('change', function() {
+        const date = $('#bc-reschedule-date').val();
+        const staffId = $('#bc-reschedule-staff').val();
+        const bookingId = $('#bc-reschedule-id').val();
+        
+        if (!date || !staffId) return;
+        
+        const $container = $('#bc-reschedule-slots-container');
+        const $slots = $('.bc-reschedule-slots');
+        
+        $container.fadeIn(300);
+        $slots.html('<p style="grid-column:1/-1; text-align:center; padding:20px; font-size:12px; opacity:0.6;">Scanning clinical availability...</p>');
+        
+        $.ajax({
+            url: bc_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'bc_get_slots',
+                nonce: bc_ajax.nonce,
+                date: date,
+                staff_id: staffId,
+                reschedule_booking_id: bookingId // Optional: to exclude current slot if needed
+            },
+            success: function(response) {
+                if (response.success && response.data.slots.length > 0) {
+                    let html = '';
+                    response.data.slots.forEach(slot => {
+                        html += `<button type="button" class="bc-slot-pill" data-time="${slot}">${slot}</button>`;
+                    });
+                    $slots.html(html);
+                    
+                    // Slot selection
+                    $('.bc-slot-pill').on('click', function() {
+                        $('.bc-slot-pill').removeClass('active');
+                        $(this).addClass('active');
+                        $('#bc-reschedule-time-input').val($(this).data('time'));
+                    });
+                } else {
+                    $slots.html('<p style="grid-column:1/-1; text-align:center; padding:20px; font-size:12px; color:var(--bc-error);">No availability on this date.</p>');
+                }
+            }
+        });
+    });
+
+    // Form Submissions
+    $('#bc-reschedule-form').on('submit', function(e) {
+        e.preventDefault();
+        const $btn = $(this).find('button[type="submit"]');
+        const originalText = $btn.text();
+        
+        if (!$('#bc-reschedule-time-input').val()) {
+            alert('Please select a time slot.');
+            return;
+        }
+
+        $btn.text('Updating Schedule...').prop('disabled', true);
+        
+        $.ajax({
+            url: bc_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'bc_client_reschedule',
+                nonce: bc_ajax.nonce,
+                booking_id: $('#bc-reschedule-id').val(),
+                date: $('#bc-reschedule-date').val(),
+                time: $('#bc-reschedule-time-input').val(),
+                staff_id: $('#bc-reschedule-staff').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#bc-reschedule-msg').html('<span style="color:var(--bc-success);">Request Submitted Successfully.</span>');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    $('#bc-reschedule-msg').html('<span style="color:var(--bc-error);">' + response.data.message + '</span>');
+                    $btn.text(originalText).prop('disabled', false);
+                }
+            }
+        });
+    });
+
+    $('#bc-cancel-form').on('submit', function(e) {
+        e.preventDefault();
+        const $btn = $(this).find('button[type="submit"]');
+        const originalText = $btn.text();
+        
+        $btn.text('Processing...').prop('disabled', true);
+        
+        $.ajax({
+            url: bc_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'bc_client_cancel_request',
+                nonce: bc_ajax.nonce,
+                booking_id: $('#bc-cancel-id').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#bc-cancel-msg').html('<span style="color:var(--bc-success);">Cancellation Requested.</span>');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    $('#bc-cancel-msg').html('<span style="color:var(--bc-error);">' + response.data.message + '</span>');
+                    $btn.text(originalText).prop('disabled', false);
+                }
+            }
+        });
+    });
+
+    $('#bc-client-account-form').on('submit', function(e) {
+        e.preventDefault();
+        const $btn = $(this).find('button[type="submit"]');
+        const originalText = $btn.text();
+        
+        $btn.text('Saving...').prop('disabled', true);
+        
+        $.ajax({
+            url: bc_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'bc_update_client_profile',
+                nonce: bc_ajax.nonce,
+                form_data: $(this).serialize()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#bc-account-msg').html('<span style="color:var(--bc-success);">Profile updated successfully.</span>');
+                } else {
+                    $('#bc-account-msg').html('<span style="color:var(--bc-error);">' + response.data.message + '</span>');
+                }
+                $btn.text(originalText).prop('disabled', false);
+                setTimeout(() => $('#bc-account-msg').fadeOut(), 3000);
+            }
+        });
+    });
+
+    // Add CSS for slot pills if not already in PHP
+    $('<style>')
+        .prop('type', 'text/css')
+        .html(`
+            .bc-slot-pill { padding: 10px; border: 1.5px solid var(--bc-border); border-radius: 12px; background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+            .bc-slot-pill:hover { border-color: var(--bc-brand); color: var(--bc-brand); background: var(--bc-ring); }
+            .bc-slot-pill.active { background: var(--bc-brand); color: #fff; border-color: var(--bc-brand); box-shadow: 0 4px 12px var(--bc-ring); }
+        `)
+        .appendTo('head');
+
     handleServiceDeepLink();
+
+    // Forgot Password Modal
+    $(document).on('click', '#bc-forgot-password-trigger', function() {
+        $('#bc-forgot-modal').css('display', 'flex').hide().fadeIn(300);
+    });
+
+    $(document).on('click', '.bc-forgot-close, #bc-forgot-modal', function(e) {
+        if (e.target !== this && !$(e.target).closest('.bc-forgot-close').length) return;
+        $('#bc-forgot-modal').fadeOut(200);
+    });
 });
 
 /**
