@@ -1530,7 +1530,7 @@ class Bc_Public
 
                 <?php 
                 if (isset($_GET['login']) && $_GET['login'] === 'failed') {
-                    echo '<div class="bc-login-error" style="background:#fef2f2; color:#dc2626; padding:15px; border-radius:12px; border:1px solid #fee2e2; margin-bottom:25px; font-size:14px; font-weight:700; text-align:center;"><i class="ph ph-warning-circle" style="margin-right:8px;"></i>' . __('Invalid credentials. Please try again.', 'boocommerce') . '</div>';
+                    echo '<div class="bc-login-error" style="background:#fef2f2; color:#dc2626; padding:15px; border-radius:12px; border:1px solid #fee2e2; margin-bottom:25px; font-size:14px; font-weight:700; text-align:center;"><i class="ph ph-warning-circle" style="margin-right:8px;"></i>' . __('Invalid username or password. Please try again.', 'boocommerce') . '</div>';
                 }
                 ?>
                 <div id="bc-js-login-error" style="display:none; background:#fffbeb; color:#d97706; padding:15px; border-radius:12px; border:1px solid #fef3c7; margin-bottom:25px; font-size:14px; font-weight:700; text-align:center;"><i class="ph ph-info" style="margin-right:8px;"></i><?php _e('Please fill in all fields.', 'boocommerce'); ?></div>
@@ -1540,11 +1540,10 @@ class Bc_Public
                     'echo'           => true,
                     'redirect'       => home_url('/booking-dashboard'), 
                     'form_id'        => 'bc-login-form',
-                    'label_username' => __('Registered Email', 'boocommerce'),
-                    'label_password' => __('Secure Password', 'boocommerce'),
+                    'label_username' => __('Registered Username or email', 'boocommerce'),
+                    'label_password' => __('Your Password', 'boocommerce'),
                     'label_log_in'   => __('Enter My Portal', 'boocommerce'),
-                    'remember'       => true,
-                    'value_remember' => true
+                    'remember'       => false,
                 );
                 wp_login_form($args); 
                 ?>
@@ -1596,7 +1595,7 @@ class Bc_Public
                 all: unset !important;
                 width: 100% !important; 
                 box-sizing: border-box !important;
-                background: var(--bc-gradient) !important; 
+                background: var(--bc-brand) !important; 
                 color: #ffffff !important; 
                 -webkit-text-fill-color: #ffffff !important;
                 padding: 18px 20px !important; 
@@ -1622,7 +1621,6 @@ class Bc_Public
                 box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4) !important;
                 opacity: 0.9;
             }
-            #bc-login-form .login-remember { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--bc-text-muted); }
         </style>
         <?php
         return ob_get_clean();
