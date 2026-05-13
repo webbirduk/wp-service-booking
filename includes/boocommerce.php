@@ -51,6 +51,7 @@ class Boocommerce {
         add_action( 'wp_footer', array( $plugin_public, 'render_floating_booking_btn' ) );
         add_filter( 'template_include', array( $plugin_public, 'bc_override_login_template' ) );
         add_action( 'wp_login_failed', array( $plugin_public, 'bc_handle_login_failed' ) );
+        add_filter( 'show_admin_bar', array( $plugin_public, 'bc_hide_admin_bar_for_subscribers' ) );
     }
 
     private function define_ajax_hooks() {

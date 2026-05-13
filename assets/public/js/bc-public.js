@@ -615,7 +615,10 @@ jQuery(document).ready(function($) {
                     '<div style="width:100px; height:100px; background:#10b981; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:50px; margin:0 auto 30px; animation:bcPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);">✓</div>' +
                     '<h2 style="font-size:32px; font-weight:800; color:#0f172a; margin-bottom:15px;">All appointments secured!</h2>' +
                     '<p style="color:#64748b; font-size:18px; line-height:1.6; margin-bottom:40px;">Your scheduling request has been processed successfully. Check your email for details.</p>' +
-                    '<button onclick="location.reload()" class="bc-btn bc-next-btn" style="padding:15px 40px;">Book More Services</button>' +
+                    '<div style="display:flex; flex-direction:column; gap:15px; max-width:320px; margin:0 auto;">' +
+                    '<a href="' + bc_ajax.booking_url + '" class="bc-btn" style="display:block; text-decoration:none; padding:18px; background:var(--bc-gradient); color:#fff; border-radius:16px; font-weight:800; font-size:16px; box-shadow:0 10px 20px -5px var(--bc-ring);">Book More Services</a>' +
+                    '<a href="' + bc_ajax.dashboard_url + '" class="bc-btn" style="display:block; text-decoration:none; padding:18px; background:#fff; color:var(--bc-brand); border:2px solid var(--bc-brand); border-radius:16px; font-weight:800; font-size:16px;">Manage Booking</a>' +
+                    '</div>' +
                     '</div>'
                 );
             } else {

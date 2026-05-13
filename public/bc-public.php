@@ -128,6 +128,7 @@ class Bc_Public
             'nonce' => wp_create_nonce('bc_nonce'),
             'login_url' => wp_login_url(),
             'dashboard_url' => home_url('/booking-dashboard'),
+            'booking_url' => home_url('/book-appointment'),
             'stripe_pk' => get_option('bc_stripe_publishable_key', ''),
             'skip_professional' => get_option('bc_skip_professional_step', 'no'),
             'skip_payment' => get_option('bc_skip_payment_step', 'no'),
@@ -290,7 +291,7 @@ class Bc_Public
             .bc-field-wrap input, .bc-field-wrap select, .bc-field-wrap textarea { background-color: var(--bc-input-bg) !important; border-color: var(--bc-input-border) !important; color: var(--bc-body); }
             
             /* Modern Header System - Centered */
-            .bc-step-header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; margin-bottom: 40px; border-bottom: 1px solid var(--bc-input-border); padding-bottom: 30px; position: relative; z-index: 1000; }
+            .bc-step-header { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; margin-bottom: 40px; border-bottom: 1px solid var(--bc-input-border); padding-bottom: 30px; position: relative; z-index: 5; }
             .bc-step-badge { 
                 background: var(--bc-gradient); color: white; width: 50px; height: 50px; 
                 display: flex; align-items: center; justify-content: center; 
@@ -1168,6 +1169,17 @@ class Bc_Public
                 .bc-row td:first-child { padding-top: 20px; }
                 .bc-row td:last-child { padding-bottom: 20px; border-radius: 16px !important; }
                 .bc-row td::before { content: attr(data-label); float: left; font-weight: 800; color: var(--bc-text-muted); font-size: 12px; }
+                
+                .bc-appointment-card {
+                    grid-template-columns: 1fr;
+                    gap: 20px;
+                    padding: 25px;
+                    text-align: center;
+                }
+                .bc-app-ref { margin: 0 auto; }
+                .bc-app-meta { align-items: center; }
+                .bc-app-status { display: flex; justify-content: center; }
+                .bc-app-actions { justify-content: center; border-top: 1px solid var(--bc-border); padding-top: 15px; }
             }
         </style>
 
@@ -1240,7 +1252,7 @@ class Bc_Public
                                 <div style="text-align: center; padding: 60px 0;">
                                     <div style="font-size: 48px; color: #e2e8f0; margin-bottom: 20px;"><i class="ph ph-calendar-plus"></i></div>
                                     <p style="color: var(--bc-text-muted); font-size: 16px;"><?php _e('You have no appointments scheduled at this time.', 'boocommerce'); ?></p>
-                                    <a href="<?php echo home_url('/booking'); ?>" style="display: inline-block; margin-top: 20px; color: var(--bc-brand); font-weight: 700; text-decoration: none;"><?php _e('Schedule a Treatment', 'boocommerce'); ?> →</a>
+                                    <a href="<?php echo home_url('/book-appointment'); ?>" style="display: inline-block; margin-top: 20px; color: var(--bc-brand); font-weight: 700; text-decoration: none;"><?php _e('Schedule a Treatment', 'boocommerce'); ?> →</a>
                                 </div>
                             <?php else: ?>
                                 <div class="bc-booking-list">
@@ -1469,7 +1481,7 @@ class Bc_Public
         </div>
 
         <div style="text-align:center; margin: 35px auto;">
-            <a href="<?php echo esc_url(home_url('/booking')); ?>" class="bc-btn"
+            <a href="<?php echo esc_url(home_url('/book-appointment')); ?>" class="bc-btn"
                 style="display:inline-block; text-decoration:none; padding: 14px 40px; border-radius: 12px; background:var(--bc-gradient); color:#fff; font-weight:700; font-size:16px; box-shadow:var(--bc-shadow-md);"><?php _e('Book a Service', 'boocommerce'); ?></a>
         </div>
         <?php
@@ -1686,6 +1698,16 @@ class Bc_Public
     public function bc_logout_redirect($redirect_to, $requested_redirect_to, $user)
     {
         return home_url();
+    }
+    public function bc_hide_admin_bar_for_subscribers($show)
+    {
+        if (is_user_logged_in()) {
+            $user = wp_get_current_user();
+            if (in_array('subscriber', (array) $user->roles)) {
+                return false;
+            }
+        }
+        return $show;
     }
 
     /**
